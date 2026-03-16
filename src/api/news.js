@@ -23,7 +23,8 @@ function cacheGet(key) {
 
 function cacheSet(key, data) {
   try {
-    localStorage.setItem(`news_${key}`, JSON.stringify({ ts: Date.now(), data }));
+    const ts = Date.now();
+    localStorage.setItem(`news_${key}`, JSON.stringify({ ts, updatedAt: ts, data }));
   } catch {}
 }
 
@@ -70,7 +71,8 @@ function parseRssXml(xmlText, category, sourceName) {
 // Development: 같은 호출 (vercel dev 사용 시) 또는 직접 fetch 시도
 async function fetchViaProxy(rssUrl, category, sourceName) {
   const proxyUrl = `/api/rss?url=${encodeURIComponent(rssUrl)}`;
-  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+  // 개별 fetch 타임아웃: 4초 (전체 race가 아닌 소스별 적용)
+  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
   if (!res.ok) throw new Error(`proxy ${res.status}`);
   const text = await res.text();
   if (text.startsWith('{')) throw new Error('proxy returned JSON error');
@@ -82,7 +84,8 @@ async function fetchViaProxy(rssUrl, category, sourceName) {
 // ─── corsproxy.io 경유 취득 ────────────────────────────────────
 async function fetchViaCorsproxy(rssUrl, category, sourceName) {
   const url = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
-  const res  = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  // 느린 RSS 소스 대기 시간 최소화: 3초 타임아웃
+  const res  = await fetch(url, { signal: AbortSignal.timeout(3000) });
   if (!res.ok) throw new Error(`corsproxy ${res.status}`);
   const text = await res.text();
   if (!text.trim().startsWith('<')) throw new Error('corsproxy not xml');
@@ -254,12 +257,26 @@ async function fetchKrNews() {
   return items;
 }
 
-// ─── Promise 디덥 — 중복 호출 차단 ───────────────────────────
+// ─── Promise 디덥 + stale-while-revalidate ────────────────────
+// stale 데이터가 있으면 즉시 반환하고, 백그라운드에서 갱신
 const _pending = { all: null, coin: null, us: null, kr: null };
 
 function withDedup(key, fetchFn) {
   const cached = cacheGet(key);
+
+  // fresh 캐시 — 즉시 반환, 네트워크 호출 없음
   if (cached?.fresh) return Promise.resolve(cached.data);
+
+  // stale 캐시 — 즉시 반환 후 백그라운드에서 갱신 (stale-while-revalidate)
+  if (cached?.data) {
+    if (!_pending[key]) {
+      _pending[key] = fetchFn().finally(() => { _pending[key] = null; });
+    }
+    // stale 데이터를 즉시 반환 (사용자 체감 속도 개선)
+    return Promise.resolve(cached.data);
+  }
+
+  // 캐시 없음 — 네트워크 대기
   if (_pending[key]) return _pending[key];
   _pending[key] = fetchFn().finally(() => { _pending[key] = null; });
   return _pending[key];
@@ -311,10 +328,13 @@ export function getInitialNewsData(key = 'all') {
   return cacheGet(key)?.data ?? undefined;
 }
 
+// 캐시의 updatedAt 타임스탬프 반환 — 프론트에서 "N분 전 기준" 표시에 활용
 export function getInitialNewsTimestamp(key = 'all') {
   try {
     const raw = localStorage.getItem(`news_${key}`);
     if (!raw) return 0;
-    return JSON.parse(raw).ts ?? 0;
+    const parsed = JSON.parse(raw);
+    // updatedAt: 실제 데이터 갱신 시각 / ts: 캐시 저장 시각 (동일)
+    return parsed.updatedAt ?? parsed.ts ?? 0;
   } catch { return 0; }
 }

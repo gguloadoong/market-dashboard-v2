@@ -107,13 +107,14 @@ export async function fetchCoinsUpbitOnly(prevCoins = [], krwRate = 1466) {
 
   return prevCoins.map(coin => {
     const upbit = upbitMap[coin.id];
-    if (!upbit) return coin;
+    if (!upbit) return coin; // Upbit 미상장 코인은 기존 데이터(coingecko) 유지
     return {
       ...coin,
-      priceKrw:  upbit.priceKrw,
-      priceUsd:  upbit.priceKrw / krwRate,
-      change24h: upbit.change24h,
-      volume24h: upbit.volume24hKrw / krwRate,
+      priceKrw:    upbit.priceKrw,
+      priceUsd:    upbit.priceKrw / krwRate,
+      change24h:   upbit.change24h,
+      volume24h:   upbit.volume24hKrw / krwRate,
+      priceSource: 'upbit', // 10초 폴링은 항상 Upbit 소스
     };
   });
 }
@@ -140,6 +141,9 @@ export async function fetchCoins(krwRate = 1466) {
       ? sparkRaw.filter((_, i) => i % Math.ceil(sparkRaw.length / 20) === 0).slice(0, 20)
       : sparkRaw;
 
+    // 가격 소스: Upbit 우선, 없으면 CoinGecko fallback
+    const hasUpbit = !!upbit.priceKrw;
+
     return {
       id:       coin.id,
       symbol:   coin.symbol.toUpperCase(),
@@ -148,13 +152,17 @@ export async function fetchCoins(krwRate = 1466) {
       priceKrw,
       change24h,
       volume24h: (upbit.volume24hKrw ?? 0) / krwRate || coin.total_volume,
+      // CoinGecko 전용: 시총·도미넌스 계산에 사용
       marketCap: coin.market_cap,
       high24h: upbit.high24hKrw ? upbit.high24hKrw / krwRate : coin.high_24h,
       low24h:  upbit.low24hKrw  ? upbit.low24hKrw  / krwRate : coin.low_24h,
       high52w: upbit.high52wKrw ? upbit.high52wKrw / krwRate : null,
       low52w:  upbit.low52wKrw  ? upbit.low52wKrw  / krwRate : null,
+      // CoinGecko 전용: 스파크라인 7일치
       sparkline,
       image: coin.image,
+      // 가격 기준 명시: 프론트에서 출처 배지 표시 가능
+      priceSource: hasUpbit ? 'upbit' : 'coingecko',
     };
   });
 }

@@ -1,6 +1,7 @@
 // 워치리스트 테이블 — 로고 + 섹션 구분 + 티커 심볼 + 클릭 시 차트
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Sparkline from './Sparkline';
+import { useWatchlist } from '../hooks/useWatchlist';
 
 // ─── 숫자 포맷 ──────────────────────────────────────────────
 function fmt(n, d = 0) {
@@ -101,7 +102,7 @@ function LogoAvatar({ item, size = 32 }) {
 }
 
 // ─── 행 플래시 애니메이션 ────────────────────────────────────
-function FlashRow({ item, rank, krwRate, onClick, searchTerm }) {
+function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched }) {
   const rowRef  = useRef(null);
   const prevPct = useRef(getPct(item));
   const pct     = getPct(item);
@@ -146,8 +147,18 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm }) {
         hover:bg-[#F7F8FA] active:bg-[#F2F4F6]
         ${isHot ? 'bg-[#FFFBFB] hover:bg-[#FFF5F5]' : ''}`}
     >
+      {/* 관심종목 별 버튼 */}
+      <td className="pl-2 pr-0 py-3 w-7">
+        <button
+          onClick={e => { e.stopPropagation(); toggle(item.id || item.symbol); }}
+          className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-[14px] hover:scale-110 transition-transform"
+        >
+          {isWatched(item.id || item.symbol) ? '★' : '☆'}
+        </button>
+      </td>
+
       {/* 순위 */}
-      <td className="pl-4 pr-1 py-3 text-[12px] text-[#C9CDD2] w-8 text-center tabular-nums">{rank}</td>
+      <td className="pl-1 pr-1 py-3 text-[12px] text-[#C9CDD2] w-8 text-center tabular-nums">{rank}</td>
 
       {/* 종목: 로고 + 이름 + 티커 */}
       <td className="px-2 py-3">
@@ -242,7 +253,7 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm }) {
 function SectionHeader({ label, count, icon }) {
   return (
     <tr className="bg-[#F7F8FA]">
-      <td colSpan={9} className="px-4 py-2 border-b border-t border-[#E5E8EB]">
+      <td colSpan={10} className="px-4 py-2 border-b border-t border-[#E5E8EB]">
         <div className="flex items-center gap-2">
           <span className="text-[15px]">{icon}</span>
           <span className="text-[12px] font-bold text-[#191F28]">{label}</span>
@@ -279,6 +290,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const [sortDir, setSortDir] = useState('desc');
   const [search,  setSearch]  = useState('');
   const [filter,  setFilter]  = useState('all');
+  const { toggle, isWatched, watchlist } = useWatchlist();
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
@@ -313,11 +325,12 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         (i.symbol || '').toLowerCase().includes(q)
       );
     }
-    if (filter === 'up')   list = list.filter(i => getPct(i) > 0);
-    if (filter === 'down') list = list.filter(i => getPct(i) < 0);
-    if (filter === 'hot')  list = list.filter(i => getPct(i) >= 3);
+    if (filter === 'up')        list = list.filter(i => getPct(i) > 0);
+    if (filter === 'down')      list = list.filter(i => getPct(i) < 0);
+    if (filter === 'hot')       list = list.filter(i => getPct(i) >= 3);
+    if (filter === 'watchlist') list = list.filter(i => isWatched(i.id || i.symbol));
     return list;
-  }, [items, search, filter]);
+  }, [items, search, filter, watchlist, isWatched]);
 
   const hotCount = items.filter(i => getPct(i) >= 3).length;
   const isAll = type === 'all';

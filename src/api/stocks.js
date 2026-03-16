@@ -203,21 +203,71 @@ async function fetchYahooRace(symbol, id) {
   });
 }
 
-// 모든 지수 — Yahoo Finance 티커 매핑
+// ─── Stooq 한국 지수 (CORS 허용, 실시간에 가까운 데이터) ──────
+// 검증 결과: ^kospi 동작 확인, ^kosdaq N/D
+async function fetchStooqKospi() {
+  // Stooq CSV 형식: Symbol,Date,Time,Open,High,Low,Close,Volume,
+  const res = await fetch('https://stooq.com/q/l/?s=^kospi&f=sd2t2ohlcvn&h&e=json', {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`Stooq KOSPI ${res.status}`);
+  const data = await res.json();
+  const s = (data.symbols || []).find(x => x.Close && x.Close !== 'N/D');
+  if (!s) throw new Error('Stooq KOSPI: N/D');
+  const close = parseFloat(s.Close);
+  const open  = parseFloat(s.Open) || close;
+  return {
+    id:        'KOSPI',
+    value:     parseFloat(close.toFixed(2)),
+    change:    parseFloat((close - open).toFixed(2)),
+    changePct: parseFloat(((close - open) / open * 100).toFixed(2)),
+    isDelayed: false, // Stooq는 실시간(추정)
+    dataDelay: '실시간(추정)',
+  };
+}
+
+// 모든 지수 — Yahoo Finance 티커 매핑 (KOSPI 제외: Stooq 사용)
 const ALL_INDICES = [
-  { id: 'KOSPI',  symbol: '^KS11'   },
-  { id: 'KOSDAQ', symbol: '^KQ11'   },
-  { id: 'SPX',    symbol: '^GSPC'   },
-  { id: 'NDX',    symbol: '^IXIC'   },
-  { id: 'DJI',    symbol: '^DJI'    },
-  { id: 'DXY',    symbol: 'DX-Y.NYB'},
+  // KOSPI는 Stooq로 별도 처리
+  { id: 'KOSDAQ', symbol: '^KQ11'    },
+  { id: 'SPX',    symbol: '^GSPC'    },
+  { id: 'NDX',    symbol: '^IXIC'    },
+  { id: 'DJI',    symbol: '^DJI'     },
+  { id: 'DXY',    symbol: 'DX-Y.NYB' },
 ];
 
 export async function fetchIndices() {
-  const results = await Promise.allSettled(
+  // KOSPI: Stooq 1순위 → Yahoo fallback
+  const kospiPromise = (async () => {
+    try {
+      return await fetchStooqKospi();
+    } catch {
+      // Stooq 실패 시 Yahoo Finance fallback (최대 ~10분 지연 가능)
+      const result = await fetchYahooRace('^KS11', 'KOSPI');
+      return {
+        ...result,
+        isDelayed: true,    // Yahoo 경유 시 지연 가능성 있음
+        dataDelay: '~10분 지연',
+      };
+    }
+  })();
+
+  // KOSDAQ + 해외 지수: Yahoo Finance (지연 가능성 명시)
+  const otherResults = await Promise.allSettled(
     ALL_INDICES.map(({ id, symbol }) => fetchYahooRace(symbol, id))
   );
-  return results
+
+  const others = otherResults
     .filter(r => r.status === 'fulfilled')
-    .map(r => r.value);
+    .map(r => {
+      const v = r.value;
+      // KOSDAQ은 Yahoo 경유 — 지연 가능성 플래그
+      if (v.id === 'KOSDAQ') {
+        return { ...v, isDelayed: true, dataDelay: '~10분 지연' };
+      }
+      return { ...v, isDelayed: false, dataDelay: '실시간(추정)' };
+    });
+
+  const kospi = await kospiPromise.catch(() => null);
+  return [...(kospi ? [kospi] : []), ...others];
 }

@@ -4,12 +4,11 @@ import { useNewsAutoRefetch, useCategoryNewsQuery } from '../hooks/useNewsQuery'
 import WhalePanel from './WhalePanel';
 
 const TABS = [
-  { id: 'breaking', label: '🔴 속보' },
-  { id: 'all',      label: '전체'   },
-  { id: 'kr',       label: '국내'   },
-  { id: 'us',       label: '해외'   },
-  { id: 'coin',     label: '코인'   },
-  { id: 'whale',    label: '🐋 고래' },
+  { id: 'all',   label: '🔴 속보' },
+  { id: 'kr',    label: '국내'    },
+  { id: 'us',    label: '해외'    },
+  { id: 'coin',  label: '코인'    },
+  { id: 'whale', label: '🐋 고래' },
 ];
 
 const CAT_COLOR = {
@@ -76,10 +75,10 @@ function useTabNews(activeTab) {
 }
 
 export default function BreakingNewsPanel() {
-  const [activeTab, setActiveTab] = useState('breaking');
+  const [activeTab, setActiveTab] = useState('all');
   const { data: rawNews = [], isLoading, isError, refetch } = useTabNews(activeTab);
 
-  const news = activeTab === 'breaking' ? rawNews.slice(0, 20) : rawNews;
+  const news = activeTab === 'all' ? rawNews.slice(0, 20) : rawNews;
 
   return (
     <div className="flex flex-col h-full bg-white border-l border-[#E5E8EB]">
