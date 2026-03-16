@@ -63,3 +63,19 @@ export function useNewsRefresh() {
     qc.invalidateQueries({ queryKey: ['news'] });
   };
 }
+
+// 종목 키워드 기반 뉴스 필터 훅 — ChartSidePanel에서 사용
+export function useStockNews(symbol, name) {
+  const { data: allNews = [] } = useAllNewsQuery();
+
+  if (!symbol) return [];
+
+  const keywords = [symbol, name].filter(Boolean).map(k => k.toLowerCase());
+
+  return allNews
+    .filter(item => {
+      const text = (item.title + ' ' + (item.summary || item.description || '')).toLowerCase();
+      return keywords.some(kw => text.includes(kw));
+    })
+    .slice(0, 5);
+}

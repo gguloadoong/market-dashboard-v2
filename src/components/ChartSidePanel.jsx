@@ -22,7 +22,7 @@ class ChartErrorBoundary extends Component {
   }
 }
 import { fetchCandles } from '../api/chart';
-import { fetchAllNews } from '../api/news';
+import { useStockNews } from '../hooks/useNewsQuery';
 import InvestorFlow from './InvestorFlow';
 
 // 로고 URL
@@ -179,7 +179,9 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose }) {
   const [candles, setCandles] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartType, setChartType] = useState('candle');
-  const [news,    setNews]    = useState([]);
+
+  // 종목 키워드 기반 관련 뉴스 — React Query 캐시 활용
+  const relatedNews = useStockNews(item?.symbol || item?.id, item?.name || item?.nameEn);
 
   const pct    = item ? getPct(item) : 0;
   const isUp   = pct > 0;
@@ -218,20 +220,6 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose }) {
       })
       .finally(() => setChartLoading(false));
   }, [item?.symbol, item?.id, period]);
-
-  // 관련 뉴스 로드
-  useEffect(() => {
-    if (!item) return;
-    fetchAllNews()
-      .then(all => {
-        const kws = [item.name, item.symbol, item.nameEn].filter(Boolean).map(k => k.toLowerCase());
-        const filtered = all.filter(n =>
-          kws.some(k => n.title.toLowerCase().includes(k))
-        );
-        setNews(filtered.length > 0 ? filtered.slice(0, 4) : all.slice(0, 4));
-      })
-      .catch(() => setNews([]));
-  }, [item?.symbol, item?.id]);
 
   if (!item) return null;
 
@@ -364,34 +352,28 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose }) {
           {/* 투자자 동향 — 국내 종목만 */}
           {item.market === 'kr' && <InvestorFlow symbol={item.symbol} />}
 
-          {/* 관련 뉴스 */}
-          {news.length > 0 && (
-            <div className="mx-5 mb-6">
-              <div className="text-[13px] font-semibold text-[#191F28] mb-2">📰 관련 뉴스</div>
-              <div className="border border-[#F2F4F6] rounded-xl overflow-hidden">
-                {news.map((n, i) => {
-                  const isBreaking = (Date.now() - new Date(n.pubDate)) < 3600000;
-                  return (
-                    <a
-                      key={n.id || i}
-                      href={n.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-start gap-3 px-4 py-3 border-b border-[#F2F4F6] last:border-0 hover:bg-[#FAFBFC] transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          {isBreaking && (
-                            <span className="text-[10px] font-bold bg-[#FFF0F1] text-[#F04452] px-1.5 py-0.5 rounded">🔴 속보</span>
-                          )}
-                          <span className="text-[11px] text-[#B0B8C1]">{n.source} · {n.timeAgo}</span>
-                        </div>
-                        <div className="text-[13px] font-medium text-[#191F28] line-clamp-2">{n.title}</div>
-                      </div>
-                    </a>
-                  );
-                })}
+          {/* 관련 뉴스 — useStockNews 훅으로 React Query 캐시 활용 */}
+          {relatedNews.length > 0 && (
+            <div className="border-t border-[#F2F4F6] mt-4 pt-4 mb-6">
+              <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide px-4 mb-2">
+                관련 뉴스
               </div>
+              {relatedNews.map((n, i) => (
+                <a
+                  key={n.id || i}
+                  href={n.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0"
+                >
+                  {n.timeAgo && (
+                    <span className="text-[10px] text-[#B0B8C1] mb-0.5 block">{n.source} · {n.timeAgo}</span>
+                  )}
+                  <div className="text-[12px] text-[#191F28] font-medium leading-snug line-clamp-2">
+                    {n.title}
+                  </div>
+                </a>
+              ))}
             </div>
           )}
         </div>
