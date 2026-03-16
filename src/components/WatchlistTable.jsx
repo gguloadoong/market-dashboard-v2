@@ -2,6 +2,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Sparkline from './Sparkline';
 import { useWatchlist } from '../hooks/useWatchlist';
+// CDS Table 컴포넌트
+import { Table } from '@coinbase/cds-web/tables';
+import { TableBody } from '@coinbase/cds-web/tables';
+import { TableRow } from '@coinbase/cds-web/tables';
+import { TableCell } from '@coinbase/cds-web/tables';
+import { TableHeader } from '@coinbase/cds-web/tables';
+import { TableCaption } from '@coinbase/cds-web/tables';
 
 // ─── 숫자 포맷 ──────────────────────────────────────────────
 function fmt(n, d = 0) {
@@ -140,7 +147,7 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched 
   const usdPrice = item.market === 'us' && item.price ? `$${fmt(item.price, 2)}` : null;
 
   return (
-    <tr
+    <TableRow
       ref={rowRef}
       onClick={() => onClick?.(item)}
       className={`border-b border-[#F2F4F6] cursor-pointer group transition-colors duration-75
@@ -148,20 +155,20 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched 
         ${isHot ? 'bg-[#FFFBFB] hover:bg-[#FFF5F5]' : ''}`}
     >
       {/* 관심종목 별 버튼 */}
-      <td className="pl-2 pr-0 py-3 w-7">
+      <TableCell className="pl-2 pr-0 py-3 w-7">
         <button
           onClick={e => { e.stopPropagation(); toggle(item.id || item.symbol); }}
           className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-[14px] hover:scale-110 transition-transform"
         >
           {isWatched(item.id || item.symbol) ? '★' : '☆'}
         </button>
-      </td>
+      </TableCell>
 
       {/* 순위 */}
-      <td className="pl-1 pr-1 py-3 text-[12px] text-[#C9CDD2] w-8 text-center tabular-nums">{rank}</td>
+      <TableCell className="pl-1 pr-1 py-3 text-[12px] text-[#C9CDD2] w-8 text-center tabular-nums">{rank}</TableCell>
 
       {/* 종목: 로고 + 이름 + 티커 */}
-      <td className="px-2 py-3">
+      <TableCell className="px-2 py-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <LogoAvatar item={item} />
           <div className="min-w-0">
@@ -187,29 +194,25 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched 
             </div>
           </div>
         </div>
-      </td>
+      </TableCell>
 
-      {/* 현재가 (KRW) */}
-      <td className="px-3 py-3 text-right">
-        <div className="text-[14px] font-bold text-[#191F28] tabular-nums font-mono leading-tight">
-          {fmtKrwPrice(item, krwRate)}
-        </div>
-        {usdPrice && (
-          <div className="text-[11px] text-[#B0B8C1] tabular-nums font-mono mt-0.5 leading-tight">
-            {usdPrice}
-          </div>
-        )}
-      </td>
+      {/* 현재가 (KRW) — title/subtitle prop 활용 */}
+      <TableCell
+        title={fmtKrwPrice(item, krwRate)}
+        subtitle={usdPrice || undefined}
+        direction="vertical"
+        className="px-3 py-3 text-right"
+      />
 
       {/* 전일대비 */}
-      <td className={`px-3 py-3 text-right text-[13px] tabular-nums font-mono ${
+      <TableCell className={`px-3 py-3 text-right text-[13px] tabular-nums font-mono ${
         isUp ? 'text-[#F04452]' : isDown ? 'text-[#1764ED]' : 'text-[#8B95A1]'
       }`}>
         {fmtChangeAmt(item, krwRate)}
-      </td>
+      </TableCell>
 
       {/* 등락률 */}
-      <td className="px-3 py-3 text-right w-[90px]">
+      <TableCell className="px-3 py-3 text-right w-[90px]">
         <span className={`inline-block px-2 py-1 rounded-md text-[12px] font-bold tabular-nums font-mono ${
           isUp ? 'bg-[#FFF0F1] text-[#F04452]'
                : isDown ? 'bg-[#F0F4FF] text-[#1764ED]'
@@ -217,50 +220,50 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched 
         }`}>
           {isUp ? '▲' : isDown ? '▼' : '—'}{Math.abs(pct).toFixed(2)}%
         </span>
-      </td>
+      </TableCell>
 
       {/* 거래량 */}
-      <td className="px-3 py-3 text-right text-[12px] text-[#8B95A1] tabular-nums hidden sm:table-cell">
+      <TableCell className="px-3 py-3 text-right text-[12px] text-[#8B95A1] tabular-nums hidden sm:table-cell">
         {fmtLarge(volume)}
-      </td>
+      </TableCell>
 
       {/* 시가총액 */}
-      <td className="px-3 py-3 text-right text-[12px] text-[#8B95A1] tabular-nums hidden lg:table-cell">
+      <TableCell className="px-3 py-3 text-right text-[12px] text-[#8B95A1] tabular-nums hidden lg:table-cell">
         {fmtLarge(mcap)}
-      </td>
+      </TableCell>
 
       {/* 스파크라인 */}
-      <td className="px-3 py-3 w-[88px]">
+      <TableCell className="px-3 py-3 w-[88px]">
         <Sparkline
           data={item.sparkline}
           width={76}
           height={28}
           positive={isUp ? true : isDown ? false : undefined}
         />
-      </td>
+      </TableCell>
 
       {/* 클릭 화살표 */}
-      <td className="pr-4 py-3 w-8">
+      <TableCell className="pr-4 py-3 w-8">
         <svg className="text-[#C9CDD2] group-hover:text-[#8B95A1] transition-colors mx-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M9 18l6-6-6-6"/>
         </svg>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
 // ─── 섹션 헤더 (전체 탭) ─────────────────────────────────────
 function SectionHeader({ label, count, icon }) {
   return (
-    <tr className="bg-[#F7F8FA]">
-      <td colSpan={10} className="px-4 py-2 border-b border-t border-[#E5E8EB]">
+    <TableRow className="bg-[#F7F8FA]">
+      <TableCell colSpan={10} className="px-4 py-2 border-b border-t border-[#E5E8EB]">
         <div className="flex items-center gap-2">
           <span className="text-[15px]">{icon}</span>
           <span className="text-[12px] font-bold text-[#191F28]">{label}</span>
           <span className="text-[10px] text-[#B0B8C1] bg-[#E5E8EB] px-2 py-0.5 rounded-full ml-1">{count}종목</span>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -431,26 +434,42 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         <span className="ml-auto text-[11px] text-[#B0B8C1] tabular-nums">{totalCount}개 종목</span>
       </div>
 
-      {/* 테이블 */}
+      {/* 테이블 — CDS Table 컴포넌트 사용 */}
       <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-[#F8F9FA] border-b border-[#F2F4F6]">
-              <th className="pl-4 pr-1 py-2 text-center text-[11px] font-semibold text-[#B0B8C1] w-8">#</th>
-              <th className="px-2 py-2 text-left text-[11px] font-semibold text-[#B0B8C1] min-w-[200px]">종목</th>
-              <SortHeader label="현재가"   sortKey="price"     currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <SortHeader label="전일대비" sortKey="change"    currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <SortHeader label="등락률"   sortKey="changePct" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <SortHeader label="거래량"   sortKey="volume"    currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="hidden sm:table-cell" />
-              <SortHeader label="시가총액" sortKey="marketCap" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="hidden lg:table-cell" />
-              <th className="px-3 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-[88px]">차트</th>
-              <th className="w-8" />
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="w-full">
+          <TableCaption className="sr-only">종목 워치리스트 테이블</TableCaption>
+          <TableHeader>
+            <TableRow className="bg-[#F8F9FA] border-b border-[#F2F4F6]">
+              <TableCell as="th" scope="col" className="pl-4 pr-1 py-2 text-center text-[11px] font-semibold text-[#B0B8C1] w-8">#</TableCell>
+              <TableCell as="th" scope="col" className="px-2 py-2 text-left text-[11px] font-semibold text-[#B0B8C1] min-w-[200px]">종목</TableCell>
+              <TableCell as="th" scope="col"
+                className={`px-3 py-2.5 text-right text-[11px] font-semibold cursor-pointer hover:text-[#6B7684] select-none transition-colors ${sortKey === 'price' ? 'text-[#3182F6]' : 'text-[#B0B8C1]'}`}
+                onClick={() => handleSort('price')}
+              >현재가{sortKey === 'price' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
+              <TableCell as="th" scope="col"
+                className={`px-3 py-2.5 text-right text-[11px] font-semibold cursor-pointer hover:text-[#6B7684] select-none transition-colors ${sortKey === 'change' ? 'text-[#3182F6]' : 'text-[#B0B8C1]'}`}
+                onClick={() => handleSort('change')}
+              >전일대비{sortKey === 'change' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
+              <TableCell as="th" scope="col"
+                className={`px-3 py-2.5 text-right text-[11px] font-semibold cursor-pointer hover:text-[#6B7684] select-none transition-colors ${sortKey === 'changePct' ? 'text-[#3182F6]' : 'text-[#B0B8C1]'}`}
+                onClick={() => handleSort('changePct')}
+              >등락률{sortKey === 'changePct' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
+              <TableCell as="th" scope="col"
+                className={`px-3 py-2.5 text-right text-[11px] font-semibold cursor-pointer hover:text-[#6B7684] select-none transition-colors hidden sm:table-cell ${sortKey === 'volume' ? 'text-[#3182F6]' : 'text-[#B0B8C1]'}`}
+                onClick={() => handleSort('volume')}
+              >거래량{sortKey === 'volume' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
+              <TableCell as="th" scope="col"
+                className={`px-3 py-2.5 text-right text-[11px] font-semibold cursor-pointer hover:text-[#6B7684] select-none transition-colors hidden lg:table-cell ${sortKey === 'marketCap' ? 'text-[#3182F6]' : 'text-[#B0B8C1]'}`}
+                onClick={() => handleSort('marketCap')}
+              >시가총액{sortKey === 'marketCap' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
+              <TableCell as="th" scope="col" className="px-3 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-[88px]">차트</TableCell>
+              <TableCell as="th" scope="col" className="w-8" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {renderRows()}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
 
         {totalCount === 0 && (
           <div className="py-16 text-center text-[14px] text-[#B0B8C1]">

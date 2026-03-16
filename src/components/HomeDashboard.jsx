@@ -25,7 +25,14 @@ function IndexMiniChip({ idx }) {
     <div className="flex-shrink-0 bg-white rounded-xl px-3 py-2.5 flex items-center gap-2.5 border border-[#F2F4F6] shadow-sm">
       <span className="text-[13px]">{flag}</span>
       <div>
-        <div className="text-[10px] text-[#8B95A1] font-semibold leading-none mb-0.5">{idx.name}</div>
+        {/* 지수명 + 데이터 지연 배지 */}
+        <div className="flex items-center gap-1 mb-0.5">
+          <div className="text-[10px] text-[#8B95A1] font-semibold leading-none">{idx.name}</div>
+          {/* isDelayed: BE(fetchIndices)가 Yahoo 경유 시 true 반환 */}
+          {idx.isDelayed && (
+            <span className="text-[9px] text-[#B0B8C1] bg-[#F2F4F6] px-1 rounded">지연</span>
+          )}
+        </div>
         <div className="flex items-baseline gap-1.5">
           <span className="text-[14px] font-bold text-[#191F28] tabular-nums font-mono">
             {fmt(idx.value, 2)}
@@ -267,7 +274,7 @@ export default function HomeDashboard({
           <span className="text-[11px] text-[#B0B8C1] ml-auto">국내·해외·코인 통합</span>
         </div>
 
-        {/* 2열 그리드 */}
+        {/* 모바일 1열 / 태블릿 이상 2열 그리드 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-0">
           {hasData
             ? topMovers.map((item, i) => (
