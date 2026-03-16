@@ -2,11 +2,11 @@
 import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 import { fmt } from '../utils/format';
 
+// B안: '전체' 탭 제거, 홈 탭이 전체 통합 역할
 const TABS = [
-  { id: 'home', label: '🏠 홈' },
-  { id: 'all',  label: '전체' },
-  { id: 'kr',   label: '🇰🇷 국내주식' },
-  { id: 'us',   label: '🇺🇸 해외주식' },
+  { id: 'home', label: '🔥 지금 핫한 것' },
+  { id: 'kr',   label: '🇰🇷 국내' },
+  { id: 'us',   label: '🇺🇸 해외' },
   { id: 'coin', label: '🪙 코인' },
   { id: 'etf',  label: '📊 ETF' },
 ];

@@ -147,7 +147,7 @@ export default function App() {
   useEffect(() => { const id = setInterval(() => setKrStocks(p => simulateKorean(p)), 15000); return () => clearInterval(id); }, []);
   useEffect(() => { const id = setInterval(refreshIndices,     60000); return () => clearInterval(id); }, [refreshIndices]);
 
-  // ── 탭별 종목 데이터 ─────────────────────────────────────────
+  // ── 탭별 종목 데이터 (all 탭 제거, home은 HomeDashboard가 담당) ───
   const tabItems = useMemo(() => {
     switch (activeTab) {
       case 'home': return [];
@@ -155,13 +155,7 @@ export default function App() {
       case 'us':   return usStocks;
       case 'coin': return coins;
       case 'etf':  return etfs.map(e => ({ ...e, marketCap: e.aum }));
-      case 'all':
-      default:
-        return [
-          ...krStocks,
-          ...usStocks,
-          ...coins.map(c => ({ ...c, changePct: c.change24h })),
-        ];
+      default:     return krStocks;
     }
   }, [activeTab, krStocks, usStocks, coins, etfs]);
 

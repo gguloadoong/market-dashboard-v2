@@ -1,0 +1,63 @@
+/* src/styles/tokens.css */
+/* Coinbase Design System — 한국 증권 색상 오버라이드 적용 */
+
+:root {
+  /* ── 텍스트 ──────────────────────────────── */
+  --fg:           #191F28;   /* 기본 텍스트 */
+  --fg-muted:     #6B7684;   /* 보조 텍스트 */
+  --fg-disabled:  #B0B8C1;   /* 비활성 텍스트 */
+  --fg-inverse:   #FFFFFF;   /* 반전 텍스트 */
+
+  /* ── 시세 색상 (한국 컨벤션) ─────────────── */
+  --fg-positive:  #F04452;   /* 상승: 빨강 */
+  --fg-negative:  #1764ED;   /* 하락: 파랑 */
+  --fg-neutral:   #8B95A1;   /* 보합: 회색 */
+  --bg-positive:  #FFF0F1;   /* 상승 배경 */
+  --bg-negative:  #EDF4FF;   /* 하락 배경 */
+  --bg-warning:   #FFF4E6;   /* 경고 배경 */
+  --fg-warning:   #FF9500;   /* 경고 텍스트 */
+
+  /* ── 배경 ──────────────────────────────── */
+  --bg:           #F2F4F6;   /* 앱 배경 */
+  --bg-surface:   #FFFFFF;   /* 카드/패널 배경 */
+  --bg-alt:       #F7F8FA;   /* 교차 행 배경 */
+  --bg-hover:     #F2F4F6;   /* hover 상태 */
+
+  /* ── 선 ────────────────────────────────── */
+  --border:       #E5E8EB;   /* 기본 구분선 */
+  --border-heavy: #C9CDD2;   /* 강조 구분선 */
+
+  /* ── CDS Primary (Coinbase Blue) ─────── */
+  --primary:      rgb(0, 82, 255);  /* 링크, CTA */
+  --primary-muted: #EDF4FF;
+
+  /* ── 라이브/상태 ──────────────────────── */
+  --live:         #2AC769;   /* 실시간 연결 pulse */
+
+  /* ── 그림자 (CDS elevation) ───────────── */
+  --elevation-1: 0 2px 8px rgba(0,0,0,0.06);
+  --elevation-2: 0 8px 24px rgba(0,0,0,0.12);
+
+  /* ── 타이포그래피 (CDS 스케일) ──────────── */
+  --text-display:  2rem;      /* 대형 숫자 */
+  --text-title:    1.125rem;  /* 섹션 제목 */
+  --text-body:     0.9375rem; /* 본문 (15px) */
+  --text-label:    0.875rem;  /* 라벨 (14px) */
+  --text-caption:  0.8125rem; /* 캡션 (13px) */
+  --text-micro:    0.6875rem; /* 마이크로 (11px) */
+
+  /* ── 간격 (8px base) ────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* ── 반경 (CDS radius) ─────────────────── */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-pill: 9999px;
+}
