@@ -1,7 +1,9 @@
 // 워치리스트 테이블 — 로고 + 섹션 구분 + 티커 심볼 + 클릭 시 차트
 import { useState, useRef, useEffect, useMemo } from 'react';
+import React from 'react';
 import Sparkline from './Sparkline';
 import { useWatchlist } from '../hooks/useWatchlist';
+import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 // CDS Table 컴포넌트
 import { Table } from '@coinbase/cds-web/tables';
 import { TableBody } from '@coinbase/cds-web/tables';
@@ -79,7 +81,7 @@ function colorFor(symbol = '') {
 }
 
 // ─── 로고 아바타 (멀티-폴백) ─────────────────────────────────
-function LogoAvatar({ item, size = 32 }) {
+const LogoAvatar = React.memo(function LogoAvatar({ item, size = 32 }) {
   const urls = getLogoUrls(item);
   const [idx, setIdx] = useState(0);
   const label = (item.symbol || '?').slice(0, 2).toUpperCase();
@@ -106,10 +108,10 @@ function LogoAvatar({ item, size = 32 }) {
       {label}
     </div>
   );
-}
+});
 
 // ─── 행 플래시 애니메이션 ────────────────────────────────────
-function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched }) {
+const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched }) {
   const rowRef  = useRef(null);
   const prevPct = useRef(getPct(item));
   const pct     = getPct(item);
@@ -250,10 +252,15 @@ function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched 
       </TableCell>
     </TableRow>
   );
-}
+});
 
-// ─── 섹션 헤더 (전체 탭) ─────────────────────────────────────
-function SectionHeader({ label, count, icon }) {
+// ─── 섹션 헤더 (전체 탭) — 장 상태 배지 포함 ───────────────
+const SectionHeader = React.memo(function SectionHeader({ label, count, icon, type }) {
+  // 섹션 타입에 따라 장 상태 조회
+  const marketStatus = type === 'kr' ? getKoreanMarketStatus()
+                     : type === 'us' ? getUsMarketStatus()
+                     : null;
+
   return (
     <TableRow className="bg-[#F7F8FA]">
       <TableCell colSpan={10} className="px-4 py-2 border-b border-t border-[#E5E8EB]">
@@ -261,11 +268,26 @@ function SectionHeader({ label, count, icon }) {
           <span className="text-[15px]">{icon}</span>
           <span className="text-[12px] font-bold text-[#191F28]">{label}</span>
           <span className="text-[10px] text-[#B0B8C1] bg-[#E5E8EB] px-2 py-0.5 rounded-full ml-1">{count}종목</span>
+          {/* 장 운영 상태 배지 */}
+          {marketStatus && (
+            <span className="flex items-center gap-1 ml-1">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                marketStatus.status === 'open' ? 'bg-[#2AC769] animate-pulse' : 'bg-[#C9CDD2]'
+              }`} />
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                marketStatus.status === 'open'
+                  ? 'bg-[#F0FFF6] text-[#2AC769]'
+                  : 'bg-[#F2F4F6] text-[#8B95A1]'
+              }`}>
+                {marketStatus.label}
+              </span>
+            </span>
+          )}
         </div>
       </TableCell>
     </TableRow>
   );
-}
+});
 
 // ─── 컬럼 정렬 헤더 ─────────────────────────────────────────
 function SortHeader({ label, sortKey, currentKey, currentDir, onSort, className = '' }) {
@@ -293,6 +315,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const [sortDir, setSortDir] = useState('desc');
   const [search,  setSearch]  = useState('');
   const [filter,  setFilter]  = useState('all');
+  const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
   const { toggle, isWatched, watchlist } = useWatchlist();
 
   const handleSort = (key) => {
@@ -332,8 +355,10 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     if (filter === 'down')      list = list.filter(i => getPct(i) < 0);
     if (filter === 'hot')       list = list.filter(i => getPct(i) >= 3);
     if (filter === 'watchlist') list = list.filter(i => isWatched(i.id || i.symbol));
+    // ★ 관심종목만 보기 토글
+    if (showWatchlistOnly)      list = list.filter(i => isWatched(i.id || i.symbol));
     return list;
-  }, [items, search, filter, watchlist, isWatched]);
+  }, [items, search, filter, showWatchlistOnly, watchlist, isWatched]);
 
   const hotCount = items.filter(i => getPct(i) >= 3).length;
   const isAll = type === 'all';
@@ -365,7 +390,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
       return groups.flatMap(group => {
         const info = SECTION_INFO[group.key] || { label: group.key, icon: '📌' };
         return [
-          <SectionHeader key={`hdr-${group.key}`} label={info.label} count={group.items.length} icon={info.icon} />,
+          <SectionHeader key={`hdr-${group.key}`} label={info.label} count={group.items.length} icon={info.icon} type={group.key} />,
           ...group.items.map(item => {
             rank++;
             return (
@@ -376,6 +401,8 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
                 krwRate={krwRate}
                 onClick={onRowClick}
                 searchTerm={search}
+                toggle={toggle}
+                isWatched={isWatched}
               />
             );
           }),
@@ -390,6 +417,8 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         krwRate={krwRate}
         onClick={onRowClick}
         searchTerm={search}
+        toggle={toggle}
+        isWatched={isWatched}
       />
     ));
   };
@@ -430,6 +459,18 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
             </button>
           ))}
         </div>
+
+        {/* ★ 관심종목만 보기 토글 버튼 */}
+        <button
+          onClick={() => setShowWatchlistOnly(p => !p)}
+          className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+            showWatchlistOnly
+              ? 'bg-[#191F28] text-white border-[#191F28]'
+              : 'text-[#6B7684] border-[#E5E8EB] hover:bg-[#F2F4F6]'
+          }`}
+        >
+          ★ 관심종목
+        </button>
 
         <span className="ml-auto text-[11px] text-[#B0B8C1] tabular-nums">{totalCount}개 종목</span>
       </div>

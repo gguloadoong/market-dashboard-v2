@@ -3,7 +3,7 @@
 // BLOCK 2: 지금 핫한 것 (전 시장 통합 무버 TOP 8)
 // BLOCK 3: 속보 뉴스 (최신 5건)
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import Sparkline from './Sparkline';
 import MarketSummaryCards from './MarketSummaryCards';
 import { useAllNewsQuery } from '../hooks/useNewsQuery';
@@ -15,7 +15,7 @@ function fmt(n, d = 0) {
 }
 
 // ─── BLOCK 1: 지수 미니 칩 ──────────────────────────────────
-function IndexMiniChip({ idx }) {
+const IndexMiniChip = memo(function IndexMiniChip({ idx }) {
   const isUp   = (idx.changePct ?? 0) > 0;
   const isDown = (idx.changePct ?? 0) < 0;
   const color  = isUp ? '#F04452' : isDown ? '#1764ED' : '#8B95A1';
@@ -44,7 +44,7 @@ function IndexMiniChip({ idx }) {
       </div>
     </div>
   );
-}
+});
 
 // ─── BLOCK 2: 통합 무버 행 (시장 구분 뱃지 포함) ─────────────
 // 뱃지 색상: 국내(KR)=빨강, 해외(US)=파랑, 코인(COIN)=주황
@@ -54,7 +54,7 @@ const MARKET_BADGE = {
   COIN: { bg: '#FFF4E6', color: '#FF9500' },
 };
 
-function MoverRow({ item, rank, krwRate, onClick }) {
+const MoverRow = memo(function MoverRow({ item, rank, krwRate, onClick }) {
   const pct    = item._market === 'COIN' ? (item.change24h ?? 0) : (item.changePct ?? 0);
   const isUp   = pct > 0;
   const isDown = pct < 0;
@@ -129,7 +129,7 @@ function MoverRow({ item, rank, krwRate, onClick }) {
       </div>
     </div>
   );
-}
+});
 
 // ─── BLOCK 3: 뉴스 아이템 ─────────────────────────────────────
 const CAT_COLOR = {
@@ -138,7 +138,7 @@ const CAT_COLOR = {
   kr:   { bg: '#FFF0F0', color: '#F04452', label: 'KR'   },
 };
 
-function NewsRow({ item }) {
+const NewsRow = memo(function NewsRow({ item }) {
   const isBreaking = (Date.now() - new Date(item.pubDate)) < 3600000;
   const cat = CAT_COLOR[item.category] || { bg: '#F2F4F6', color: '#6B7684', label: 'NEWS' };
 
@@ -169,7 +169,7 @@ function NewsRow({ item }) {
       </div>
     </a>
   );
-}
+});
 
 // ─── 스켈레톤 플레이스홀더 ────────────────────────────────────
 function SkeletonRow({ count = 5 }) {
