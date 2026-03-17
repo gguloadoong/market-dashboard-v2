@@ -459,6 +459,17 @@ export default function HomeDashboard({
   const coinItems = useMemo(() => coins.map(c   => ({ ...c, _market: 'COIN' })), [coins]);
   const allItems  = useMemo(() => [...krItems, ...usItems, ...coinItems], [krItems, usItems, coinItems]);
 
+  // ─── 7일 이내 뉴스 (모든 섹션 공통 — surgeNewsMap보다 먼저 선언해야 TDZ 방지) ──
+  const recentNews = useMemo(() => {
+    if (!allNews.length) return [];
+    const cutoff = 7 * 24 * 60 * 60 * 1000;
+    return allNews.filter(n => {
+      if (!n.pubDate) return false;
+      try { return Date.now() - new Date(n.pubDate).getTime() < cutoff; }
+      catch { return false; }
+    });
+  }, [allNews]);
+
   // ─── SECTION 1: 급등 스포트라이트 계산 ─────────────────────
   const surgeItems = useMemo(() => {
     let list = allItems;
@@ -496,17 +507,6 @@ export default function HomeDashboard({
     () => [...coinItems].sort((a, b) => getPct(b) - getPct(a)).slice(0, 5),
     [coinItems]
   );
-
-  // ─── 7일 이내 뉴스 (3개 섹션 공통 사용) ───────────────────
-  const recentNews = useMemo(() => {
-    if (!allNews.length) return [];
-    const cutoff = 7 * 24 * 60 * 60 * 1000;
-    return allNews.filter(n => {
-      if (!n.pubDate) return false;
-      try { return Date.now() - new Date(n.pubDate).getTime() < cutoff; }
-      catch { return false; }
-    });
-  }, [allNews]);
 
   // ─── SECTION 4: 인사이트 (뉴스 × 무버 매칭) ────────────────
   const topMovers = useMemo(() => {

@@ -75,13 +75,18 @@ async function fetchYahooChart(symbol) {
 
 // ─── 미국 주식 ─────────────────────────────────────────────────
 export async function fetchUsStocksBatch(symbols) {
-  // 1) Yahoo v7 batch via proxy — 전일 종가 기반 정확한 등락률 제공
+  // 1) Stooq (직접 CORS 허용, 안정적) — Prev_Close 필드 기반 전일 종가 대비 등락률
+  try {
+    const data = await fetchStooq(symbols);
+    if (data.length >= symbols.length * 0.7) return data;
+  } catch {}
+
+  // 2) Yahoo v7 batch via allorigins proxy — Stooq 실패 시 fallback
   try {
     const results = await fetchYahooQuoteBatch(symbols);
     if (results.length >= symbols.length * 0.7) return results.map(r => ({
       symbol:    r.symbol,
       price:     r.regularMarketPrice,
-      // Yahoo: regularMarketChange/Percent 는 전일 종가 대비 → 정확한 등락률
       change:    r.regularMarketChange,
       changePct: r.regularMarketChangePercent,
       volume:    r.regularMarketVolume,
@@ -89,13 +94,6 @@ export async function fetchUsStocksBatch(symbols) {
       high52w:   r.fiftyTwoWeekHigh,
       low52w:    r.fiftyTwoWeekLow,
     }));
-  } catch {}
-
-  // 2) Stooq (Yahoo 실패 시 fallback — 시가 대비 근사치임을 주의)
-  // change/changePct는 당일 시가 대비이므로 정확한 전일 대비 아님
-  try {
-    const data = await fetchStooq(symbols);
-    if (data.length >= symbols.length * 0.7) return data;
   } catch {}
 
   // 3) Yahoo v8 개별 chart — 전일 종가(previousClose) 기반
