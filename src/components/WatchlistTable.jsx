@@ -318,7 +318,15 @@ function MarketStatusBadge({ type }) {
 }
 
 // ─── 메인 컴포넌트 ───────────────────────────────────────────
-export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466, onRowClick, loading = false }) {
+// ─── 데이터 신뢰도 배지 ─────────────────────────────────────
+const RELIABILITY = {
+  kr:   { label: '● LIVE', sub: '한국투자증권',  color: '#2AC769' },
+  us:   { label: '⏱ 15분 지연', sub: 'Yahoo Finance', color: '#FF9500' },
+  coin: { label: '● LIVE', sub: 'Upbit WebSocket', color: '#2AC769' },
+  etf:  { label: '⏱ 15분 지연', sub: 'Yahoo Finance', color: '#FF9500' },
+};
+
+export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466, onRowClick, loading = false, dataError = null, onRetry }) {
   const [sortKey, setSortKey] = useState('changePct');
   const [sortDir, setSortDir] = useState('desc');
   const [search,  setSearch]  = useState('');
@@ -425,8 +433,39 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     ));
   };
 
+  const reliability = RELIABILITY[type];
+
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+      {/* 데이터 신뢰도 + 에러 상태 배너 */}
+      {(reliability || dataError) && (
+        <div className={`flex items-center justify-between px-4 py-2 border-b border-[#F2F4F6] ${dataError ? 'bg-[#FFF8E1]' : 'bg-[#FAFBFC]'}`}>
+          {dataError ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-[13px]">⚠️</span>
+                <span className="text-[12px] text-[#7B5D00] font-medium">데이터 불러오기 실패 — 이전 데이터를 표시하고 있어요</span>
+              </div>
+              {onRetry && (
+                <button
+                  onClick={onRetry}
+                  className="text-[12px] text-[#3182F6] font-semibold px-3 py-1 rounded-lg hover:bg-[#EDF4FF] transition-colors flex-shrink-0"
+                >
+                  재시도
+                </button>
+              )}
+            </>
+          ) : reliability && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-[11px] font-semibold" style={{ color: reliability.color }}>
+                {reliability.label}
+              </span>
+              <span className="text-[10px] text-[#C9CDD2]">{reliability.sub}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 코인 탭 전용: BTC 도미넌스 + 전체 시총 통계 바 */}
       {coinMarketStats && (
         <div className="flex items-center gap-0 px-4 py-2.5 border-b border-[#F2F4F6] bg-[#FAFBFC] overflow-x-auto no-scrollbar">

@@ -35,6 +35,7 @@ export default function App() {
   const [krwRate, setKrwRate]             = useState(1466);
   const [lastUpdated, setLastUpdated]     = useState(null);
   const [loading, setLoading]             = useState(false);
+  const [dataErrors, setDataErrors]       = useState({ kr: false, us: false, coin: false });
   const [selectedItem, setSelectedItem]   = useState(null);
   const [searchOpen, setSearchOpen]       = useState(false);
   // 알림 권한 차단 시 복구 배너 표시 여부
@@ -83,8 +84,12 @@ export default function App() {
           const old = prev.find(p => p.id === c.id);
           return { ...c, sparkline: c.sparkline?.length ? c.sparkline : old?.sparkline ?? [] };
         }));
+        setDataErrors(prev => ({ ...prev, coin: false }));
       }
-    } catch (e) { console.warn('코인 전체갱신 실패 (캐시 사용):', e.message); }
+    } catch (e) {
+      console.warn('코인 전체갱신 실패 (캐시 사용):', e.message);
+      setDataErrors(prev => ({ ...prev, coin: true }));
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 미장 갱신 (30초) ────────────────────────────────────────
@@ -97,8 +102,12 @@ export default function App() {
           return u?.price ? { ...s, ...u, sparkline: u.sparkline?.length ? u.sparkline : s.sparkline } : s;
         }));
         checkAndAlertBatch(data, 'us');
+        setDataErrors(prev => ({ ...prev, us: false }));
       }
-    } catch (e) { console.warn('미장 갱신 실패:', e.message); }
+    } catch (e) {
+      console.warn('미장 갱신 실패:', e.message);
+      setDataErrors(prev => ({ ...prev, us: true }));
+    }
   }, []);
 
   // ── ETF 실시간 갱신 (60초) ──────────────────────────────────
@@ -127,8 +136,12 @@ export default function App() {
           return u?.price ? { ...s, ...u, sparkline: [...s.sparkline.slice(1), u.price] } : s;
         }));
         checkAndAlertBatch(data, 'kr');
+        setDataErrors(prev => ({ ...prev, kr: false }));
       }
-    } catch (e) { console.warn('국장 갱신 실패:', e.message); }
+    } catch (e) {
+      console.warn('국장 갱신 실패:', e.message);
+      setDataErrors(prev => ({ ...prev, kr: true }));
+    }
   }, []);
 
   // ── 지수 갱신 (60초) ────────────────────────────────────────
@@ -390,6 +403,16 @@ export default function App() {
                 krwRate={krwRate}
                 onRowClick={setSelectedItem}
                 loading={loading}
+                dataError={
+                  activeTab === 'kr'   ? dataErrors.kr :
+                  activeTab === 'us'   ? dataErrors.us :
+                  activeTab === 'coin' ? dataErrors.coin : false
+                }
+                onRetry={
+                  activeTab === 'kr'   ? refreshKoreanStocks :
+                  activeTab === 'us'   ? refreshUsStocks :
+                  activeTab === 'coin' ? refreshCoins : undefined
+                }
               />
             </>
           )}
