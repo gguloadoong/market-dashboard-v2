@@ -9,6 +9,8 @@ const TABS = [
   { id: 'us',   label: '🇺🇸 미장' },
   { id: 'coin', label: '🪙 코인' },
   { id: 'etf',  label: '📊 ETF' },
+  // 모바일 전용 뉴스 탭 — 데스크탑에서는 우측 고정 패널이 담당
+  { id: 'news', label: '📰 뉴스', mobileOnly: true },
 ];
 
 // 탭별 급등 강조 여부 판단 함수 (props로 받은 종목 데이터 활용)
@@ -53,7 +55,10 @@ export default function Header({
                 <button
                   key={tab.id}
                   onClick={() => onTabChange(tab.id)}
+                  // mobileOnly 탭은 데스크탑(lg+)에서 숨김
                   className={`relative flex-shrink-0 flex items-center gap-1 px-3 py-2 text-[13px] font-medium transition-all rounded-lg ${
+                    tab.mobileOnly ? 'lg:hidden' : ''
+                  } ${
                     isActive
                       ? 'bg-[#191F28] text-white font-bold'
                       : 'text-[#6B7684] hover:bg-[#F2F4F6] hover:text-[#191F28]'

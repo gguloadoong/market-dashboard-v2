@@ -223,7 +223,7 @@ export default function App() {
       {/* ── 반응형 그리드 레이아웃: 모바일 1열 / 데스크탑 2열 ─── */}
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_360px]">
         {/* 좌: 콘텐츠 영역 */}
-        <div className="p-5 space-y-4 min-w-0 overflow-hidden">
+        <div className={`min-w-0 overflow-hidden ${activeTab === 'news' ? '' : 'p-5 space-y-4'}`}>
           {activeTab === 'home' ? (
             <HomeDashboard
               indices={indices}
@@ -233,6 +233,11 @@ export default function App() {
               krwRate={krwRate}
               onItemClick={setSelectedItem}
             />
+          ) : activeTab === 'news' ? (
+            // 모바일 뉴스 탭 — 데스크탑 우측 패널과 동일한 컴포넌트, 모바일 전용
+            <div className="lg:hidden h-[calc(100vh-112px)]">
+              <BreakingNewsPanel coins={coins} onItemClick={setSelectedItem} />
+            </div>
           ) : (
             <>
               <MarketSummaryBar
