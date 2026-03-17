@@ -20,6 +20,8 @@ import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 
 const US_SYMBOLS   = US_STOCKS_INITIAL.map(s => s.symbol);
 const COIN_SYMBOLS = COINS_INITIAL.map(c => c.symbol);
+// ETF 목록은 정적 데이터 — 컴포넌트 외부에서 한 번만 계산
+const ETF_ITEMS    = ETF_DATA.map(e => ({ ...e, marketCap: e.aum }));
 
 // 장 외 시간에도 국장 데이터 소폭 변동 시뮬레이션
 function simulateKorean(stocks) {
@@ -42,7 +44,8 @@ export default function App() {
   const [coins, setCoins]                 = useState(COINS_INITIAL);
   const [usStocks, setUsStocks]           = useState(US_STOCKS_INITIAL);
   const [krStocks, setKrStocks]           = useState(KOREAN_STOCKS);
-  const [etfs]                            = useState(ETF_DATA);
+  // etfs는 정적 데이터 — state 불필요 (모듈 레벨 ETF_ITEMS 사용)
+  const etfs = ETF_DATA;
   const [indices, setIndices]             = useState(INDICES_INITIAL);
   const [krwRate, setKrwRate]             = useState(1466);
   const [lastUpdated, setLastUpdated]     = useState(null);
@@ -52,26 +55,28 @@ export default function App() {
   const krwRateRef  = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
 
   // ── 코인 빠른 갱신 — Upbit만 (10초, 가격·등락률만 업데이트) ──
+  // krwRateRef 사용 → krwRate state dep 불필요 (환율 변경 시 interval 재설정 방지)
   const refreshCoinsQuick = useCallback(async () => {
     try {
-      const rate = await fetchExchangeRate().catch(() => krwRate);
+      const rate = await fetchExchangeRate().catch(() => krwRateRef.current);
       setKrwRate(rate);
+      krwRateRef.current = rate;
       setCoins(prev => {
         if (!prev.length) return prev;
-        // 비동기 업데이트: 완료 후 state 반영
         fetchCoinsUpbitOnly(prev, rate)
           .then(data => { if (data.length) setCoins(data); })
           .catch(() => {});
-        return prev; // 즉시 이전 값 유지
+        return prev;
       });
     } catch {}
-  }, [krwRate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 코인 전체 갱신 — CoinGecko 포함 (60초, 시총·스파크라인 포함) ──
   const refreshCoins = useCallback(async () => {
     try {
-      const rate = await fetchExchangeRate().catch(() => krwRate);
+      const rate = await fetchExchangeRate().catch(() => krwRateRef.current);
       setKrwRate(rate);
+      krwRateRef.current = rate;
       const data = await fetchCoins(rate);
       if (data.length > 0) {
         setCoins(prev => data.map(c => {
@@ -80,7 +85,7 @@ export default function App() {
         }));
       }
     } catch (e) { console.warn('코인 전체갱신 실패 (캐시 사용):', e.message); }
-  }, [krwRate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 미장 갱신 (30초) ────────────────────────────────────────
   const refreshUsStocks = useCallback(async () => {
@@ -135,7 +140,7 @@ export default function App() {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [refreshCoins, refreshUsStocks, refreshKoreanStocks, refreshIndices]);
+  }, [refreshCoins, refreshUsStocks, refreshKoreanStocks, refreshIndices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 초기 로드 + 폴링 인터벌 ─────────────────────────────────
   useEffect(() => { refreshAll(); }, [refreshAll]);
@@ -187,16 +192,17 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 탭별 종목 데이터 (all 탭 제거, home은 HomeDashboard가 담당) ───
+  // ETF_ITEMS는 모듈 레벨 상수 — etfs dep 불필요 (렌더마다 새 배열 생성 방지)
   const tabItems = useMemo(() => {
     switch (activeTab) {
       case 'home': return [];
       case 'kr':   return krStocks;
       case 'us':   return usStocks;
       case 'coin': return coins;
-      case 'etf':  return etfs.map(e => ({ ...e, marketCap: e.aum }));
+      case 'etf':  return ETF_ITEMS;
       default:     return krStocks;
     }
-  }, [activeTab, krStocks, usStocks, coins, etfs]);
+  }, [activeTab, krStocks, usStocks, coins]);
 
   const allStocks = useMemo(() => [...krStocks, ...usStocks], [krStocks, usStocks]);
 
