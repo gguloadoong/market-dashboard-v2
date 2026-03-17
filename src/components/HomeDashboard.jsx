@@ -78,6 +78,23 @@ function findRelatedNews(mover, allNews) {
   }) || null;
 }
 
+// 무버 → 관련 뉴스 최대 N건 반환 (중복 제거)
+function findRelatedNewsMulti(mover, allNews, max = 3) {
+  const kws = buildKeywords(mover);
+  const seen = new Set();
+  const results = [];
+  for (const n of allNews) {
+    if (results.length >= max) break;
+    const text = `${n.title} ${n.summary || ''}`.toLowerCase();
+    if (!kws.some(kw => text.includes(kw))) continue;
+    const dedup = n.title.slice(0, 50);
+    if (seen.has(dedup)) continue;
+    seen.add(dedup);
+    results.push(n);
+  }
+  return results;
+}
+
 // 숫자 포맷 유틸
 function fmt(n, d = 0) {
   if (n == null || isNaN(n)) return '—';
@@ -528,12 +545,18 @@ export default function HomeDashboard({
   );
 
   // ─── 관심종목 기반 인사이트 (Job 3 — 포트폴리오 × 뉴스 매칭) ─
+  // 종목당 최대 3건, 전체 최대 12건
   const watchlistInsights = useMemo(() => {
     if (!recentNews.length || !watchedItems.length) return [];
-    return watchedItems
-      .map(item => ({ mover: item, news: findRelatedNews(item, recentNews) }))
-      .filter(({ news }) => news !== null)
-      .slice(0, 6);
+    const cards = [];
+    for (const item of watchedItems) {
+      const newsItems = findRelatedNewsMulti(item, recentNews, 3);
+      for (const news of newsItems) {
+        cards.push({ mover: item, news });
+        if (cards.length >= 12) return cards;
+      }
+    }
+    return cards;
   }, [watchedItems, recentNews]);
 
   const hasData = krStocks.length > 0 || usStocks.length > 0 || coins.length > 0;
@@ -664,7 +687,7 @@ export default function HomeDashboard({
             <span className="text-[14px] font-bold text-[#191F28]">내 종목 뉴스</span>
             <span className="text-[11px] text-[#8B95A1] ml-1">관심종목 관련 최신 뉴스</span>
             <span className="text-[11px] text-[#3182F6] bg-[#EDF4FF] px-1.5 py-0.5 rounded-full ml-auto font-semibold">
-              {watchlistInsights.length}건
+              뉴스 {watchlistInsights.length}건
             </span>
           </div>
           <div className="flex gap-3 overflow-x-auto p-4 no-scrollbar">

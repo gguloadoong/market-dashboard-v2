@@ -69,7 +69,7 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
       <div className="ticker-track" style={{ '--dur': `${dur}s` }}>
         {items.map((item, i) => (
           <span
-            key={i}
+            key={`${i}-${item.symbol}`}
             className="inline-flex items-center gap-2 px-4 text-[11px] font-medium cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => item._raw && onClick?.(item._raw)}
           >
