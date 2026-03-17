@@ -8,6 +8,7 @@ import { useState, useMemo, memo, useCallback } from 'react';
 import MarketSummaryCards from './MarketSummaryCards';
 import Sparkline from './Sparkline';
 import { useAllNewsQuery } from '../hooks/useNewsQuery';
+import { useWatchlist } from '../hooks/useWatchlist';
 import { findRelatedItems, MARKET_FLAG, RELATION_TYPES } from '../data/relatedAssets';
 import { extractNewsSignals } from '../utils/newsSignal';
 
@@ -488,6 +489,7 @@ export default function HomeDashboard({
   krwRate = 1466, onItemClick,
 }) {
   const { data: allNews = [], isLoading: newsLoading } = useAllNewsQuery();
+  const { watchlist, toggle, isWatched } = useWatchlist();
   const [surgeMarket, setSurgeMarket] = useState('all');
   // 모바일에서 홈 화면이 너무 길어지지 않도록 코인 요약 카드 기본 접힘
   // (데스크탑도 동일 — 필요 시 펼치기)
@@ -562,6 +564,12 @@ export default function HomeDashboard({
 
   const hasData = krStocks.length > 0 || usStocks.length > 0 || coins.length > 0;
 
+  // ─── 관심종목 필터링 ────────────────────────────────────────
+  const watchedItems = useMemo(
+    () => allItems.filter(i => isWatched(i.id || i.symbol)),
+    [allItems, watchlist] // watchlist dep: Set 변경 시 재계산
+  );
+
   const today = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   });
@@ -628,6 +636,57 @@ export default function HomeDashboard({
           }
         </div>
       </div>
+
+      {/* ─── 관심종목 섹션 (등록된 종목 있을 때만 표시) ─────── */}
+      {watchedItems.length > 0 && (
+        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
+            <div className="flex items-center gap-2">
+              <span className="text-[14px]">⭐</span>
+              <span className="text-[14px] font-bold text-[#191F28]">관심종목</span>
+              <span className="text-[11px] text-[#8B95A1]">{watchedItems.length}개</span>
+            </div>
+          </div>
+          <div className="divide-y divide-[#F2F4F6]">
+            {watchedItems.map(item => {
+              const pct    = getPct(item);
+              const isUp   = pct >= 0;
+              const upClr  = '#F04452';
+              const dnClr  = '#1A73E8';
+              const clr    = pct === 0 ? '#8B95A1' : isUp ? upClr : dnClr;
+              const price  = item._market === 'KR'
+                ? `₩${(item.price ?? 0).toLocaleString()}`
+                : item._market === 'COIN'
+                  ? `₩${Math.round(item.priceKrw ?? 0).toLocaleString()}`
+                  : `$${(item.price ?? 0).toLocaleString()}`;
+              return (
+                <div
+                  key={item.id || item.symbol}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-[#FAFAFA] cursor-pointer"
+                  onClick={() => onItemClick?.(item)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      onClick={e => { e.stopPropagation(); toggle(item.id || item.symbol); }}
+                      className="text-[14px] text-yellow-400 flex-shrink-0"
+                    >★</button>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-[#191F28] truncate">{item.name ?? item.symbol}</p>
+                      <p className="text-[11px] text-[#8B95A1]">{item.symbol}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-3">
+                    <p className="text-[14px] font-bold font-mono tabular-nums" style={{ color: clr }}>
+                      {isUp ? '+' : ''}{pct.toFixed(2)}%
+                    </p>
+                    <p className="text-[11px] text-[#8B95A1] font-mono">{price}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ─── SECTION 2: 시장 지수 compact 스트립 ─────────── */}
       <div>
