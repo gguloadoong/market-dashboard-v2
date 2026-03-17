@@ -217,6 +217,7 @@ export default function App() {
                 type={activeTab}
                 krwRate={krwRate}
                 onRowClick={setSelectedItem}
+                loading={loading}
               />
             </>
           )}

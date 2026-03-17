@@ -3,7 +3,6 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import React from 'react';
 import Sparkline from './Sparkline';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 // CDS Table 컴포넌트
 import { Table } from '@coinbase/cds-web/tables';
 import { TableBody } from '@coinbase/cds-web/tables';
@@ -254,40 +253,35 @@ const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, se
   );
 });
 
-// ─── 섹션 헤더 (전체 탭) — 장 상태 배지 포함 ───────────────
-const SectionHeader = React.memo(function SectionHeader({ label, count, icon, type }) {
-  // 섹션 타입에 따라 장 상태 조회
-  const marketStatus = type === 'kr' ? getKoreanMarketStatus()
-                     : type === 'us' ? getUsMarketStatus()
-                     : null;
 
+// ─── 테이블 스켈레톤 로딩 ────────────────────────────────────
+function SkeletonRow() {
   return (
-    <TableRow className="bg-[#F7F8FA]">
-      <TableCell colSpan={10} className="px-4 py-2 border-b border-t border-[#E5E8EB]">
-        <div className="flex items-center gap-2">
-          <span className="text-[15px]">{icon}</span>
-          <span className="text-[12px] font-bold text-[#191F28]">{label}</span>
-          <span className="text-[10px] text-[#B0B8C1] bg-[#E5E8EB] px-2 py-0.5 rounded-full ml-1">{count}종목</span>
-          {/* 장 운영 상태 배지 */}
-          {marketStatus && (
-            <span className="flex items-center gap-1 ml-1">
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                marketStatus.status === 'open' ? 'bg-[#2AC769] animate-pulse' : 'bg-[#C9CDD2]'
-              }`} />
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                marketStatus.status === 'open'
-                  ? 'bg-[#F0FFF6] text-[#2AC769]'
-                  : 'bg-[#F2F4F6] text-[#8B95A1]'
-              }`}>
-                {marketStatus.label}
-              </span>
-            </span>
-          )}
+    <TableRow className="border-b border-[#F2F4F6] animate-pulse">
+      <TableCell className="pl-2 pr-0 py-3 w-7"><div className="w-5 h-5 rounded bg-[#F2F4F6]" /></TableCell>
+      <TableCell className="pl-1 pr-1 py-3 w-8"><div className="w-4 h-3 rounded bg-[#F2F4F6] mx-auto" /></TableCell>
+      <TableCell className="px-2 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-[#F2F4F6] flex-shrink-0" />
+          <div className="space-y-1.5">
+            <div className="h-3.5 bg-[#F2F4F6] rounded w-28" />
+            <div className="h-3 bg-[#F2F4F6] rounded w-16" />
+          </div>
         </div>
       </TableCell>
+      <TableCell className="px-3 py-3 text-right">
+        <div className="h-4 bg-[#F2F4F6] rounded w-24 ml-auto" />
+        <div className="h-3 bg-[#F2F4F6] rounded w-16 ml-auto mt-1" />
+      </TableCell>
+      <TableCell className="px-3 py-3 text-right"><div className="h-3.5 bg-[#F2F4F6] rounded w-16 ml-auto" /></TableCell>
+      <TableCell className="px-3 py-3 text-right w-[90px]"><div className="h-6 bg-[#F2F4F6] rounded-md w-16 ml-auto" /></TableCell>
+      <TableCell className="px-3 py-3 text-right hidden sm:table-cell"><div className="h-3 bg-[#F2F4F6] rounded w-12 ml-auto" /></TableCell>
+      <TableCell className="px-3 py-3 text-right hidden lg:table-cell"><div className="h-3 bg-[#F2F4F6] rounded w-16 ml-auto" /></TableCell>
+      <TableCell className="px-3 py-3 w-[88px]"><div className="h-7 bg-[#F2F4F6] rounded w-full" /></TableCell>
+      <TableCell className="pr-4 py-3 w-8" />
     </TableRow>
   );
-});
+}
 
 // ─── 컬럼 정렬 헤더 ─────────────────────────────────────────
 function SortHeader({ label, sortKey, currentKey, currentDir, onSort, className = '' }) {
@@ -302,15 +296,9 @@ function SortHeader({ label, sortKey, currentKey, currentDir, onSort, className 
   );
 }
 
-const SECTION_INFO = {
-  kr:   { label: '국내주식', icon: '🇰🇷' },
-  us:   { label: '해외주식', icon: '🇺🇸' },
-  coin: { label: '코인',     icon: '🪙'   },
-  etf:  { label: 'ETF',     icon: '📊'   },
-};
 
 // ─── 메인 컴포넌트 ───────────────────────────────────────────
-export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466, onRowClick }) {
+export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466, onRowClick, loading = false }) {
   const [sortKey, setSortKey] = useState('changePct');
   const [sortDir, setSortDir] = useState('desc');
   const [search,  setSearch]  = useState('');
@@ -364,61 +352,27 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
   // items에서 고유 섹터 목록 동적 추출 (kr/us 탭에서만 의미있음)
   const availableSectors = useMemo(() => {
-    if (type === 'coin' || type === 'all') return [];
+    if (type === 'coin' || type === 'etf') return [];
     const s = new Set(items.map(i => i.sector).filter(Boolean));
     return [...s].sort();
   }, [items, type]);
 
   const hotCount = items.filter(i => getPct(i) >= 3).length;
-  const isAll = type === 'all';
 
-  // 전체 탭: 섹션별 그룹핑
-  const groups = useMemo(() => {
-    if (!isAll) return null;
-    return [
-      { key: 'kr',   items: sortFn(filtered.filter(i => i.market === 'kr' && !i.id)) },
-      { key: 'us',   items: sortFn(filtered.filter(i => i.market === 'us' && !i.id)) },
-      { key: 'coin', items: sortFn(filtered.filter(i => !!i.id)) },
-    ].filter(g => g.items.length > 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAll, filtered, sortKey, sortDir, krwRate]);
+  const flatSorted = useMemo(
+    () => sortFn(filtered),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filtered, sortKey, sortDir, krwRate]
+  );
 
-  const flatSorted = useMemo(() => {
-    if (isAll) return null;
-    return sortFn(filtered);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAll, filtered, sortKey, sortDir, krwRate]);
-
-  const totalCount = isAll
-    ? (groups?.reduce((s, g) => s + g.items.length, 0) ?? 0)
-    : (flatSorted?.length ?? 0);
+  const totalCount = flatSorted.length;
 
   const renderRows = () => {
-    if (isAll && groups) {
-      let rank = 0;
-      return groups.flatMap(group => {
-        const info = SECTION_INFO[group.key] || { label: group.key, icon: '📌' };
-        return [
-          <SectionHeader key={`hdr-${group.key}`} label={info.label} count={group.items.length} icon={info.icon} type={group.key} />,
-          ...group.items.map(item => {
-            rank++;
-            return (
-              <FlashRow
-                key={item.id || item.symbol}
-                item={item}
-                rank={rank}
-                krwRate={krwRate}
-                onClick={onRowClick}
-                searchTerm={search}
-                toggle={toggle}
-                isWatched={isWatched}
-              />
-            );
-          }),
-        ];
-      });
+    // 초기 로딩: 데이터 없고 loading 중일 때 스켈레톤 표시
+    if (loading && items.length === 0) {
+      return Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />);
     }
-    return (flatSorted || []).map((item, i) => (
+    return flatSorted.map((item, i) => (
       <FlashRow
         key={item.id || item.symbol}
         item={item}
