@@ -51,6 +51,28 @@ function parseYahooChart(data, isIntraday = false) {
   return cleanCandles(candles);
 }
 
+// ─── 한투 API 차트 (국내 주식 일/주/월봉) ────────────────────
+// Yahoo .KS 404 대체 — KIS API로 실제 OHLCV 취득
+async function fetchHantooCandles(symbol, periodCode = 'D') {
+  const res = await fetch(
+    `/api/hantoo-chart?symbol=${encodeURIComponent(symbol)}&period=${periodCode}`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  if (!res.ok) throw new Error(`hantoo-chart ${res.status}`);
+  const json = await res.json();
+  if (!json.data?.length) throw new Error('hantoo-chart: 데이터 없음');
+
+  return json.data.map(c => ({
+    // YYYYMMDD → 'YYYY-MM-DD'
+    time:   `${c.date.slice(0,4)}-${c.date.slice(4,6)}-${c.date.slice(6,8)}`,
+    open:   c.open,
+    high:   c.high,
+    low:    c.low,
+    close:  c.close,
+    volume: c.volume,
+  }));
+}
+
 // ─── Yahoo Finance v8 차트 (주식 캔들) ───────────────────────
 export async function fetchStockCandles(symbol, range = '1mo', interval = '1d') {
   const isIntraday = ['5m','15m','30m','60m','90m','1h'].includes(interval);
@@ -150,7 +172,23 @@ export async function fetchCandles(item, periodKey = '5분') {
     }
   }
 
-  // 주식: Yahoo Finance (한국 .KS suffix, 미국 그대로)
-  const sym = item.market === 'kr' ? `${item.symbol}.KS` : item.symbol;
-  return fetchStockCandles(sym, range, interval);
+  // 국내 주식: 일/주/월봉은 한투 API 우선 (Yahoo .KS 404 대체)
+  // 분봉/시봉(intraday)은 Yahoo fallback (한투 분봉 API는 별도 구현 필요)
+  if (item.market === 'kr') {
+    if (!isIntraday) {
+      // 일봉=D, 주봉=W, 월봉=M 매핑
+      const periodMap = { '1d': 'D', '1wk': 'W', '1mo': 'M' };
+      const periodCode = periodMap[interval] ?? 'D';
+      try {
+        return await fetchHantooCandles(item.symbol, periodCode);
+      } catch {
+        // 한투 실패 시 Yahoo fallback
+      }
+    }
+    const sym = `${item.symbol}.KS`;
+    return fetchStockCandles(sym, range, interval);
+  }
+
+  // 미국 주식: Yahoo Finance 그대로
+  return fetchStockCandles(item.symbol, range, interval);
 }
