@@ -388,8 +388,8 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-      {/* 검색 + 필터 */}
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#F2F4F6] flex-wrap">
+      {/* 검색 + 필터 — 모바일에서 가로 스크롤 (flex-wrap 제거로 줄바꿈 방지) */}
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#F2F4F6] overflow-x-auto no-scrollbar">
         <div className="relative">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#C9CDD2]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -425,7 +425,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
         {/* 섹터 필터 칩 — kr/us 탭에만 표시 */}
         {availableSectors.length > 0 && (
-          <div className="flex gap-1 overflow-x-auto no-scrollbar flex-wrap max-w-full">
+          <div className="flex gap-1 flex-shrink-0">
             <button
               onClick={() => setSector(null)}
               className={`px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${

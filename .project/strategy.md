@@ -98,9 +98,14 @@ Job 5: 국내/미장/코인 통합으로 섹터 로테이션 파악 [3열 HOT �
 - [x] useStockNews useMemo 성능 최적화
 - [x] 죽은 코드 13개 파일 삭제
 
-### 진행 중
-- [ ] 급등 이유 컨텍스트 (뉴스 tooltip) (P1)
+### 완료 (이번 세션 추가)
+- [x] 급등 카드 뉴스 컨텍스트 한 줄 표시 (SurgeCard relatedNews)
+- [x] Upbit WebSocket 코인 가격 실시간 스트림 (coinWs.js)
+- [x] 모바일 뉴스 탭 추가 (Job 3 모바일 접근성)
+- [x] SurgeBanner z-index 정보 계층 정렬
+- [x] dead export 정리 (fetchAllCoinSymbols, fetchUpbitBatch)
 
 ### 백로그
 - [ ] 포트폴리오 트래킹 (Job 3 완성에 필수)
 - [ ] 섹터 로테이션 시각화 (Job 5)
+- [ ] WatchlistTable 섹터 칩 모바일 375px 최적화
