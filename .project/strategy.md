@@ -59,9 +59,9 @@ Job 3: 내 포트폴리오 영향 줄 뉴스 즉시 확인 [ChartSidePanel 관�
        Context: 뉴스 발생 직후, 포지션 판단 필요
        Gap: 종목별 뉴스 연결은 있지만, 내 보유 종목 기준 필터링 없음
 
-Job 4: 고래가 뭘 사는지 따라가기 [WhalePanel — 구현됨]
+Job 4: 고래가 뭘 사는지 따라가기 [WhalePanel + 클릭 연결 — 구현 완료]
        Context: 큰 거래 포착, 방향성 힌트
-       Gap: 고래 거래의 종목 상세로 바로 이동 연결 필요
+       완료: EventRow 클릭 → coinMap O(1) 조회 → ChartSidePanel 오픈
 
 Job 5: 국내/미장/코인 통합으로 섹터 로테이션 파악 [3열 HOT 리스트 — 부분 구현]
        Context: 매크로 투자자, 섹터 이동 파악
@@ -93,12 +93,14 @@ Job 5: 국내/미장/코인 통합으로 섹터 로테이션 파악 [3열 HOT �
 - [x] 종목 상세 ChartSidePanel (캔들차트, 관련종목, 관련뉴스)
 - [x] 5개 P0 버그 수정
 - [x] 6명 에이전트 자동 스크럼 구축
+- [x] WatchlistTable 스켈레톤 로딩 (CLS 해결)
+- [x] 고래 이벤트 클릭 → ChartSidePanel 연결 (Job 4 완성)
+- [x] useStockNews useMemo 성능 최적화
+- [x] 죽은 코드 13개 파일 삭제
 
 ### 진행 중
-- [ ] WatchlistTable 스켈레톤 로딩 (P0)
 - [ ] 급등 이유 컨텍스트 (뉴스 tooltip) (P1)
 
 ### 백로그
 - [ ] 포트폴리오 트래킹 (Job 3 완성에 필수)
-- [ ] 고래 종목 클릭 → 상세 연결 (Job 4 완성)
 - [ ] 섹터 로테이션 시각화 (Job 5)

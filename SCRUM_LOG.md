@@ -37,3 +37,9 @@ P0 버그 재현 확인: (1) 관련종목 미추적 → ETF/BTC관련주 12종 m
 - 빈 `tabs/` 디렉토리 제거
 - 6명 에이전트 8레이어 완성 (`.claude/agents/`)
 - 크론 스크럼 루프 매시 정각 실행 설정 (job: 92955000)
+- WatchlistTable 스켈레톤 로딩 UI 추가 (CLS 해결, SkeletonRow 컴포넌트)
+- WatchlistTable `isAll` dead path 제거 (type==='all' App에 없음)
+- useStockNews useMemo 최적화 (allNews 재계산 방지)
+- **Job 4 완성**: 고래 EventRow 클릭 → coinMap O(1) 조회 → ChartSidePanel 오픈
+  - App → BreakingNewsPanel → WhalePanel → EventRow 3단계 prop 전달
+  - 연결된 코인 없으면 cursor-default, 있으면 cursor-pointer + hover 피드백
