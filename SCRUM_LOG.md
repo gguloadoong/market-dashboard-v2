@@ -5,6 +5,43 @@
 
 ---
 
+## 스크럼 2026-03-17 15:00
+### 참석: 이준혁(PM), 박서연(FE), 장성민(QA), 김민준(BE), 최유나(Design), 이지원(Strategy)
+
+### 발언 요약
+
+**이지원 (Strategy):** JTBD Job 1·2는 coinWs.js Upbit WS 실시간 스트림 추가로 상당히 커버됨. 경쟁사 대비 실질적 차별점 확보. Job 3(뉴스 기반 포트폴리오 영향 파악)의 가장 큰 gap: BreakingNewsPanel이 `hidden lg:block`으로 모바일에서 완전 숨겨짐 — 모바일에서 Job 3 소멸. Job 4(고래)는 Upbit WS + Blockchain.com WS + Whale Alert 3소스로 완성도 높음. Job 5(섹터 로테이션) 미완성.
+
+**최유나 (Design):** SurgeBanner(z-30)가 Header(z-20)보다 위인 현재 구조는 정보 계층 역전. 탭 선택이 먼저, 시세 배너가 나중이어야 함. WatchlistTable 섹터 칩 `flex-wrap` 모바일 375px에서 필터 영역 4줄+ 가능성. BreakingNewsPanel 모바일 비노출 = Job 3 전체 소멸.
+
+**이준혁 (PM):** coinWs.js 신규 추가 — DAU 임팩트 있는 변경. `fetchAllCoinSymbols`, `fetchUpbitBatch` dead export 확인. 모바일 뉴스 접근성 P1로 승격. P0 = dead export 정리 + toNum shadowing 정리 + 코인 카드 기본 접힘. P1 = 모바일 뉴스 접근성, Upbit WS 동시 2개 연결 검증.
+
+**김민준 (BE):** coinWs.js와 WhalePanel이 Upbit WS 동시 2개 연결 — Upbit 동시 연결 제한 확인 필요(명세서상 최대 5개 연결). `fetchAllCoinSymbols`·`fetchUpbitBatch` 미호출 dead export. 개발 환경에서 `/api/rss` 404 → corsproxy.io fallback으로 뉴스 로드 느림 원인 파악. 환율 3단계 fallback 체인(Binance→CoinGecko→localStorage)은 안정적.
+
+**박서연 (FE):** `fetchAllCoinSymbols`, `fetchUpbitBatch` — coins.js에 export만 되고 전체 소스에서 import 없음. 완전한 dead export. `fetchNaverSingle` 내부 `const toNum`이 파일 상단 동명 함수 shadowing. HomeDashboard `coinCardOpen` 초기값 `true` — 모바일 홈 화면 스크롤 과다 유발.
+
+**장성민 (QA):** 시나리오 1(BTC 급등+WS끊김): coinWs.js 5초 재연결 확인, 10초 폴링 fallback 있음. 시나리오 2(API전체실패): localStorage 캐시 24h fallback 전 레이어에 있어 안전. 시나리오 3(데이터빈값): `hasData` 조건이 mock 데이터로 항상 true — skeleton 미표시 가능성. `fetchAllCoinSymbols` dead export는 번들 트리쉐이킹에서 제거되므로 런타임 영향 없으나 코드 오염.
+
+### 결정 사항
+- **P0 (이번 스크럼 즉시 수정):**
+  1. `coins.js` dead export 2개 제거 (`fetchAllCoinSymbols`, `fetchUpbitBatch` + 관련 캐시 헬퍼)
+  2. `stocks.js` `fetchNaverSingle` 내 `toNum` shadowing 정리
+  3. `HomeDashboard.jsx` `coinCardOpen` 초기값 `false`로 변경 (모바일 홈 화면 길이 최적화)
+- **P1 (다음 스프린트):**
+  - 모바일에서 뉴스 접근 경로 추가 (탭 하단 뉴스 버튼 or 스와이프 패널)
+  - Upbit WS 동시 2개 연결 제한 실환경 테스트
+- **P2 (백로그):**
+  - Job 5 섹터 로테이션 뷰 기획
+  - SurgeBanner z-index 계층 재검토 (탭 선택 UX 개선)
+
+### 완료된 P0 수정
+1. `src/api/coins.js` — `fetchAllCoinSymbols`, `fetchUpbitBatch`, `loadCoinListCache`, `saveCoinListCache`, `COIN_LIST_CACHE_KEY`, `COIN_LIST_CACHE_TTL` 제거 (dead export 정리, 번들 경량화)
+2. `src/api/stocks.js` — `fetchNaverSingle` 내부 `const toNum` 재선언 제거 (파일 상단 함수 재사용)
+3. `src/components/HomeDashboard.jsx` — `coinCardOpen` 초기값 `true` → `false` (모바일 홈 화면 CLS 및 스크롤 과다 해결)
+4. 빌드 확인: `npm run build` ✓ (535 modules, 408ms)
+
+---
+
 ## 스크럼 2026-03-17 (초기 스프린트 완료 요약)
 
 ### 참석: 이준혁(PM), 박서연(FE), 장성민(QA), 김민준(BE), 최유나(Design), 이지원(Strategy)

@@ -107,7 +107,7 @@ export async function fetchUsStocksBatch(symbols) {
 async function fetchNaverSingle(symbol) {
   const url  = `https://m.stock.naver.com/api/stock/${symbol}/basic`;
   const data = await proxyFetch(url);
-  const toNum = s => parseFloat((s || '').toString().replace(/,/g, '')) || 0;
+  // 파일 상단 toNum 재사용 (shadowing 제거)
 
   const price     = toNum(data.closePrice);
   const change    = toNum(data.compareToPreviousClosePrice);

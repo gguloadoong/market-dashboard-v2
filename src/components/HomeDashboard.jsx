@@ -489,7 +489,9 @@ export default function HomeDashboard({
 }) {
   const { data: allNews = [], isLoading: newsLoading } = useAllNewsQuery();
   const [surgeMarket, setSurgeMarket] = useState('all');
-  const [coinCardOpen, setCoinCardOpen] = useState(true);
+  // 모바일에서 홈 화면이 너무 길어지지 않도록 코인 요약 카드 기본 접힘
+  // (데스크탑도 동일 — 필요 시 펼치기)
+  const [coinCardOpen, setCoinCardOpen] = useState(false);
 
   // 마켓 태그 추가된 종목 리스트
   const krItems   = useMemo(() => krStocks.map(s => ({ ...s, _market: 'KR'   })), [krStocks]);
