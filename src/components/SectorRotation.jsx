@@ -1,7 +1,8 @@
 // 섹터 로테이션 — HOT MONEY / COLD MONEY 분리 시각화 (Job 5)
+// 국장·미장·코인 통합 섹터 자금 흐름 표시
 import { useState, useMemo } from 'react';
 
-const SECTOR_FLAG = { kr: '🇰🇷', us: '🇺🇸' };
+const SECTOR_FLAG = { kr: '🇰🇷', us: '🇺🇸', coin: '🪙' };
 
 // 섹터 행 공통 컴포넌트
 function SectorRow({ name, avg, market, maxAbs, showFlag }) {
@@ -29,13 +30,20 @@ function SectorRow({ name, avg, market, maxAbs, showFlag }) {
   );
 }
 
-export default function SectorRotation({ krStocks, usStocks }) {
+export default function SectorRotation({ krStocks = [], usStocks = [], coins = [] }) {
   const [activeMarket, setActiveMarket] = useState('all');
 
   const sectorMap = useMemo(() => {
-    const items = activeMarket === 'kr' ? krStocks
-      : activeMarket === 'us' ? usStocks
-      : [...krStocks, ...usStocks];
+    // 코인은 change24h 필드 (주식은 changePct)
+    const coinsWithPct = coins
+      .filter(c => c.sector) // 섹터 있는 코인만
+      .map(c => ({ ...c, changePct: c.change24h ?? 0 }));
+
+    const items = activeMarket === 'kr'   ? krStocks
+      : activeMarket === 'us'   ? usStocks
+      : activeMarket === 'coin' ? coinsWithPct
+      : [...krStocks, ...usStocks, ...coinsWithPct];
+
     const map = {};
     for (const s of items) {
       if (!s.sector) continue;
@@ -51,7 +59,7 @@ export default function SectorRotation({ krStocks, usStocks }) {
         market,
       }))
       .sort((a, b) => b.avg - a.avg);
-  }, [krStocks, usStocks, activeMarket]);
+  }, [krStocks, usStocks, coins, activeMarket]);
 
   if (!sectorMap.length) return null;
 
@@ -76,7 +84,7 @@ export default function SectorRotation({ krStocks, usStocks }) {
           )}
         </div>
         <div className="flex gap-1">
-          {[['all', '전체'], ['kr', '🇰🇷'], ['us', '🇺🇸']].map(([id, label]) => (
+          {[['all', '전체'], ['kr', '🇰🇷'], ['us', '🇺🇸'], ['coin', '🪙']].map(([id, label]) => (
             <button
               key={id}
               onClick={() => setActiveMarket(id)}

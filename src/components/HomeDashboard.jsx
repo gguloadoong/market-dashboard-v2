@@ -825,8 +825,8 @@ export default function HomeDashboard({
       </div>
 
       {/* ─── SECTION 5: 섹터 로테이션 ────────────────────── */}
-      {(krStocks.length > 0 || usStocks.length > 0) && (
-        <SectorRotation krStocks={krStocks} usStocks={usStocks} />
+      {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
+        <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />
       )}
 
       {/* ─── SECTION 6: 코인 시장 요약 (접기/펼치기) ─────── */}

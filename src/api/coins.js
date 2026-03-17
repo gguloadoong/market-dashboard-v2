@@ -1,6 +1,7 @@
 // 코인 실시간 데이터: Upbit(KRW) + CoinGecko(USD·시총·스파크라인)
 // 코인 커버리지: CoinGecko 시총 상위 250개 + 업비트 상장 전체 (KRW 마켓)
 // 스테이블코인·wrapped 토큰은 급등 캐치 목적과 무관 → fetchCoins()에서 제거
+import { getCoinSector } from '../data/coinSectors';
 
 // 필터링 대상: 가격 변동이 없거나 원본 자산의 래핑본인 토큰
 const EXCLUDED_SYMBOLS = new Set([
@@ -222,6 +223,9 @@ export async function fetchCoins(krwRate = 1466) {
       low52w:  upbit.low52wKrw  ? upbit.low52wKrw  / krwRate : null,
       sparkline,
       image: coin.image,
+      // 섹터 분류 (SectorRotation 통합용)
+      sector: getCoinSector(sym),
+      market: 'coin', // SectorRotation에서 코인 구분용
       // 가격 출처: 프론트 배지 표시용
       priceSource: hasUpbit ? 'upbit' : 'coingecko',
     };
