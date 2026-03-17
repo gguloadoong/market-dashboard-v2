@@ -1,6 +1,7 @@
 // 워치리스트 테이블 — 로고 + 섹션 구분 + 티커 심볼 + 클릭 시 차트
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import React from 'react';
+import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 import Sparkline from './Sparkline';
 import { useWatchlist } from '../hooks/useWatchlist';
 // CDS Table 컴포넌트
@@ -299,6 +300,23 @@ function SortHeader({ label, sortKey, currentKey, currentDir, onSort, className 
 }
 
 
+// 탭 타입별 장 상태 배지 (사용자에게 데이터 freshness 명시)
+function MarketStatusBadge({ type }) {
+  if (type === 'etf' || type === 'coin') return null;
+  const { status, label } = type === 'kr' ? getKoreanMarketStatus() : getUsMarketStatus();
+  if (status === 'open') return null; // 거래 중이면 배지 불필요
+  const text = type === 'kr'
+    ? `${label} · 전일 종가 기준`
+    : status === 'pre' ? `${label} · 정규장 전`
+    : status === 'after' ? `${label} · 정규장 후`
+    : `${label} · 전일 종가 기준`;
+  return (
+    <span className="text-[11px] text-[#8B95A1] bg-[#F2F4F6] px-2 py-1 rounded-lg flex-shrink-0">
+      {text}
+    </span>
+  );
+}
+
 // ─── 메인 컴포넌트 ───────────────────────────────────────────
 export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466, onRowClick, loading = false }) {
   const [sortKey, setSortKey] = useState('changePct');
@@ -436,6 +454,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
           ★
         </button>
 
+        <MarketStatusBadge type={type} />
         <span className="ml-auto text-[11px] text-[#B0B8C1] tabular-nums flex-shrink-0">{totalCount}개</span>
       </div>
 

@@ -16,7 +16,6 @@ import GlobalSearch from './components/GlobalSearch';
 import { KOREAN_STOCKS, US_STOCKS_INITIAL, COINS_INITIAL, ETF_DATA, INDICES_INITIAL } from './data/mock';
 import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
-import { getKoreanMarketStatus } from './utils/marketHours';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission } from './utils/priceAlert';
 
@@ -25,21 +24,6 @@ const COIN_SYMBOLS = COINS_INITIAL.map(c => c.symbol);
 // ETF 목록은 정적 데이터 — 컴포넌트 외부에서 한 번만 계산
 const ETF_ITEMS    = ETF_DATA.map(e => ({ ...e, marketCap: e.aum }));
 
-// 장 외 시간에도 국장 데이터 소폭 변동 시뮬레이션
-function simulateKorean(stocks) {
-  return stocks.map(s => {
-    const delta    = s.price * (Math.random() - 0.5) * 0.003;
-    const newPrice = Math.round(s.price + delta);
-    const base     = newPrice - s.change;
-    return {
-      ...s,
-      price:     newPrice,
-      change:    Math.round(s.change + delta * 0.7),
-      changePct: base > 0 ? parseFloat(((newPrice - base) / base * 100).toFixed(2)) : s.changePct,
-      sparkline: [...(s.sparkline ?? []).slice(1), newPrice],
-    };
-  });
-}
 
 export default function App() {
   const [activeTab, setActiveTab]         = useState('home');
@@ -171,16 +155,6 @@ export default function App() {
   useEffect(() => { const id = setInterval(refreshCoins, 60000); return () => clearInterval(id); }, [refreshCoins]);
   useEffect(() => { const id = setInterval(refreshUsStocks,    30000); return () => clearInterval(id); }, [refreshUsStocks]);
   useEffect(() => { const id = setInterval(refreshKoreanStocks,30000); return () => clearInterval(id); }, [refreshKoreanStocks]);
-  // 국장 시뮬레이션: 장 외 시간에만 실행 (장 중에는 실제 API 데이터 사용)
-  useEffect(() => {
-    const id = setInterval(() => {
-      const { status } = getKoreanMarketStatus();
-      if (status !== 'open') {
-        setKrStocks(p => simulateKorean(p));
-      }
-    }, 15000);
-    return () => clearInterval(id);
-  }, []);
   useEffect(() => { const id = setInterval(refreshIndices,     60000); return () => clearInterval(id); }, [refreshIndices]);
 
   // 환율 변경 시 ref 동기화 (WS 핸들러에서 클로저 없이 사용)
