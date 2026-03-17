@@ -382,6 +382,19 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
   const hotCount = items.filter(i => getPct(i) >= 3).length;
 
+  // 코인 탭: BTC 도미넌스 + ETH 도미넌스 + 전체 시총 (보유 데이터에서 계산, 추가 API 호출 없음)
+  const coinMarketStats = useMemo(() => {
+    if (type !== 'coin' || !items.length) return null;
+    const totalMCap    = items.reduce((s, c) => s + (c.marketCap || 0), 0);
+    const btc          = items.find(c => c.symbol === 'BTC');
+    const eth          = items.find(c => c.symbol === 'ETH');
+    const btcDominance = btc && totalMCap ? (btc.marketCap / totalMCap * 100) : null;
+    const ethDominance = eth && totalMCap ? (eth.marketCap / totalMCap * 100) : null;
+    const altDominance = (btcDominance != null && ethDominance != null)
+      ? 100 - btcDominance - ethDominance : null;
+    return { totalMCap, btcDominance, ethDominance, altDominance };
+  }, [type, items]);
+
   const flatSorted = useMemo(
     () => sortFn(filtered),
     [filtered, sortFn]
@@ -413,6 +426,54 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+      {/* 코인 탭 전용: BTC 도미넌스 + 전체 시총 통계 바 */}
+      {coinMarketStats && (
+        <div className="flex items-center gap-0 px-4 py-2.5 border-b border-[#F2F4F6] bg-[#FAFBFC] overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 pr-4 border-r border-[#F2F4F6] flex-shrink-0">
+            <span className="text-[11px] text-[#8B95A1]">전체 시총</span>
+            <span className="text-[13px] font-bold text-[#191F28] font-mono tabular-nums">
+              ${coinMarketStats.totalMCap >= 1e12
+                ? `${(coinMarketStats.totalMCap / 1e12).toFixed(2)}T`
+                : `${(coinMarketStats.totalMCap / 1e9).toFixed(0)}B`}
+            </span>
+          </div>
+          {coinMarketStats.btcDominance != null && (
+            <div className="flex items-center gap-1.5 px-4 border-r border-[#F2F4F6] flex-shrink-0">
+              <span className="text-[11px] text-[#8B95A1]">BTC</span>
+              <span className="text-[13px] font-bold text-[#F7931A] font-mono tabular-nums">
+                {coinMarketStats.btcDominance.toFixed(1)}%
+              </span>
+              {/* 도미넌스 바 */}
+              <div className="w-16 h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden hidden sm:block">
+                <div
+                  className="h-full bg-[#F7931A] rounded-full"
+                  style={{ width: `${Math.min(coinMarketStats.btcDominance, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {coinMarketStats.ethDominance != null && (
+            <div className="flex items-center gap-1.5 px-4 border-r border-[#F2F4F6] flex-shrink-0">
+              <span className="text-[11px] text-[#8B95A1]">ETH</span>
+              <span className="text-[13px] font-bold text-[#627EEA] font-mono tabular-nums">
+                {coinMarketStats.ethDominance.toFixed(1)}%
+              </span>
+            </div>
+          )}
+          {coinMarketStats.altDominance != null && (
+            <div className="flex items-center gap-1.5 px-4 flex-shrink-0">
+              <span className="text-[11px] text-[#8B95A1]">알트</span>
+              <span className="text-[13px] font-bold text-[#8B5CF6] font-mono tabular-nums">
+                {coinMarketStats.altDominance.toFixed(1)}%
+              </span>
+            </div>
+          )}
+          <span className="ml-auto text-[10px] text-[#C9CDD2] flex-shrink-0 pl-4">
+            상위 {items.length}개 기준
+          </span>
+        </div>
+      )}
+
       {/* 1행: 검색 + 메인 필터 + 관심종목 토글 */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[#F2F4F6]">
         <div className="relative flex-shrink-0">
