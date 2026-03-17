@@ -41,14 +41,39 @@ function timeAgo(dateInput) {
 }
 
 // ─── 뉴스 제목에서 언론사명 중복 제거 (출처는 source 필드에 이미 있음) ──────
+// 한국어 언론사명 목록 — Google News RSS가 제목 끝에 " - 언론사명" 형태로 붙임
+const KR_SOURCE_STRIP = [
+  '글로벌이코노믹','한국경제','매일경제','조선비즈','조선일보','동아일보','중앙일보',
+  '헤럴드경제','연합뉴스','뉴시스','뉴스1','머니투데이','파이낸셜뉴스','서울경제',
+  '이데일리','아시아경제','이투데이','비즈니스포스트','블록미디어','데일리안',
+  '국민일보','세계일보','문화일보','경향신문','한겨레','한국일보','시사저널',
+  '코인데스크','코인텔레그래프','블록스트리트','팍스넷','디지털타임스','전자신문',
+  'ZDNet Korea','ZDNet','ZDNET','Investing.com','Reuters','Bloomberg','CNBC',
+];
+
 function cleanTitle(title, sourceName) {
-  return title
-    .replace(/\s*\|.*$/, '')                   // "제목 | Reuters" → "제목"
-    .replace(/\s*-\s*[A-Z][a-zA-Z\s]+$/, '')  // "제목 - Reuters" 끝부분
-    .replace(/^\[.*?\]\s*/, '')                 // "[Reuters] 제목" → "제목"
-    .replace(new RegExp(`^${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[-–:]\\s*`, 'i'), '')
-    .replace(/^(UPDATE \d+-|CORRECTED-|EXCLUSIVE-|ANALYSIS-|BREAKINGVIEWS-|REFILE-)/i, '')
-    .trim();
+  let t = title;
+  // 파이프 뒤 언론사명 제거 "제목 | Reuters"
+  t = t.replace(/\s*\|.*$/, '');
+  // 영어 언론사명 끝부분 제거 "제목 - Reuters"
+  t = t.replace(/\s*[-–]\s*[A-Z][a-zA-Z\s.]+$/, '');
+  // 대괄호 접두사 제거 "[Reuters] 제목"
+  t = t.replace(/^\[.*?\]\s*/, '');
+  // 소스명 접두사 제거
+  t = t.replace(new RegExp(`^${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[-–:]\\s*`, 'i'), '');
+  // 영문 프리픽스 제거
+  t = t.replace(/^(UPDATE \d+-|CORRECTED-|EXCLUSIVE-|ANALYSIS-|BREAKINGVIEWS-|REFILE-)/i, '');
+  // 한국어 언론사명 스트립 — " - 언론사명" 패턴
+  for (const src of KR_SOURCE_STRIP) {
+    t = t.replace(new RegExp(`\\s*[-–|]\\s*${src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i'), '');
+  }
+  // 일반 패턴: 끝부분 " - 짧은텍스트(15자 이하)" 제거 — 언론사명은 주로 짧음
+  t = t.replace(/\s+[-–]\s+([^\s].{0,14})$/, (match, stripped) => {
+    // 숫자나 퍼센트가 포함된 경우 뉴스 내용의 일부일 수 있으므로 유지
+    if (/[\d%]/.test(stripped)) return match;
+    return '';
+  });
+  return t.trim();
 }
 
 // ─── RSS XML 파서 ──────────────────────────────────────────────

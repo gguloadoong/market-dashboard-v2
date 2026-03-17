@@ -49,6 +49,34 @@ function resolveExchangeName(raw) {
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
+// ─── 이동 패턴 설명 (카드 제목 수준 한 줄 요약) ─────────────────
+// "바이낸스 → 콜드월렛 (HODLing 신호)" 형식으로 생성
+function buildRouteTitle(event) {
+  const from = resolveExchangeName(event.fromOwner) || event.fromOwner || null;
+  const to   = resolveExchangeName(event.toOwner)   || event.toOwner   || null;
+
+  if (event.source !== 'whale-alert') {
+    // Upbit 체결: 거래소명 없음 — 종목 + 매수/매도 방향 표시
+    return `업비트 ${event.symbol || ''} ${event.side || '체결'}`;
+  }
+
+  switch (event.movementType) {
+    case 'exchange_withdrawal':
+      return `${from || '거래소'} → 개인 지갑 (HODLing 신호)`;
+    case 'exchange_deposit':
+      return `개인 지갑 → ${to || '거래소'} (매도 압력)`;
+    case 'exchange_to_exchange':
+      return `${from || '거래소'} → ${to || '거래소'} (거래소 간 이동)`;
+    case 'wallet_to_wallet':
+      return `지갑 → 지갑 (OTC 또는 내부 이동)`;
+    default:
+      if (from && to) return `${from} → ${to}`;
+      if (from)       return `${from} → 지갑`;
+      if (to)         return `지갑 → ${to}`;
+      return '거래소 이동';
+  }
+}
+
 // ─── 이동 패턴별 배지 스타일 ────────────────────────────────────
 function getMovementBadge(movementType, side) {
   // Whale Alert 온체인 이벤트 (movementType 있음)
@@ -213,9 +241,9 @@ function EventRow({ event }) {
   const insightText = buildInsightText(event);
 
   // 달러 환산 (whale-alert는 USD 금액 포함, BTC온체인은 KRW로 변환됨)
-  // tradeAmt가 원화 기준 → USD로 역산 (1300원/달러 근사)
+  // tradeAmt가 원화 기준 → USD로 역산 (1466원/달러 근사)
   const usdAmt = event.source === 'whale-alert'
-    ? fmtUsd(Math.round((event.tradeAmt || 0) / 1300))
+    ? fmtUsd(Math.round((event.tradeAmt || 0) / 1466))
     : null;
 
   // 수량 + 심볼 표시

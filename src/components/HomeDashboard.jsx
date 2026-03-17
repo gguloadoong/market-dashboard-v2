@@ -360,30 +360,37 @@ function SkeletonInsightCard({ count = 3 }) {
 }
 
 // ─── 인사이트 mock 데이터 (뉴스-무버 매칭 실패 시 fallback) ─
+// 뉴스 로딩 실패 또는 매칭 없을 때 항상 3개 표시
 const MOCK_INSIGHTS = [
   {
     id: 'mock-btc',
     moverName: 'BTC', moverMarket: 'COIN', moverPct: null,
-    title: '비트코인, 글로벌 기관 매수세 유입 속 강세 지속',
+    title: '비트코인 급등세 — 업비트 거래량 급증, 고래 매수 신호 포착',
     timeAgo: '',
     link: 'https://coindesk.com',
     isMock: true,
+    signal: '강세',
+    desc: '업비트 거래량 급증, 고래 매수 신호',
   },
   {
     id: 'mock-nvda',
     moverName: 'NVDA', moverMarket: 'US', moverPct: null,
-    title: 'NVDA, AI 데이터센터 수요 급증으로 실적 전망 상향 — 반도체 섹터 동반 강세',
+    title: 'NVDA AI 모멘텀 지속 — AI 반도체 수요 지속 확대로 실적 전망 상향',
     timeAgo: '',
     link: 'https://finance.yahoo.com',
     isMock: true,
+    signal: 'AI',
+    desc: 'AI 반도체 수요 지속 확대',
   },
   {
     id: 'mock-samsung',
     moverName: '삼성전자', moverMarket: 'KR', moverPct: null,
-    title: '삼성전자 HBM4 납품 기대감에 외국인 순매수 3일 연속 유입',
+    title: '삼성전자 외국인 순매수 — HBM4 납품 기대감에 외국인 3일 연속 순매수',
     timeAgo: '',
     link: 'https://news.naver.com',
     isMock: true,
+    signal: '강세',
+    desc: '외국인 3일 연속 순매수',
   },
 ];
 
