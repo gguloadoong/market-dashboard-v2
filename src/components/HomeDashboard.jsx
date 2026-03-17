@@ -522,6 +522,20 @@ export default function HomeDashboard({
       .slice(0, 6);
   }, [topMovers, allNews]);
 
+  // ─── 관심종목 기반 인사이트 (Job 3 — 포트폴리오 × 뉴스 매칭) ─
+  const watchlistInsights = useMemo(() => {
+    if (!allNews.length || !watchedItems.length) return [];
+    const recentNews = allNews.filter(n => {
+      if (!n.pubDate) return false;
+      try { return Date.now() - new Date(n.pubDate).getTime() < 7 * 24 * 60 * 60 * 1000; }
+      catch { return false; }
+    });
+    return watchedItems
+      .map(item => ({ mover: item, news: findRelatedNews(item, recentNews) }))
+      .filter(({ news }) => news !== null)
+      .slice(0, 6);
+  }, [watchedItems, allNews]);
+
   const hasData = krStocks.length > 0 || usStocks.length > 0 || coins.length > 0;
 
   // ─── 관심종목 필터링 ────────────────────────────────────────
@@ -644,6 +658,30 @@ export default function HomeDashboard({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── 관심종목 × 뉴스 매칭 인사이트 (Job 3) ─────────── */}
+      {watchlistInsights.length > 0 && (
+        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#F2F4F6]">
+            <span className="text-[14px]">📋</span>
+            <span className="text-[14px] font-bold text-[#191F28]">내 종목 뉴스</span>
+            <span className="text-[11px] text-[#8B95A1] ml-1">관심종목 관련 최신 뉴스</span>
+            <span className="text-[11px] text-[#3182F6] bg-[#EDF4FF] px-1.5 py-0.5 rounded-full ml-auto font-semibold">
+              {watchlistInsights.length}건
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto p-4 no-scrollbar">
+            {watchlistInsights.map(({ mover, news }) => (
+              <InsightCard
+                key={`watchlist-insight-${mover._market}-${mover.id || mover.symbol}`}
+                mover={mover}
+                news={news}
+                onMoverClick={onItemClick}
+              />
+            ))}
           </div>
         </div>
       )}
