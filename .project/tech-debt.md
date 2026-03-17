@@ -21,7 +21,6 @@
 
 | # | 파일 | 문제 | 영향 |
 |---|------|------|------|
-| 5 | `src/api/stocks.js` | allorigins 경유 국장 데이터 실패율 모니터링 없음 | 장애 인지 지연 |
 | 7 | `WatchlistTable.jsx` | 섹터 칩 overflow 시 모바일 375px 필터 영역 과도한 공간 차지 | 모바일 UX 저하 |
 
 ---
@@ -57,3 +56,8 @@
 | 2026-03-17 | `api/whale.js` | window.__btcKrwRate__ 미설정 버그 → setWhaleBtcKrwPrice() 모듈 변수로 교체 |
 | 2026-03-17 | `WhalePanel.jsx` | WATCH_SYMBOLS 20개 하드코딩 → fetchUpbitAllSymbols() 동적 로딩 (~200개) |
 | 2026-03-17 | `WhalePanel.jsx` | coinMap useMemo 추가 (coins 변경 시에만 재계산) |
+| 2026-03-17 | `src/data/coinSectors.js` | 250+ 코인 → 12개 섹터 매핑 (Layer 1, DeFi, 밈코인, AI 등) |
+| 2026-03-17 | `api/coins.js` | fetchCoins() 결과에 sector + market='coin' 필드 추가 |
+| 2026-03-17 | `SectorRotation.jsx` | 코인 탭(🪙) 추가 — 국장+미장+코인 통합 섹터 자금 흐름 (Job 5 완성) |
+| 2026-03-17 | `src/api/stocks.js` | allorigins 국장 모니터링 항목 삭제 — 국장 데이터 소스가 한투 API(1순위)→Naver(2순위)→Yahoo(3순위)로 전환되어 allorigins 미사용 |
+| 2026-03-17 | `src/data/mock.js` | COINS_INITIAL change24h 모두 0으로 초기화 — 초기 로드 2~3초 동안 가짜 급등 신호가 SurgeBanner에 노출되는 데이터 정합성 버그 수정 |
