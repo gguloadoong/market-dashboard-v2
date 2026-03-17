@@ -450,9 +450,8 @@ export default function HomeDashboard({
   const { data: allNews = [], isLoading: newsLoading } = useAllNewsQuery();
   const { watchlist, toggle, isWatched } = useWatchlist();
   const [surgeMarket, setSurgeMarket] = useState('all');
-  // 모바일에서 홈 화면이 너무 길어지지 않도록 코인 요약 카드 기본 접힘
-  // (데스크탑도 동일 — 필요 시 펼치기)
-  const [coinCardOpen, setCoinCardOpen] = useState(false);
+  // 공포탐욕·도미넌스는 핵심 시그널 — 기본 펼침
+  const [coinCardOpen, setCoinCardOpen] = useState(true);
 
   // 마켓 태그 추가된 종목 리스트
   const krItems   = useMemo(() => krStocks.map(s => ({ ...s, _market: 'KR'   })), [krStocks]);
@@ -476,18 +475,13 @@ export default function HomeDashboard({
 
   // 급등 카드용 뉴스 컨텍스트 맵 (symbol → 관련 뉴스 1건, 7일 이내만)
   const surgeNewsMap = useMemo(() => {
-    if (!allNews.length || !surgeItems.length) return {};
-    const recentNews = allNews.filter(n => {
-      if (!n.pubDate) return false;
-      try { return Date.now() - new Date(n.pubDate).getTime() < 7 * 24 * 60 * 60 * 1000; }
-      catch { return false; }
-    });
+    if (!recentNews.length || !surgeItems.length) return {};
     return surgeItems.reduce((acc, item) => {
       const news = findRelatedNews(item, recentNews);
       if (news) acc[item.symbol] = news;
       return acc;
     }, {});
-  }, [surgeItems, allNews]);
+  }, [surgeItems, recentNews]);
 
   // ─── SECTION 3: 각 시장별 HOT TOP5 ────────────────────────
   const krHot = useMemo(
@@ -503,24 +497,29 @@ export default function HomeDashboard({
     [coinItems]
   );
 
+  // ─── 7일 이내 뉴스 (3개 섹션 공통 사용) ───────────────────
+  const recentNews = useMemo(() => {
+    if (!allNews.length) return [];
+    const cutoff = 7 * 24 * 60 * 60 * 1000;
+    return allNews.filter(n => {
+      if (!n.pubDate) return false;
+      try { return Date.now() - new Date(n.pubDate).getTime() < cutoff; }
+      catch { return false; }
+    });
+  }, [allNews]);
+
   // ─── SECTION 4: 인사이트 (뉴스 × 무버 매칭) ────────────────
   const topMovers = useMemo(() => {
     return [...allItems].sort((a, b) => Math.abs(getPct(b)) - Math.abs(getPct(a))).slice(0, 20);
   }, [allItems]);
 
   const insights = useMemo(() => {
-    if (!allNews.length || !topMovers.length) return [];
-    // 7일 이내 뉴스만 인사이트로 사용 (오래된 뉴스 신뢰 손상 방지)
-    const recentNews = allNews.filter(n => {
-      if (!n.pubDate) return false;
-      try { return Date.now() - new Date(n.pubDate).getTime() < 7 * 24 * 60 * 60 * 1000; }
-      catch { return false; }
-    });
+    if (!recentNews.length || !topMovers.length) return [];
     return topMovers
       .map(mover => ({ mover, news: findRelatedNews(mover, recentNews) }))
       .filter(({ news }) => news !== null)
       .slice(0, 6);
-  }, [topMovers, allNews]);
+  }, [topMovers, recentNews]);
 
   // ─── 관심종목 필터링 ────────────────────────────────────────
   const watchedItems = useMemo(
@@ -530,17 +529,12 @@ export default function HomeDashboard({
 
   // ─── 관심종목 기반 인사이트 (Job 3 — 포트폴리오 × 뉴스 매칭) ─
   const watchlistInsights = useMemo(() => {
-    if (!allNews.length || !watchedItems.length) return [];
-    const recentNews = allNews.filter(n => {
-      if (!n.pubDate) return false;
-      try { return Date.now() - new Date(n.pubDate).getTime() < 7 * 24 * 60 * 60 * 1000; }
-      catch { return false; }
-    });
+    if (!recentNews.length || !watchedItems.length) return [];
     return watchedItems
       .map(item => ({ mover: item, news: findRelatedNews(item, recentNews) }))
       .filter(({ news }) => news !== null)
       .slice(0, 6);
-  }, [watchedItems, allNews]);
+  }, [watchedItems, recentNews]);
 
   const hasData = krStocks.length > 0 || usStocks.length > 0 || coins.length > 0;
 
