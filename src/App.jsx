@@ -16,8 +16,10 @@ import { KOREAN_STOCKS, US_STOCKS_INITIAL, COINS_INITIAL, ETF_DATA, INDICES_INIT
 import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
 import { getKoreanMarketStatus, getUsMarketStatus } from './utils/marketHours';
+import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 
-const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
+const US_SYMBOLS   = US_STOCKS_INITIAL.map(s => s.symbol);
+const COIN_SYMBOLS = COINS_INITIAL.map(c => c.symbol);
 
 // 장 외 시간에도 국장 데이터 소폭 변동 시뮬레이션
 function simulateKorean(stocks) {
@@ -46,7 +48,8 @@ export default function App() {
   const [lastUpdated, setLastUpdated]     = useState(null);
   const [loading, setLoading]             = useState(false);
   const [selectedItem, setSelectedItem]   = useState(null);
-  const loadingRef = useRef(false);
+  const loadingRef  = useRef(false);
+  const krwRateRef  = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
 
   // ── 코인 빠른 갱신 — Upbit만 (10초, 가격·등락률만 업데이트) ──
   const refreshCoinsQuick = useCallback(async () => {
@@ -156,6 +159,32 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
   useEffect(() => { const id = setInterval(refreshIndices,     60000); return () => clearInterval(id); }, [refreshIndices]);
+
+  // 환율 변경 시 ref 동기화 (WS 핸들러에서 클로저 없이 사용)
+  useEffect(() => { krwRateRef.current = krwRate; }, [krwRate]);
+
+  // ── Upbit WebSocket 코인 가격 실시간 스트림 ─────────────────────
+  // 폴링(10초)과 병행 — WS가 연결되면 <1초 단위 가격 갱신, 끊기면 자동 재연결
+  useEffect(() => {
+    subscribeCoinPrices(COIN_SYMBOLS, (tick) => {
+      if (tick._connected) return; // 연결 이벤트 무시
+      setCoins(prev => {
+        const rate = krwRateRef.current;
+        const idx  = prev.findIndex(c => c.symbol === tick.symbol);
+        if (idx === -1) return prev;
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          priceKrw:    tick.priceKrw,
+          priceUsd:    tick.priceKrw / rate,
+          change24h:   tick.change24h,
+          priceSource: 'upbit-ws',
+        };
+        return updated;
+      });
+    });
+    return () => unsubscribeCoinPrices();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 탭별 종목 데이터 (all 탭 제거, home은 HomeDashboard가 담당) ───
   const tabItems = useMemo(() => {
