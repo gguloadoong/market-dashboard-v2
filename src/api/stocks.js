@@ -118,9 +118,33 @@ async function fetchNaverSingle(symbol) {
   return { symbol, price, change, changePct, volume };
 }
 
+// ─── 한국투자증권 Open API (1순위 — 실시간 정확 데이터) ─────────
+// Vercel serverless /api/hantoo-price 프록시 경유
+// 키 미설정 또는 실패 시 503/500 → fallback으로 전환
+async function fetchKoreanStocksHantoo(stocks) {
+  const symbols = stocks.map(s => s.symbol).join(',');
+  const res = await fetch(
+    `/api/hantoo-price?symbols=${symbols}`,
+    { signal: AbortSignal.timeout(10000) }
+  );
+  // 키 미설정(503) 또는 서버 오류(500) → fallback
+  if (!res.ok) throw new Error(`한투 프록시 ${res.status}`);
+  const json = await res.json();
+  if (!Array.isArray(json.data) || !json.data.length) throw new Error('한투: 데이터 없음');
+  return json.data;
+}
+
 // ─── 한국 주식 배치 ────────────────────────────────────────────
 export async function fetchKoreanStocksBatch(stocks) {
-  // 1) Naver Finance (가장 정확한 국내 주가)
+  // 1) 한국투자증권 Open API (실시간, 가장 정확)
+  try {
+    const data = await fetchKoreanStocksHantoo(stocks);
+    if (data.length >= stocks.length * 0.5) return data;
+  } catch (e) {
+    console.warn('[한투 시세] fallback:', e.message);
+  }
+
+  // 2) Naver Finance (한투 실패 시 fallback)
   try {
     const results = await Promise.allSettled(
       stocks.map(s => fetchNaverSingle(s.symbol))
@@ -131,7 +155,7 @@ export async function fetchKoreanStocksBatch(stocks) {
     if (valid.length >= stocks.length * 0.5) return valid;
   } catch {}
 
-  // 2) Yahoo Finance .KS via proxy
+  // 3) Yahoo Finance .KS via proxy
   try {
     const symbols = stocks.map(s => `${s.symbol}.KS`);
     const results = await fetchYahooQuoteBatch(symbols);

@@ -45,6 +45,46 @@ export function formatNetAmt(won) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// 한국투자증권 Open API 투자자 동향 (1순위)
+// Vercel serverless /api/hantoo-investor 프록시
+// ─────────────────────────────────────────────────────────────
+async function fetchInvestorDataHantoo(symbol) {
+  const res = await fetch(
+    `/api/hantoo-investor?symbol=${symbol}`,
+    { signal: AbortSignal.timeout(8000) }
+  );
+  if (!res.ok) throw new Error(`한투 투자자 프록시 ${res.status}`);
+  const d = await res.json();
+  if (d.error) throw new Error(d.error);
+
+  const signalCalc = () => {
+    const fb = d.foreign > 0, ib = d.institution > 0;
+    if (fb && ib)  return 'buy';
+    if (!fb && !ib) return 'sell';
+    return 'mixed';
+  };
+  const dominantCalc = () => {
+    const arr = [
+      { key: 'foreign',     abs: Math.abs(d.foreign) },
+      { key: 'institution', abs: Math.abs(d.institution) },
+      { key: 'individual',  abs: Math.abs(d.individual) },
+    ].sort((a, b) => b.abs - a.abs);
+    return arr[0].abs > 0 ? arr[0].key : 'neutral';
+  };
+
+  return {
+    symbol,
+    date:        d.date,
+    foreign:     { netVol: d.foreignVol,     netAmt: d.foreign,     netAmtFormatted: formatNetAmt(d.foreign) },
+    institution: { netVol: d.institutionVol, netAmt: d.institution, netAmtFormatted: formatNetAmt(d.institution) },
+    individual:  { netVol: d.individualVol,  netAmt: d.individual,  netAmtFormatted: formatNetAmt(d.individual) },
+    dominant:    dominantCalc(),
+    signal:      signalCalc(),
+    source:      'hantoo',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
 // fetchInvestorData(symbol)
 //
 // 반환 구조:
@@ -56,12 +96,21 @@ export function formatNetAmt(won) {
 //   institution:{ netVol: -890123,  netAmt: -333333333, netAmtFormatted: '-3.3억' },
 //   dominant: 'foreign',   // 'foreign' | 'institution' | 'individual' | 'neutral'
 //   signal: 'buy',         // 'buy'(외인+기관 순매수) | 'sell'(순매도) | 'mixed' | 'neutral'
+//   source: 'hantoo' | 'naver'
 // }
 // ─────────────────────────────────────────────────────────────
 export async function fetchInvestorData(symbol) {
   // 6자리 숫자가 아니면 국내 주식 아님 → null
   if (!/^\d{6}$/.test(symbol)) return null;
 
+  // 1순위: 한국투자증권 Open API (정확한 실시간 데이터)
+  try {
+    return await fetchInvestorDataHantoo(symbol);
+  } catch (e) {
+    console.warn(`[투자자동향] 한투 fallback → Naver: ${e.message}`);
+  }
+
+  // 2순위: Naver Finance (한투 실패 시 fallback)
   const url  = `https://m.stock.naver.com/api/stock/${symbol}/investor`;
   const data = await naverProxyFetch(url);
 
@@ -103,6 +152,7 @@ export async function fetchInvestorData(symbol) {
     institution: { netVol: instVol, netAmt: instAmt,  netAmtFormatted: formatNetAmt(instAmt)  },
     dominant,
     signal,
+    source: 'naver',
   };
 }
 
