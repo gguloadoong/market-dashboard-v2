@@ -11,6 +11,8 @@ import InsightsSection, { WatchlistSection, WatchlistNewsSection } from './Insig
 import MarketIndexSection, { CoinSummarySection } from './MarketIndexSection';
 import SignalSection from './SignalSection';
 import TopNewsSection from './TopNewsSection';
+import EarlySignalSection from './EarlySignalSection';
+import EventCalendar from './EventCalendar';
 
 export default function HomeDashboard({
   indices = [], krStocks = [], usStocks = [], coins = [],
@@ -186,6 +188,19 @@ export default function HomeDashboard({
 
       {/* ─── 5. 오늘의 핵심 뉴스 ─────────────────────────── */}
       <TopNewsSection allNews={allNews} />
+
+      {/* ─── 5.5 선행 신호 — 뉴스 나왔지만 주가 미반응 ─── */}
+      {hasData && (
+        <EarlySignalSection
+          allItems={allItems}
+          recentNews={recentNews}
+          krwRate={krwRate}
+          onItemClick={onItemClick}
+        />
+      )}
+
+      {/* ─── 5.7 경제 이벤트 캘린더 ──────────────────────── */}
+      <EventCalendar />
 
       {/* ─── 6. 인사이트 (뉴스 × 무버) ───────────────────── */}
       <InsightsSection
