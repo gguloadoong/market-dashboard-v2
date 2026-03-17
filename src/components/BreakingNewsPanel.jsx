@@ -133,7 +133,7 @@ function getWhalePinInsight(evt) {
   return '대형 지갑 자산 이동 감지';
 }
 
-export default function BreakingNewsPanel() {
+export default function BreakingNewsPanel({ coins = [], onItemClick }) {
   const [activeTab, setActiveTab] = useState('all');
   const { data: rawNews = [], isLoading, isError, refetch } = useTabNews(activeTab);
   // 고래 미리보기 핀 — WhalePanel이 이벤트 발행 시 자동 업데이트
@@ -232,7 +232,7 @@ export default function BreakingNewsPanel() {
       <div className="flex-1 overflow-y-auto">
         {/* 고래 탭: 항상 마운트 유지 (WebSocket 상시 연결) — 탭 미선택 시 hidden */}
         <div className={activeTab === 'whale' ? 'p-3' : 'hidden'}>
-          <WhalePanel />
+          <WhalePanel coins={coins} onItemClick={onItemClick} />
         </div>
 
         {/* 뉴스 탭 영역 */}

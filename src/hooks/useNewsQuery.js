@@ -2,6 +2,7 @@
 // initialData: 로컬스토리지 캐시를 즉시 표시 → "불러오는중" 제거
 // initialDataUpdatedAt: React Query가 staleTime 기준으로 백그라운드 갱신 여부 판단
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import {
   fetchAllNews, fetchNewsByCategory, invalidateNewsCache,
   getInitialNewsData, getInitialNewsTimestamp,
@@ -68,21 +69,21 @@ export function useNewsRefresh() {
 export function useStockNews(symbol, name) {
   const { data: allNews = [], isLoading } = useAllNewsQuery();
 
-  if (!symbol) return { news: [], isLoading: false };
-
-  // 영문명이 너무 길면 첫 단어만 사용 (예: "Apple" not "Apple Inc.")
-  const shortName = name ? name.split(/[\s\/]/)[0] : null;
-  const keywords = [symbol, name, shortName]
-    .filter(Boolean)
-    .map(k => k.toLowerCase())
-    .filter((k, i, arr) => arr.indexOf(k) === i); // 중복 제거
-
-  const news = allNews
-    .filter(item => {
-      const text = (item.title + ' ' + (item.summary || item.description || '')).toLowerCase();
-      return keywords.some(kw => kw.length >= 2 && text.includes(kw));
-    })
-    .slice(0, 6);
+  const news = useMemo(() => {
+    if (!symbol || !allNews.length) return [];
+    // 영문명이 너무 길면 첫 단어만 사용 (예: "Apple" not "Apple Inc.")
+    const shortName = name ? name.split(/[\s\/]/)[0] : null;
+    const keywords = [symbol, name, shortName]
+      .filter(Boolean)
+      .map(k => k.toLowerCase())
+      .filter((k, i, arr) => arr.indexOf(k) === i); // 중복 제거
+    return allNews
+      .filter(item => {
+        const text = (item.title + ' ' + (item.summary || item.description || '')).toLowerCase();
+        return keywords.some(kw => kw.length >= 2 && text.includes(kw));
+      })
+      .slice(0, 6);
+  }, [symbol, name, allNews]);
 
   return { news, isLoading };
 }

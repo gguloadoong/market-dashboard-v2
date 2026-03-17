@@ -228,7 +228,7 @@ export default function App() {
           className="hidden lg:block self-start"
           style={{ position: 'sticky', top: '84px', height: 'calc(100vh - 84px)' }}
         >
-          <BreakingNewsPanel />
+          <BreakingNewsPanel coins={coins} onItemClick={setSelectedItem} />
         </div>
       </div>
 

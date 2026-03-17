@@ -234,7 +234,7 @@ function buildRouteLabel(event) {
 }
 
 // ─── 이벤트 카드 컴포넌트 ────────────────────────────────────────
-function EventRow({ event }) {
+function EventRow({ event, onItemClick, coinMap }) {
   const isHigh      = event.severity === 'high';
   const badge       = getMovementBadge(event.movementType, event.side);
   const routeTitle  = buildRouteTitle(event);   // "바이낸스 → 콜드월렛 (HODLing 신호)"
@@ -255,8 +255,14 @@ function EventRow({ event }) {
     ? { bg: '#FFF4E6', color: '#FF9500', text: 'BTC 온체인' }
     : { bg: '#F2F4F6', color: '#6B7684', text: 'UPBIT' };
 
+  // 코인 맵에서 종목 조회 (심볼 기반)
+  const linkedCoin = coinMap?.[event.symbol?.toUpperCase()];
+
   return (
-    <div className={`px-4 py-3 border-b border-[#F2F4F6] last:border-0 ${isHigh ? 'bg-[#FFFBF0]' : ''}`}>
+    <div
+      className={`px-4 py-3 border-b border-[#F2F4F6] last:border-0 ${isHigh ? 'bg-[#FFFBF0]' : ''} ${linkedCoin ? 'cursor-pointer hover:bg-[#F7F8FA] active:bg-[#F2F4F6] transition-colors' : ''}`}
+      onClick={() => linkedCoin && onItemClick?.(linkedCoin)}
+    >
       {/* 1행: 거래소 경로 제목 (크게) + 심볼 배지 + HIGH 배지 */}
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <span className="text-[13px] font-bold text-[#191F28] leading-snug flex-1 min-w-0">
@@ -320,11 +326,17 @@ const WATCH_SYMBOLS = [
   'NEAR','APT','ARB','SUI','OP','PEPE','XLM','TON','ATOM','INJ',
 ];
 
-export default function WhalePanel({ isVisible = true }) {
+export default function WhalePanel({ isVisible = true, coins = [], onItemClick }) {
   const [events,       setEvents]       = useState([]);
   const [connected,    setConnected]    = useState(false);
   const [btcConnected, setBtcConnected] = useState(false);
   const [msgCount,     setMsgCount]     = useState(0); // WS 수신 전체 체결 수
+
+  // 심볼 → 코인 빠른 조회 맵
+  const coinMap = coins.reduce((m, c) => {
+    if (c.symbol) m[c.symbol.toUpperCase()] = c;
+    return m;
+  }, {});
 
   // 이벤트 추가 헬퍼 (MAX_EVENTS 제한 + 버스 발행)
   const addEvent = (evt) => {
@@ -408,7 +420,12 @@ export default function WhalePanel({ isVisible = true }) {
           </div>
         )}
         {events.map((evt, i) => (
-          <EventRow key={`${evt.id || evt.symbol}-${evt.timestamp}-${i}`} event={evt} />
+          <EventRow
+            key={`${evt.id || evt.symbol}-${evt.timestamp}-${i}`}
+            event={evt}
+            coinMap={coinMap}
+            onItemClick={onItemClick}
+          />
         ))}
       </div>
 
