@@ -511,7 +511,7 @@ export default function HomeDashboard({
     }, {});
   }, [surgeItems, recentNews]);
 
-  // ─── SECTION 3: 각 시장별 HOT TOP5 ────────────────────────
+  // ─── SECTION 3: 각 시장별 HOT TOP5 (급등/급락) ─────────────
   const krHot = useMemo(
     () => [...krItems].sort((a, b) => getPct(b) - getPct(a)).slice(0, 5),
     [krItems]
@@ -522,6 +522,19 @@ export default function HomeDashboard({
   );
   const coinHot = useMemo(
     () => [...coinItems].sort((a, b) => getPct(b) - getPct(a)).slice(0, 5),
+    [coinItems]
+  );
+  // 급락 TOP5 (낙폭 큰 순)
+  const krDrop = useMemo(
+    () => [...krItems].sort((a, b) => getPct(a) - getPct(b)).slice(0, 5),
+    [krItems]
+  );
+  const usDrop = useMemo(
+    () => [...usItems].sort((a, b) => getPct(a) - getPct(b)).slice(0, 5),
+    [usItems]
+  );
+  const coinDrop = useMemo(
+    () => [...coinItems].sort((a, b) => getPct(a) - getPct(b)).slice(0, 5),
     [coinItems]
   );
 
@@ -803,6 +816,84 @@ export default function HomeDashboard({
                     />
                   ))
                 : <div className="px-4 py-6 text-center text-[12px] text-[#B0B8C1]">데이터 로딩 중</div>
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* ─── SECTION 3b: 3열 DROP 리스트 (급락 TOP5) ──────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* 국내 급락 */}
+        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px]">🇰🇷</span>
+              <span className="text-[13px] font-bold text-[#191F28]">국내 급락</span>
+            </div>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
+          </div>
+          <div className="py-1">
+            {!hasData
+              ? <SkeletonHotRow count={5} />
+              : krDrop.map((item, i) => (
+                  <HotRow
+                    key={`kr-drop-${item.symbol}`}
+                    item={item}
+                    rank={i + 1}
+                    krwRate={krwRate}
+                    onClick={onItemClick}
+                  />
+                ))
+            }
+          </div>
+        </div>
+
+        {/* 미장 급락 */}
+        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px]">🇺🇸</span>
+              <span className="text-[13px] font-bold text-[#191F28]">미장 급락</span>
+            </div>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
+          </div>
+          <div className="py-1">
+            {!hasData
+              ? <SkeletonHotRow count={5} />
+              : usDrop.map((item, i) => (
+                  <HotRow
+                    key={`us-drop-${item.symbol}`}
+                    item={item}
+                    rank={i + 1}
+                    krwRate={krwRate}
+                    onClick={onItemClick}
+                  />
+                ))
+            }
+          </div>
+        </div>
+
+        {/* 코인 급락 */}
+        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px]">🪙</span>
+              <span className="text-[13px] font-bold text-[#191F28]">코인 급락</span>
+            </div>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
+          </div>
+          <div className="py-1">
+            {!hasData
+              ? <SkeletonHotRow count={5} />
+              : coinDrop.map((item, i) => (
+                  <HotRow
+                    key={`coin-drop-${item.symbol}`}
+                    item={item}
+                    rank={i + 1}
+                    krwRate={krwRate}
+                    onClick={onItemClick}
+                  />
+                ))
             }
           </div>
         </div>

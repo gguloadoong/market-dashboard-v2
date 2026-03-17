@@ -71,18 +71,25 @@ export function useStockNews(symbol, name) {
 
   const news = useMemo(() => {
     if (!symbol || !allNews.length) return [];
-    // 영문명이 너무 길면 첫 단어만 사용 (예: "Apple" not "Apple Inc.")
+
+    // 키워드 구성: symbol + 종목명 + 첫 단어 (영문명 "Apple Inc." → "apple")
     const shortName = name ? name.split(/[\s\/]/)[0] : null;
-    const keywords = [symbol, name, shortName]
-      .filter(Boolean)
+    const rawKeywords = [symbol, name, shortName].filter(Boolean);
+
+    // 6자리 숫자 심볼(국장)은 키워드로 쓰면 거짓 양성 많음 — 제외
+    const keywords = rawKeywords
       .map(k => k.toLowerCase())
+      .filter(k => k.length >= 2 && !/^\d{6}$/.test(k)) // 국장 코드 제외
       .filter((k, i, arr) => arr.indexOf(k) === i); // 중복 제거
+
+    if (!keywords.length) return [];
+
     return allNews
       .filter(item => {
         const text = (item.title + ' ' + (item.summary || item.description || '')).toLowerCase();
-        return keywords.some(kw => kw.length >= 2 && text.includes(kw));
+        return keywords.some(kw => text.includes(kw));
       })
-      .slice(0, 6);
+      .slice(0, 8); // 6 → 8개로 확대
   }, [symbol, name, allNews]);
 
   return { news, isLoading };

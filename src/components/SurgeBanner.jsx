@@ -1,6 +1,6 @@
-// 급등 ticker 배너 — 상단 sticky
-// 급등(>=3%) 종목만 표시, 없으면 상위 5개
-// 급등 있을 때: 어두운 배경 + 빨간 강조
+// 급등/급락 ticker 배너 — 상단 sticky
+// 급등(>=3%) + 급락(<=-3%) 종목 표시, 없으면 상위 5개 (절댓값 기준)
+// 급등/급락 있을 때: 어두운 배경 강조
 // 없을 때: 중립 배경
 import { memo, useMemo } from 'react';
 
@@ -25,12 +25,21 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
         market: 'coin',
         _raw:   c,
       })),
-    ].sort((a, b) => b.pct - a.pct);
+    ];
 
-    const hot = all.filter(i => i.pct >= 3);
-    const hasHot = hot.length > 0;
-    // 급등 있으면 급등만 최대 20개, 없으면 상위 5개 (250개 코인 확장 후 너무 많아지는 방지)
-    const base = hasHot ? hot.slice(0, 20) : all.slice(0, 5);
+    // 급등 (pct >= 3): 등락률 내림차순, 급락 (pct <= -3): 낙폭 내림차순(절댓값)
+    const surges = all.filter(i => i.pct >= 3).sort((a, b) => b.pct - a.pct);
+    const drops  = all.filter(i => i.pct <= -3).sort((a, b) => a.pct - b.pct);
+    const hasHot = surges.length > 0 || drops.length > 0;
+
+    let base;
+    if (hasHot) {
+      // 급등 최대 10개 + 급락 최대 10개 (총 최대 20개)
+      base = [...surges.slice(0, 10), ...drops.slice(0, 10)];
+    } else {
+      // 급등/급락 없으면 절댓값 상위 5개
+      base = [...all].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 5);
+    }
     // 무한 스크롤 효과를 위해 2배 복제
     return { items: [...base, ...base], hasHot };
   }, [stocks, coins]);
@@ -61,7 +70,7 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
           className="text-[10px] font-bold tracking-widest uppercase"
           style={{ color: hasHot ? 'rgba(255,107,119,0.9)' : 'rgba(255,255,255,0.35)' }}
         >
-          {hasHot ? '🔥 급등' : '시세'}
+          {hasHot ? '🔥 급등·급락' : '시세'}
         </span>
       </div>
 
@@ -88,11 +97,15 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
               style={{
                 background: item.pct >= 3
                   ? 'rgba(240,68,82,0.2)'
+                  : item.pct <= -3
+                  ? 'rgba(23,100,237,0.25)'
                   : item.pct > 0
                   ? 'rgba(42,199,105,0.15)'
                   : 'rgba(255,255,255,0.08)',
                 color: item.pct >= 3
                   ? '#FF6B77'
+                  : item.pct <= -3
+                  ? '#5B9CF6'
                   : item.pct > 0
                   ? '#2AC769'
                   : 'rgba(255,255,255,0.45)',

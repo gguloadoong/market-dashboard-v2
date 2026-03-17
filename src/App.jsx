@@ -22,8 +22,6 @@ import { setWhaleKrwRate, setWhaleBtcKrwPrice } from './api/whale';
 import { useWatchlist } from './hooks/useWatchlist';
 
 const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
-// ETF 목록은 정적 데이터 — 컴포넌트 외부에서 한 번만 계산
-const ETF_ITEMS  = ETF_DATA.map(e => ({ ...e, marketCap: e.aum }));
 
 
 export default function App() {
@@ -32,8 +30,7 @@ export default function App() {
   const [coins, setCoins]                 = useState(COINS_INITIAL);
   const [usStocks, setUsStocks]           = useState(US_STOCKS_INITIAL);
   const [krStocks, setKrStocks]           = useState(KOREAN_STOCKS);
-  // etfs는 정적 데이터 — state 불필요 (모듈 레벨 ETF_ITEMS 사용)
-  const etfs = ETF_DATA;
+  const [etfs, setEtfs]                   = useState(ETF_DATA);
   const [indices, setIndices]             = useState(INDICES_INITIAL);
   const [krwRate, setKrwRate]             = useState(1466);
   const [lastUpdated, setLastUpdated]     = useState(null);
@@ -104,6 +101,22 @@ export default function App() {
     } catch (e) { console.warn('미장 갱신 실패:', e.message); }
   }, []);
 
+  // ── ETF 실시간 갱신 (60초) ──────────────────────────────────
+  const ETF_SYMBOLS = useMemo(() => ETF_DATA.map(e => e.symbol), []);
+
+  const refreshEtfs = useCallback(async () => {
+    try {
+      const fresh = await fetchUsStocksBatch(ETF_SYMBOLS);
+      if (fresh.length > 0) {
+        setEtfs(prev => prev.map(etf => {
+          const f = fresh.find(s => s.symbol === etf.symbol);
+          if (!f) return etf;
+          return { ...etf, price: f.price, change: f.change, changePct: f.changePct };
+        }));
+      }
+    } catch {}
+  }, [ETF_SYMBOLS]);
+
   // ── 국장 갱신 (30초) ────────────────────────────────────────
   const refreshKoreanStocks = useCallback(async () => {
     try {
@@ -159,6 +172,12 @@ export default function App() {
   useEffect(() => { const id = setInterval(refreshUsStocks,    30000); return () => clearInterval(id); }, [refreshUsStocks]);
   useEffect(() => { const id = setInterval(refreshKoreanStocks,30000); return () => clearInterval(id); }, [refreshKoreanStocks]);
   useEffect(() => { const id = setInterval(refreshIndices,     60000); return () => clearInterval(id); }, [refreshIndices]);
+  // ETF 가격 갱신: 마운트 즉시 + 60초마다
+  useEffect(() => {
+    refreshEtfs();
+    const id = setInterval(refreshEtfs, 60000);
+    return () => clearInterval(id);
+  }, [refreshEtfs]);
 
   // 환율 변경 시 ref 동기화 + whale 모듈 환율 주입
   useEffect(() => {
@@ -276,8 +295,10 @@ export default function App() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── ETF 아이템 (etfs state 기반) ────────────────────────────
+  const etfItems = useMemo(() => etfs.map(e => ({ ...e, marketCap: e.aum })), [etfs]);
+
   // ── 탭별 종목 데이터 (all 탭 제거, home은 HomeDashboard가 담당) ───
-  // ETF_ITEMS는 모듈 레벨 상수 — etfs dep 불필요 (렌더마다 새 배열 생성 방지)
   // 최적화: coins 탭이 아닐 때 WS 틱으로 coins가 변해도 tabItems 재계산 방지
   // → activeCoinData: coin 탭일 때만 coins 참조, 아닐 때 undefined (stable)
   const activeCoinData = activeTab === 'coin' ? coins : undefined;
@@ -287,10 +308,10 @@ export default function App() {
       case 'kr':   return krStocks;
       case 'us':   return usStocks;
       case 'coin': return activeCoinData ?? [];
-      case 'etf':  return ETF_ITEMS;
+      case 'etf':  return etfItems;
       default:     return krStocks;
     }
-  }, [activeTab, krStocks, usStocks, activeCoinData]);
+  }, [activeTab, krStocks, usStocks, activeCoinData, etfItems]);
 
   const allStocks = useMemo(() => [...krStocks, ...usStocks], [krStocks, usStocks]);
 
@@ -400,7 +421,7 @@ export default function App() {
           krStocks={krStocks}
           usStocks={usStocks}
           coins={coins}
-          etfs={ETF_ITEMS}
+          etfs={etfItems}
           krwRate={krwRate}
           onSelect={setSelectedItem}
           onClose={() => setSearchOpen(false)}

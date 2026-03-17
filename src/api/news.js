@@ -45,33 +45,41 @@ function timeAgo(dateInput) {
 
 // ─── 뉴스 제목에서 언론사명 중복 제거 (출처는 source 필드에 이미 있음) ──────
 // 한국어 언론사명 목록 — Google News RSS가 제목 끝에 " - 언론사명" 형태로 붙임
+// 줄임말·변형도 포함
 const KR_SOURCE_STRIP = [
-  '글로벌이코노믹','한국경제','매일경제','조선비즈','조선일보','동아일보','중앙일보',
-  '헤럴드경제','연합뉴스','뉴시스','뉴스1','머니투데이','파이낸셜뉴스','서울경제',
-  '이데일리','아시아경제','이투데이','비즈니스포스트','블록미디어','데일리안',
-  '국민일보','세계일보','문화일보','경향신문','한겨레','한국일보','시사저널',
-  '코인데스크','코인텔레그래프','블록스트리트','팍스넷','디지털타임스','전자신문',
-  'ZDNet Korea','ZDNet','ZDNET','Investing.com','Reuters','Bloomberg','CNBC',
+  '글로벌이코노믹','한국경제','한경','한경닷컴','매일경제','매경','조선비즈','조선일보',
+  '동아일보','동아','중앙일보','중앙','헤럴드경제','헤럴드','연합뉴스','연합','뉴시스','뉴스1',
+  '머니투데이','머니S','파이낸셜뉴스','파이낸셜','서울경제','서울신문',
+  '이데일리','아시아경제','아시아타임즈','이투데이','비즈니스포스트','블록미디어','데일리안',
+  '국민일보','세계일보','문화일보','경향신문','한겨레','한국일보','시사저널','시사IN',
+  '코인데스크','코인텔레그래프','코인리더스','블록스트리트','팍스넷',
+  '디지털타임스','전자신문','IT조선','IT동아','테크크런치','테크플러스',
+  '뉴스핌','더벨','인포스탁','인베스팅닷컴','NSP통신','노컷뉴스','오마이뉴스',
+  'ZDNet Korea','ZDNet','ZDNET',
+  'Investing.com','Reuters','Bloomberg','CNBC','MarketWatch','Yahoo Finance',
+  'Decrypt','CoinDesk','CoinTelegraph','The Block','Blockworks',
+  'Business Wire','PR Newswire','GlobeNewswire','BusinessPost',
 ];
 
 function cleanTitle(title, sourceName) {
   let t = title;
-  // 파이프 뒤 언론사명 제거 "제목 | Reuters"
+  // 파이프 뒤 언론사명 제거 "제목 | Reuters" or "제목 | 한국경제"
   t = t.replace(/\s*\|.*$/, '');
-  // 영어 언론사명 끝부분 제거 "제목 - Reuters"
+  // 영어 언론사명 끝부분 제거 "제목 - Reuters" (대소문자 무관)
   t = t.replace(/\s*[-–]\s*[A-Z][a-zA-Z\s.]+$/, '');
-  // 대괄호 접두사 제거 "[Reuters] 제목"
-  t = t.replace(/^\[.*?\]\s*/, '');
-  // 소스명 접두사 제거
+  // 대괄호/소괄호 접두사 제거 "[Reuters] 제목" "【연합뉴스】 제목"
+  t = t.replace(/^[\[【\(].*?[\]】\)]\s*/, '');
+  // 소스명 접두사 제거 "Reuters: 제목"
   t = t.replace(new RegExp(`^${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[-–:]\\s*`, 'i'), '');
   // 영문 프리픽스 제거
   t = t.replace(/^(UPDATE \d+-|CORRECTED-|EXCLUSIVE-|ANALYSIS-|BREAKINGVIEWS-|REFILE-)/i, '');
-  // 한국어 언론사명 스트립 — " - 언론사명" 패턴
+  // 한국어 언론사명 스트립 — " - 언론사명" 또는 " | 언론사명" 패턴
   for (const src of KR_SOURCE_STRIP) {
-    t = t.replace(new RegExp(`\\s*[-–|]\\s*${src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i'), '');
+    const escaped = src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    t = t.replace(new RegExp(`\\s*[-–|]\\s*${escaped}\\s*$`, 'i'), '');
   }
-  // 일반 패턴: 끝부분 " - 짧은텍스트(15자 이하)" 제거 — 언론사명은 주로 짧음
-  t = t.replace(/\s+[-–]\s+([^\s].{0,14})$/, (match, stripped) => {
+  // 일반 패턴: 끝부분 " - 짧은텍스트(20자 이하)" 제거 — 언론사명은 주로 짧음
+  t = t.replace(/\s+[-–]\s+([^\s].{0,19})$/, (match, stripped) => {
     // 숫자나 퍼센트가 포함된 경우 뉴스 내용의 일부일 수 있으므로 유지
     if (/[\d%]/.test(stripped)) return match;
     return '';
@@ -267,19 +275,45 @@ async function fetchUsNews() {
   return items;
 }
 
-// [국장] Google News (자체 프록시)
+// [국장] Google News — 멀티쿼리로 섹터 + 개별 주요 종목 커버
+const KR_STOCK_NEWS_QUERIES = [
+  {
+    // 국장 전반 + 삼성전자·SK하이닉스 (반도체)
+    url: 'https://news.google.com/rss/search?q=%EC%BD%94%EC%8A%A4%ED%94%BC+%EC%BD%94%EC%8A%A4%EB%8B%A5+%EC%A6%9D%EC%8B%9C+%EC%A3%BC%EC%8B%9D+%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90+SK%ED%95%98%EC%9D%B4%EB%8B%89%EC%8A%A4&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+  {
+    // 배터리·전기차·2차전지 (LG에너지솔루션, 삼성SDI, SK이노, 포스코퓨처엠, 에코프로)
+    url: 'https://news.google.com/rss/search?q=%EB%B0%B0%ED%84%B0%EB%A6%AC+2%EC%B0%A8%EC%A0%84%EC%A7%80+%EC%A0%84%EA%B8%B0%EC%B0%A8+%EC%97%90%EC%BD%94%ED%94%84%EB%A1%9C+%ED%8F%AC%EC%8A%A4%EC%BD%94&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+  {
+    // 바이오·제약·헬스케어 (삼성바이오, 셀트리온, 알테오젠, 한미약품)
+    url: 'https://news.google.com/rss/search?q=%EB%B0%94%EC%9D%B4%EC%98%A4+%EC%A0%9C%EC%95%BD+%EC%85%80%ED%8A%B8%EB%A6%AC%EC%98%A8+%ED%95%9C%EB%AF%B8%EC%95%BD%ED%92%88+%EC%95%8C%ED%85%8C%EC%98%A4%EC%A0%A0&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+  {
+    // 자동차·조선·방산·IT (현대차, 기아, 한화에어로, 현대중공업, NAVER, 카카오)
+    url: 'https://news.google.com/rss/search?q=%ED%98%84%EB%8C%80%EC%B0%A8+%EA%B8%B0%EC%95%84+%ED%95%9C%ED%99%94%EC%97%90%EC%96%B4%EB%A1%9C+%EC%A1%B0%EC%84%A0+NAVER+%EC%B9%B4%EC%B9%B4%EC%98%A4&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+];
+
 async function fetchKrNews() {
   const cached = cacheGet('kr');
   if (cached?.fresh) return cached.data;
 
-  const googleItems = await fetchRSS(
-    'https://news.google.com/rss/search?q=%EC%BD%94%EC%8A%A4%ED%94%BC+%EC%BD%94%EC%8A%A4%EB%8B%A5+%EC%A6%9D%EC%8B%9C+%EC%A3%BC%EC%8B%9D+%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90&hl=ko&gl=KR&ceid=KR:ko',
-    'kr', '구글뉴스',
+  // 4개 쿼리 병렬 취득 (각 섹터 커버)
+  const results = await Promise.allSettled(
+    KR_STOCK_NEWS_QUERIES.map(({ url, source }) =>
+      fetchRSS(url, 'kr', source)
+    )
   );
+  const allItems = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
-  const items = dedup(googleItems.filter(isFinancialNews).filter(isRecentNews))
+  const items = dedup(allItems.filter(isFinancialNews).filter(isRecentNews))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-    .slice(0, 30);
+    .slice(0, 50);
 
   if (items.length > 0) cacheSet('kr', items);
   else if (cached?.data) return cached.data.filter(isRecentNews);

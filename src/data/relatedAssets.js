@@ -550,6 +550,30 @@ export const RELATED_ASSETS = {
     ],
   },
 
+  // 삼성전기 (코스피 009150)
+  '009150': {
+    label: '삼성전기',
+    sector: '전자부품',
+    related: [
+      { symbol: '005930',  type: 'sector', reason: '삼성전자 (모회사 · MLCC 최대 고객)', market: 'KR' },
+      { symbol: '011070',  type: 'sector', reason: 'LG이노텍 (MLCC 경쟁)',               market: 'KR' },
+      { symbol: 'AAPL',    type: 'customer', reason: '애플 (삼성전기 주요 고객)',         market: 'US' },
+      { symbol: 'AVGO',    type: 'sector',   reason: '브로드컴 (부품 수요 연관)',          market: 'US' },
+      { symbol: 'QCOM',    type: 'sector',   reason: '퀄컴 (모바일 부품 연관)',            market: 'US' },
+    ],
+  },
+  '삼성전기': {
+    label: '삼성전기',
+    sector: '전자부품',
+    related: [
+      { symbol: '005930',  type: 'sector', reason: '삼성전자 (모회사 · MLCC 최대 고객)', market: 'KR' },
+      { symbol: '011070',  type: 'sector', reason: 'LG이노텍 (MLCC 경쟁)',               market: 'KR' },
+      { symbol: 'AAPL',    type: 'customer', reason: '애플 (삼성전기 주요 고객)',         market: 'US' },
+      { symbol: 'AVGO',    type: 'sector',   reason: '브로드컴 (부품 수요 연관)',          market: 'US' },
+      { symbol: 'QCOM',    type: 'sector',   reason: '퀄컴 (모바일 부품 연관)',            market: 'US' },
+    ],
+  },
+
   // SK하이닉스 (코스피 코드 000660)
   '000660': {
     label: 'SK하이닉스',
@@ -870,16 +894,48 @@ export function getRelatedTickers(symbol) {
  */
 export function findRelatedItems(symbol, dataMap, limit = 6) {
   const related = getRelatedAssets(symbol);
-  if (!related.length) return [];
 
-  return related
+  // ── 하드코딩 연관 종목 있으면 우선 사용 ──────────────────────
+  if (related.length) {
+    return related
+      .slice(0, limit)
+      .map(r => ({
+        ticker: r.symbol,
+        type:   r.type,
+        reason: r.reason,
+        market: r.market,
+        isEtf:  r.type === RELATION_TYPES.ETF,
+        item:   dataMap[r.symbol] || null,
+      }));
+  }
+
+  // ── Fallback: 섹터 기반 자동 연관 종목 ───────────────────────
+  // dataMap 내 현재 종목 찾기 (심볼 or 이름 매칭)
+  const currentItem = dataMap[symbol];
+  if (!currentItem) return [];
+
+  const currentSector = currentItem.sector;
+  const currentMarket = currentItem.market;
+  if (!currentSector) return [];
+
+  // 같은 섹터의 다른 종목을 최대 limit개 반환
+  const sectorPeers = Object.values(dataMap)
+    .filter(item =>
+      item &&
+      item.sector === currentSector &&
+      item.market === currentMarket &&
+      (item.symbol || item.id) !== symbol &&
+      item.name !== symbol
+    )
     .slice(0, limit)
-    .map(r => ({
-      ticker: r.symbol,
-      type:   r.type,
-      reason: r.reason,
-      market: r.market,
-      isEtf:  r.type === RELATION_TYPES.ETF,
-      item:   dataMap[r.symbol] || null,
+    .map(item => ({
+      ticker: item.symbol || item.id || '',
+      type:   'sector',
+      reason: `같은 섹터 (${currentSector})`,
+      market: currentMarket?.toUpperCase() || '',
+      isEtf:  false,
+      item,
     }));
+
+  return sectorPeers;
 }
