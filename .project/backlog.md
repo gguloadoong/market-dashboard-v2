@@ -77,14 +77,19 @@
 
 ## 🟢 Phase 3: 데이터 소스 업그레이드 (P2)
 
-### [P2-1] 국장 실시간
-- 옵션: 코스콤 OPEN API, 키움 웹소켓 (비용 검토 필요)
+### ~~[P2-1] 국장 실시간~~ ✅ 완료
+- KIS WebSocket (H0STCNT0) 실시간 체결가 구독
+- 30초 폴링과 병행 (WebSocket 실패 시 자동 fallback)
 
-### [P2-2] 미장 실시간
-- 옵션: Polygon.io ($29/월), Alpaca Markets (무료 티어)
+### ~~[P2-2] 미장 실시간~~ ✅ 완료
+- Alpaca Markets 무료 티어 지원 추가 (키 있을 때 자동 활성화)
+- fallback 체인: Stooq → Alpaca → Yahoo v7 → Yahoo v8
+- Stooq 타임아웃 단축 (8s→5s)
 
-### [P2-3] 뉴스 품질
-- 옵션: GNews ($9/월), 자체 RSS 크롤러 확장
+### ~~[P2-3] 뉴스 품질~~ ✅ 완료
+- 코인: CoinDesk, Decrypt, CoinTelegraph RSS 추가
+- 국내: 한경, 매경, 연합뉴스 경제, 블록미디어 직접 RSS 추가
+- 미장: Yahoo Finance, MarketWatch RSS 추가
 
 ---
 
@@ -112,3 +117,6 @@
 | 2026-03-18 | 홈 구조 개편: 핵심 시그널 최상단 + 오늘의 핵심 뉴스 |
 | 2026-03-18 | 종목 상세 "왜 지금?" WHY 배지 + 뉴스 1문장 |
 | 2026-03-18 | 뉴스 탭 재설계 — 속보 탭 + 종목 태그 (#삼성전자 등) |
+| 2026-03-18 | KIS WebSocket 실시간 국장 체결가 구독 |
+| 2026-03-18 | 미장 fallback 체인 강화 — Alpaca Markets 지원 |
+| 2026-03-18 | 뉴스 RSS 소스 10개 추가 — CoinDesk/Decrypt/매경/연합/MarketWatch 등 |
