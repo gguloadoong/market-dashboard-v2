@@ -14,15 +14,14 @@ import HomeDashboard from './components/HomeDashboard';
 import GlobalSearch from './components/GlobalSearch';
 
 import { KOREAN_STOCKS, US_STOCKS_INITIAL, COINS_INITIAL, ETF_DATA, INDICES_INITIAL } from './data/mock';
-import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins';
+import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate, fetchUpbitAllSymbols } from './api/coins';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission } from './utils/priceAlert';
 
-const US_SYMBOLS   = US_STOCKS_INITIAL.map(s => s.symbol);
-const COIN_SYMBOLS = COINS_INITIAL.map(c => c.symbol);
+const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
 // ETF 목록은 정적 데이터 — 컴포넌트 외부에서 한 번만 계산
-const ETF_ITEMS    = ETF_DATA.map(e => ({ ...e, marketCap: e.aum }));
+const ETF_ITEMS  = ETF_DATA.map(e => ({ ...e, marketCap: e.aum }));
 
 
 export default function App() {
@@ -200,11 +199,13 @@ export default function App() {
   }, []);
 
   // ── Upbit WebSocket 코인 가격 실시간 스트림 ─────────────────────
-  // 폴링(10초)과 병행 — WS가 연결되면 <1초 단위 가격 갱신, 끊기면 자동 재연결
+  // 1단계: 초기 30개로 빠르게 구독 시작
+  // 2단계: Upbit 전체 KRW 마켓 목록 로드 후 재구독 (200개+)
   useEffect(() => {
-    subscribeCoinPrices(COIN_SYMBOLS, (tick) => {
-      if (tick._connected) return; // 연결 이벤트 무시
-      // 100ms throttle — 같은 심볼 중복 틱 차단 (WS 폭주 방지)
+    let cancelled = false;
+
+    const wsHandler = (tick) => {
+      if (tick._connected) return;
       const now = Date.now();
       if (now - (wsThrottleRef.current[tick.symbol] ?? 0) < 100) return;
       wsThrottleRef.current[tick.symbol] = now;
@@ -222,8 +223,19 @@ export default function App() {
         };
         return updated;
       });
-    });
-    return () => unsubscribeCoinPrices();
+    };
+
+    // 1단계: COINS_INITIAL 30개로 즉시 구독 (빠른 시작)
+    subscribeCoinPrices(COINS_INITIAL.map(c => c.symbol), wsHandler);
+
+    // 2단계: Upbit 전체 KRW 마켓 (~200개)으로 재구독
+    fetchUpbitAllSymbols()
+      .then(symbols => {
+        if (!cancelled) subscribeCoinPrices(symbols, wsHandler);
+      })
+      .catch(() => {}); // 실패 시 초기 30개 유지
+
+    return () => { cancelled = true; unsubscribeCoinPrices(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 탭별 종목 데이터 (all 탭 제거, home은 HomeDashboard가 담당) ───
