@@ -175,7 +175,7 @@ export default function App() {
     <div className="min-h-screen bg-[#F8F9FA]">
       {/* 급상승 배너 (sticky, z-30 — 차트 패널 z-150보다 낮게) */}
       <div className="sticky top-0 z-30">
-        <SurgeBanner stocks={allStocks} coins={coins} />
+        <SurgeBanner stocks={allStocks} coins={coins} onClick={setSelectedItem} />
       </div>
 
       {/* 헤더 (sticky, z-20) */}
@@ -186,6 +186,9 @@ export default function App() {
         loading={loading}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        krStocks={krStocks}
+        usStocks={usStocks}
+        coins={coins}
       />
 
       {/* ── 반응형 그리드 레이아웃: 모바일 1열 / 데스크탑 2열 ─── */}
