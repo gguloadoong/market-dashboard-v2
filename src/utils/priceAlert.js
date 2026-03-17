@@ -10,6 +10,12 @@ const COOLDOWN_MS      = 5 * 60 * 1000; // 5분 쿨다운
 // 종목별 마지막 알림 시각 캐시
 const lastAlertTime = new Map();
 
+// 관심종목 ID Set (App.jsx에서 주입) — 빈 Set이면 알림 없음
+let _watchlistIds = new Set();
+export function setAlertWatchlistIds(ids) {
+  _watchlistIds = ids instanceof Set ? ids : new Set(ids);
+}
+
 // ─── 권한 요청 ─────────────────────────────────────────────
 export async function requestNotificationPermission() {
   if (!('Notification' in window)) return false;
@@ -76,10 +82,13 @@ export function checkAndAlert(item, type) {
 }
 
 // ─── 배치 체크 ───────────────────────────────────────────────
-// items 배열 전체를 체크 (폴링 갱신 후 호출)
+// items 배열에서 관심종목만 체크 (폴링 갱신 후 호출)
+// 관심종목 미등록 시 알림 없음 (스팸 방지)
 export function checkAndAlertBatch(items, type) {
   if (Notification.permission !== 'granted') return;
-  items.forEach(item => checkAndAlert(item, type));
+  if (_watchlistIds.size === 0) return; // 관심종목 없으면 알림 없음
+  const watched = items.filter(i => _watchlistIds.has(i.id) || _watchlistIds.has(i.symbol));
+  watched.forEach(item => checkAndAlert(item, type));
 }
 
 // ─── 쿨다운 초기화 (테스트용) ────────────────────────────────

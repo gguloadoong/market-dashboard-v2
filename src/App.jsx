@@ -17,8 +17,9 @@ import { KOREAN_STOCKS, US_STOCKS_INITIAL, COINS_INITIAL, ETF_DATA, INDICES_INIT
 import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate, fetchUpbitAllSymbols } from './api/coins';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
-import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission } from './utils/priceAlert';
+import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
 import { setWhaleKrwRate, setWhaleBtcKrwPrice } from './api/whale';
+import { useWatchlist } from './hooks/useWatchlist';
 
 const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
 // ETF 목록은 정적 데이터 — 컴포넌트 외부에서 한 번만 계산
@@ -26,6 +27,7 @@ const ETF_ITEMS  = ETF_DATA.map(e => ({ ...e, marketCap: e.aum }));
 
 
 export default function App() {
+  const { watchlist } = useWatchlist();
   const [activeTab, setActiveTab]         = useState('home');
   const [coins, setCoins]                 = useState(COINS_INITIAL);
   const [usStocks, setUsStocks]           = useState(US_STOCKS_INITIAL);
@@ -172,6 +174,10 @@ export default function App() {
 
   // ── 브라우저 알림 권한 요청 (초기 1회) ──────────────────────────
   useEffect(() => { requestNotificationPermission(); }, []);
+
+  // ── 관심종목 변경 시 알림 필터 동기화 ─────────────────────────
+  // watchlist Set → priceAlert 모듈에 주입 (관심종목만 알림)
+  useEffect(() => { setAlertWatchlistIds(watchlist); }, [watchlist]);
 
   // ── 탭 타이틀 동적 업데이트 — 급등 종목 있을 때 "⚡ BTC +5.2% — 마켓레이더" ──
   // Job 2 강화: 다른 탭에서 작업 중에도 탭 전환기로 급등 종목 인지

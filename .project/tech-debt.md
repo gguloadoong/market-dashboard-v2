@@ -19,9 +19,7 @@
 
 ## 🟢 P2 — 백로그
 
-| # | 파일 | 문제 | 영향 |
-|---|------|------|------|
-| 7 | `WatchlistTable.jsx` | 섹터 칩 overflow 시 모바일 375px 필터 영역 과도한 공간 차지 | 모바일 UX 저하 |
+현재 없음 ✅
 
 ---
 
@@ -61,3 +59,8 @@
 | 2026-03-17 | `SectorRotation.jsx` | 코인 탭(🪙) 추가 — 국장+미장+코인 통합 섹터 자금 흐름 (Job 5 완성) |
 | 2026-03-17 | `src/api/stocks.js` | allorigins 국장 모니터링 항목 삭제 — 국장 데이터 소스가 한투 API(1순위)→Naver(2순위)→Yahoo(3순위)로 전환되어 allorigins 미사용 |
 | 2026-03-17 | `src/data/mock.js` | COINS_INITIAL change24h 모두 0으로 초기화 — 초기 로드 2~3초 동안 가짜 급등 신호가 SurgeBanner에 노출되는 데이터 정합성 버그 수정 |
+| 2026-03-18 | `SurgeBanner.jsx` | key={i} → key={`${i}-${symbol}`} — 무한 스크롤 루프 중 React reconcile 오류 수정 |
+| 2026-03-18 | `HomeDashboard.jsx` | findRelatedNewsMulti 추가 — 관심종목 뉴스 종목당 1건→최대 3건, 전체 최대 12건 (Job 3 강화) |
+| 2026-03-18 | `WatchlistTable.jsx` | 섹터 칩 모바일 P2 해결 확인 — overflow-x-auto no-scrollbar + flex-shrink-0 조합으로 375px 정상 동작 |
+| 2026-03-18 | `src/utils/priceAlert.js` | checkAndAlertBatch 관심종목 필터 추가 — 전체 종목 알림 스팸 → 관심종목만 알림 (setAlertWatchlistIds 주입) |
+| 2026-03-18 | `src/App.jsx` | useWatchlist 추가 + watchlist 변경 시 setAlertWatchlistIds 동기화 |
