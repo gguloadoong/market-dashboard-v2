@@ -64,3 +64,4 @@
 | 2026-03-18 | `WatchlistTable.jsx` | 섹터 칩 모바일 P2 해결 확인 — overflow-x-auto no-scrollbar + flex-shrink-0 조합으로 375px 정상 동작 |
 | 2026-03-18 | `src/utils/priceAlert.js` | checkAndAlertBatch 관심종목 필터 추가 — 전체 종목 알림 스팸 → 관심종목만 알림 (setAlertWatchlistIds 주입) |
 | 2026-03-18 | `src/App.jsx` | useWatchlist 추가 + watchlist 변경 시 setAlertWatchlistIds 동기화 |
+| 2026-03-18 | `src/data/mock.js` | KOREAN_STOCKS·US_STOCKS_INITIAL change/changePct 전체 0으로 초기화 — 초기 로드 1~2초 동안 잘못된 등락률 표시 방지 (319개 항목) |

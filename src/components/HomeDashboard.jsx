@@ -819,7 +819,7 @@ export default function HomeDashboard({
           <span className="text-[11px] text-[#B0B8C1] ml-auto">급등종목 관련 뉴스</span>
         </div>
         <div className="flex gap-3 overflow-x-auto p-4 no-scrollbar">
-          {newsLoading && Array.from({ length: 3 }).map((_, i) => (
+          {(newsLoading || !hasData) && Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex-shrink-0 w-[260px] rounded-xl border border-[#F2F4F6] p-3 animate-pulse">
               <div className="flex gap-1.5 mb-2">
                 <div className="h-3 bg-[#F2F4F6] rounded w-20" />
@@ -829,7 +829,7 @@ export default function HomeDashboard({
               <div className="h-3 bg-[#F2F4F6] rounded w-4/5" />
             </div>
           ))}
-          {!newsLoading && insights.map(({ mover, news }) => (
+          {!newsLoading && hasData && insights.map(({ mover, news }) => (
             <InsightCard
               key={`insight-${mover._market}-${mover.id || mover.symbol}`}
               mover={mover}
@@ -837,7 +837,7 @@ export default function HomeDashboard({
               onMoverClick={onItemClick}
             />
           ))}
-          {!newsLoading && insights.length === 0 && (
+          {!newsLoading && hasData && insights.length === 0 && (
             <div className="flex flex-col items-center justify-center w-full py-6 gap-1.5">
               <span className="text-[22px]">📰</span>
               <span className="text-[13px] text-[#B0B8C1]">현재 급등 종목과 매칭된 뉴스가 없습니다</span>
