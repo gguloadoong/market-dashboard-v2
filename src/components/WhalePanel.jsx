@@ -235,13 +235,12 @@ function buildRouteLabel(event) {
 
 // ─── 이벤트 카드 컴포넌트 ────────────────────────────────────────
 function EventRow({ event }) {
-  const isHigh   = event.severity === 'high';
-  const badge    = getMovementBadge(event.movementType, event.side);
-  const routeLabel = buildRouteLabel(event);
-  const insightText = buildInsightText(event);
+  const isHigh      = event.severity === 'high';
+  const badge       = getMovementBadge(event.movementType, event.side);
+  const routeTitle  = buildRouteTitle(event);   // "바이낸스 → 콜드월렛 (HODLing 신호)"
+  const insightText = buildInsightText(event);   // 한 줄 설명
 
-  // 달러 환산 (whale-alert는 USD 금액 포함, BTC온체인은 KRW로 변환됨)
-  // tradeAmt가 원화 기준 → USD로 역산 (1466원/달러 근사)
+  // 달러 환산: tradeAmt(원화) → USD 역산 (1466원/달러 근사)
   const usdAmt = event.source === 'whale-alert'
     ? fmtUsd(Math.round((event.tradeAmt || 0) / 1466))
     : null;
@@ -258,23 +257,12 @@ function EventRow({ event }) {
 
   return (
     <div className={`px-4 py-3 border-b border-[#F2F4F6] last:border-0 ${isHigh ? 'bg-[#FFFBF0]' : ''}`}>
-      {/* 1행: 이동 유형 배지 + 거래소 경로 + 시간 */}
-      <div className="flex items-center gap-2 mb-1.5">
-        {/* 이동 유형 배지 */}
-        <span
-          className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0"
-          style={{ background: badge.bg, borderColor: badge.border, color: badge.color }}
-        >
-          {badge.emoji} {badge.label}
+      {/* 1행: 거래소 경로 제목 (크게) + 심볼 배지 + HIGH 배지 */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <span className="text-[13px] font-bold text-[#191F28] leading-snug flex-1 min-w-0">
+          {routeTitle}
         </span>
-
-        {/* 거래소 경로 (whale-alert만) */}
-        {routeLabel && (
-          <span className="text-[11px] font-medium text-[#4E5968] truncate flex-1">{routeLabel}</span>
-        )}
-
-        {/* 심볼 + 체인 배지 */}
-        <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <span className="text-[12px] font-bold text-[#191F28]">{event.symbol}</span>
           <span
             className="text-[10px] font-bold px-1.5 py-0.5 rounded"
@@ -288,8 +276,15 @@ function EventRow({ event }) {
         </div>
       </div>
 
-      {/* 2행: 수량 + 금액 */}
-      <div className="flex items-baseline gap-2 mb-1">
+      {/* 2행: 신호 강도 배지 + 수량 + 금액 */}
+      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+        {/* 신호 강도 배지 */}
+        <span
+          className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0"
+          style={{ background: badge.bg, borderColor: badge.border, color: badge.color }}
+        >
+          {badge.emoji} {badge.label}
+        </span>
         {/* 수량 */}
         {volStr && (
           <span className="text-[13px] font-bold text-[#191F28] font-mono tabular-nums">
@@ -306,7 +301,7 @@ function EventRow({ event }) {
         )}
       </div>
 
-      {/* 3행: 인사이트 설명 */}
+      {/* 3행: 인사이트 설명 — 이동의 의미를 한 줄로 */}
       <div className="text-[11px] text-[#6B7684] leading-snug mb-1">
         {insightText}
       </div>

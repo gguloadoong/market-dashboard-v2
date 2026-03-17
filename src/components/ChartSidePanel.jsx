@@ -425,13 +425,17 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
             </div>
           )}
 
-          {/* 관련 뉴스 — useStockNews 훅으로 React Query 캐시 활용 */}
-          {relatedNews.length > 0 && (
-            <div className="border-t border-[#F2F4F6] mt-4 pt-4 mb-6">
-              <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide px-4 mb-2">
-                관련 뉴스
+          {/* 관련 뉴스 — useStockNews 훅으로 React Query 캐시 활용, 결과 없으면 안내 메시지 표시 */}
+          <div className="border-t border-[#F2F4F6] mt-4 pt-4 mb-6">
+            <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide px-4 mb-2">
+              관련 뉴스
+            </div>
+            {relatedNews.length === 0 ? (
+              <div className="px-4 py-4 text-center text-[12px] text-[#B0B8C1]">
+                관련 뉴스 없음
               </div>
-              {relatedNews.map((n, i) => (
+            ) : (
+              relatedNews.map((n, i) => (
                 <a
                   key={n.id || i}
                   href={n.link}
@@ -439,16 +443,17 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                   rel="noopener noreferrer"
                   className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0"
                 >
+                  {/* 시간만 표시 — 언론사명은 제목에서 이미 제거됨 (cleanTitle 처리) */}
                   {n.timeAgo && (
-                    <span className="text-[10px] text-[#B0B8C1] mb-0.5 block">{n.source} · {n.timeAgo}</span>
+                    <span className="text-[10px] text-[#B0B8C1] mb-0.5 block">{n.timeAgo}</span>
                   )}
                   <div className="text-[12px] text-[#191F28] font-medium leading-snug line-clamp-2">
                     {n.title}
                   </div>
                 </a>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </>
