@@ -1,10 +1,13 @@
 // ─── 뉴스 API v3 ───────────────────────────────────────────────
 // 설계 원칙:
 //   1. 자체 Vercel Edge Function (/api/rss) → CORS 없음, 서버사이드 취득
-//   2. CryptoCompare (코인): CORS-free 직접 호출
-//   3. rss2json / allorigins 완전 제거 (불안정, 속도 느림)
+//   2. 모든 카테고리: Google News RSS via /api/rss (한국어)
+//   3. rss2json / allorigins / corsproxy.io 완전 제거 (불안정 또는 유료화)
 //   4. localStorage 캐시 (5분 신선, 24시간 fallback)
 //   5. React Query initialData 패턴으로 즉시 표시
+// 제거된 소스:
+//   - CryptoCompare: 2026-03 API 키 필수로 전환 (Type=1 에러, 0 items)
+//   - corsproxy.io: 무료 플랜 서버사이드 요청 차단 (유료 전환)
 
 // ─── localStorage 캐시 ─────────────────────────────────────────
 const CACHE_TTL   = 5 * 60 * 1000;
@@ -117,25 +120,10 @@ async function fetchViaProxy(rssUrl, category, sourceName) {
   return items;
 }
 
-// ─── corsproxy.io 경유 취득 ────────────────────────────────────
-async function fetchViaCorsproxy(rssUrl, category, sourceName) {
-  const url = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
-  // 느린 RSS 소스 대기 시간 최소화: 3초 타임아웃
-  const res  = await fetch(url, { signal: AbortSignal.timeout(3000) });
-  if (!res.ok) throw new Error(`corsproxy ${res.status}`);
-  const text = await res.text();
-  if (!text.trim().startsWith('<')) throw new Error('corsproxy not xml');
-  const items = parseRssXml(text, category, sourceName);
-  if (!items.length) throw new Error('corsproxy no items');
-  return items;
-}
-
-// ─── 단일 RSS 취득 (자체 프록시 → corsproxy.io 순) ───────────
+// ─── 단일 RSS 취득 (자체 Vercel Edge Function 전용) ─────────
+// corsproxy.io: 2026-03 무료 플랜 서버사이드 차단 → 완전 제거
 async function fetchRSS(rssUrl, category, sourceName) {
-  // 1순위: 자체 Vercel Edge Function 프록시
   try { return await fetchViaProxy(rssUrl, category, sourceName); } catch {}
-  // 2순위: corsproxy.io fallback
-  try { return await fetchViaCorsproxy(rssUrl, category, sourceName); } catch {}
   return [];
 }
 
@@ -186,42 +174,34 @@ function dedup(items) {
 // 카테고리별 뉴스 취득
 // ─────────────────────────────────────────────────────────────
 
-// [코인] CryptoCompare — CORS-free, 안정적, 키 불필요
+// [코인] Google News RSS — 자체 /api/rss 프록시 2개 쿼리 병렬
+// CryptoCompare: 2026-03 API 키 필수 전환으로 제거
+const KR_COIN_NEWS_QUERIES = [
+  {
+    // 비트코인·이더리움·알트코인 전반
+    url: 'https://news.google.com/rss/search?q=%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8+%EC%9D%B4%EB%8D%94%EB%A6%AC%EC%9B%80+%EC%BD%94%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+  {
+    // 암호화폐·가상자산·코인거래소·업비트·빗썸
+    url: 'https://news.google.com/rss/search?q=%EC%95%94%ED%98%B8%ED%99%94%ED%8F%90+%EA%B0%80%EC%83%81%EC%9E%90%EC%82%B0+%EC%97%85%EB%B9%84%ED%8A%B8+%EB%B9%97%EC%8D%B8&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+];
+
 async function fetchCoinNews() {
   const cached = cacheGet('coin');
   if (cached?.fresh) return cached.data;
 
-  // CryptoCompare 영문 코인 뉴스 (직접 호출, CORS OK)
-  const ccItems = await (async () => {
-    try {
-      const res  = await fetch(
-        'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&feeds=cointelegraph,coindesk,decrypt&extraParams=MarketDashboard',
-        { signal: AbortSignal.timeout(6000) }
-      );
-      if (!res.ok) throw new Error(`CC ${res.status}`);
-      const data = await res.json();
-      if (data.Type !== 100 || !data.Data?.length) throw new Error('CC error');
-      return data.Data.slice(0, 20).map(a => ({
-        id:          String(a.id),
-        title:       a.title,
-        description: (a.body || '').replace(/<[^>]+>/g, '').slice(0, 200),
-        link:        a.url,
-        pubDate:     new Date(a.published_on * 1000).toISOString(),
-        timeAgo:     timeAgo(a.published_on),
-        source:      a.source_info?.name || 'CryptoCompare',
-        image:       a.imageurl || null,
-        category:    'coin',
-      }));
-    } catch { return []; }
-  })();
-
-  // Google News 코인 RSS — 자체 프록시로 취득
-  const krCoinItems = await fetchRSS(
-    'https://news.google.com/rss/search?q=%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8+%EC%9D%B4%EB%8D%94%EB%A6%AC%EC%9B%80+%EC%BD%94%EC%9D%B8&hl=ko&gl=KR&ceid=KR:ko',
-    'coin', '구글뉴스',
+  // 2개 쿼리 병렬 취득
+  const results = await Promise.allSettled(
+    KR_COIN_NEWS_QUERIES.map(({ url, source }) =>
+      fetchRSS(url, 'coin', source)
+    )
   );
+  const allItems = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
-  const items = dedup([...ccItems, ...krCoinItems.filter(isFinancialNews)])
+  const items = dedup(allItems.filter(isFinancialNews))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     .slice(0, 30);
 
