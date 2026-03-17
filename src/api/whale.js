@@ -135,8 +135,8 @@ function fmtKrw(n) {
 function connectWs() {
   if (destroyed || !whaleSymbols || !whaleHandler) return;
 
-  const THRESHOLD_KRW = 20_000_000;  // 2000만 원 (BTC 0.2개 수준)
-  const HIGH_KRW      = 100_000_000; // 1억 원
+  const THRESHOLD_KRW = 100_000_000; // 1억 원 (의미 있는 단일 체결 기준)
+  const HIGH_KRW      = 500_000_000; // 5억 원 (기관급 대량 체결)
   const markets = whaleSymbols.map(s => `KRW-${s}`);
 
   try {
@@ -324,12 +324,12 @@ export function startWhaleAlertPolling(callback) {
 function getUpbitInsight(side, tradeAmt) {
   if (side === '매수') {
     if (tradeAmt >= 5e8) return { signal: 'bullish', insight: '기관/세력 대량 매수 — 단기 상방 압력' };
-    if (tradeAmt >= 1e8) return { signal: 'bullish', insight: '대량 매수 체결 — 모멘텀 확인 필요' };
-    return { signal: 'bullish', insight: '고래 단일 체결 감지' };
+    if (tradeAmt >= 2e8) return { signal: 'bullish', insight: '대량 매수 체결 — 모멘텀 확인 필요' };
+    return { signal: 'bullish', insight: '고래 단일 매수 체결 감지 (1억원+)' };
   }
   if (tradeAmt >= 5e8) return { signal: 'bearish', insight: '대규모 차익실현 — 하락 압력 주의' };
-  if (tradeAmt >= 1e8) return { signal: 'bearish', insight: '고래 매도 출현 — 추격매수 주의' };
-  return { signal: 'bearish', insight: '고래 단일 체결 감지' };
+  if (tradeAmt >= 2e8) return { signal: 'bearish', insight: '고래 매도 출현 — 추격매수 주의' };
+  return { signal: 'bearish', insight: '고래 단일 매도 체결 감지 (1억원+)' };
 }
 
 async function pollWhaleAlert(callback) {

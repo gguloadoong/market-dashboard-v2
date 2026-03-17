@@ -170,6 +170,14 @@ function dedup(items) {
   });
 }
 
+// 7일 이내 뉴스만 허용 (오래된 뉴스 인사이트 제거)
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+function isRecentNews(item) {
+  if (!item.pubDate) return false;
+  try { return Date.now() - new Date(item.pubDate).getTime() < SEVEN_DAYS_MS; }
+  catch { return false; }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 카테고리별 뉴스 취득
 // ─────────────────────────────────────────────────────────────
@@ -201,12 +209,12 @@ async function fetchCoinNews() {
   );
   const allItems = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
-  const items = dedup(allItems.filter(isFinancialNews))
+  const items = dedup(allItems.filter(isFinancialNews).filter(isRecentNews))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     .slice(0, 30);
 
   if (items.length > 0) cacheSet('coin', items);
-  else if (cached?.data) return cached.data;
+  else if (cached?.data) return cached.data.filter(isRecentNews);
   return items;
 }
 
@@ -250,12 +258,12 @@ async function fetchUsNews() {
   );
   const allItems = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
-  const items = dedup(allItems.filter(isFinancialNews))
+  const items = dedup(allItems.filter(isFinancialNews).filter(isRecentNews))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     .slice(0, 40);
 
   if (items.length > 0) cacheSet('us', items);
-  else if (cached?.data) return cached.data;
+  else if (cached?.data) return cached.data.filter(isRecentNews);
   return items;
 }
 
@@ -269,12 +277,12 @@ async function fetchKrNews() {
     'kr', '구글뉴스',
   );
 
-  const items = dedup(googleItems.filter(isFinancialNews))
+  const items = dedup(googleItems.filter(isFinancialNews).filter(isRecentNews))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     .slice(0, 30);
 
   if (items.length > 0) cacheSet('kr', items);
-  else if (cached?.data) return cached.data;
+  else if (cached?.data) return cached.data.filter(isRecentNews);
   return items;
 }
 

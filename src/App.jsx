@@ -11,6 +11,7 @@ import WatchlistTable from './components/WatchlistTable';
 import BreakingNewsPanel from './components/BreakingNewsPanel';
 import ChartSidePanel from './components/ChartSidePanel';
 import HomeDashboard from './components/HomeDashboard';
+import GlobalSearch from './components/GlobalSearch';
 
 import { KOREAN_STOCKS, US_STOCKS_INITIAL, COINS_INITIAL, ETF_DATA, INDICES_INITIAL } from './data/mock';
 import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins';
@@ -52,6 +53,7 @@ export default function App() {
   const [lastUpdated, setLastUpdated]     = useState(null);
   const [loading, setLoading]             = useState(false);
   const [selectedItem, setSelectedItem]   = useState(null);
+  const [searchOpen, setSearchOpen]       = useState(false);
   const loadingRef  = useRef(false);
   const krwRateRef  = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
 
@@ -180,6 +182,18 @@ export default function App() {
   // ── 브라우저 알림 권한 요청 (초기 1회) ──────────────────────────
   useEffect(() => { requestNotificationPermission(); }, []);
 
+  // ── 전역 종목 검색: `/` 키 → 검색 모달 ─────────────────────────
+  useEffect(() => {
+    const onKey = e => {
+      // 입력 필드 포커스 중이면 무시 (검색창 자체 입력 방해하지 않도록)
+      if (e.key !== '/' || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   // ── Upbit WebSocket 코인 가격 실시간 스트림 ─────────────────────
   // 폴링(10초)과 병행 — WS가 연결되면 <1초 단위 가격 갱신, 끊기면 자동 재연결
   useEffect(() => {
@@ -298,6 +312,19 @@ export default function App() {
           onClose={() => setSelectedItem(null)}
           onRelatedClick={setSelectedItem}
           allData={allData}
+        />
+      )}
+
+      {/* 전역 종목 검색 모달 — `/` 키로 열기 */}
+      {searchOpen && (
+        <GlobalSearch
+          krStocks={krStocks}
+          usStocks={usStocks}
+          coins={coins}
+          etfs={ETF_ITEMS}
+          krwRate={krwRate}
+          onSelect={setSelectedItem}
+          onClose={() => setSearchOpen(false)}
         />
       )}
     </div>

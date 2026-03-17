@@ -21,7 +21,7 @@ class ChartErrorBoundary extends Component {
     return this.props.children;
   }
 }
-import { fetchCandles } from '../api/chart';
+import { fetchCandles, PERIOD_CONFIG } from '../api/chart';
 import { useStockNews } from '../hooks/useNewsQuery';
 import InvestorFlow from './InvestorFlow';
 import { findRelatedItems } from '../data/relatedAssets';
@@ -59,9 +59,13 @@ function PanelLogo({ item }) {
   );
 }
 
-const PERIODS = ['1W', '1M', '3M', '1Y'];
-const PERIOD_LABEL = { '1W': '1주', '1M': '1달', '3M': '3달', '1Y': '1년' };
-const PERIOD_MAP   = { '1W': '1주', '1M': '1달', '3M': '3달', '1Y': '1년' };
+// 타임프레임 버튼 목록 (PERIOD_CONFIG 키와 일치)
+const PERIODS = ['5분', '15분', '30분', '1시간', '4시간', '일', '주', '월'];
+const PERIOD_LABEL = {
+  '5분': '5분', '15분': '15분', '30분': '30분',
+  '1시간': '1H', '4시간': '4H',
+  '일': '일봉', '주': '주봉', '월': '월봉',
+};
 
 function fmt(n, d = 0) {
   if (n == null || isNaN(n)) return '—';
@@ -94,7 +98,7 @@ function timeAgo(date) {
 }
 
 // ─── 차트 컴포넌트 ──────────────────────────────────────────
-function LightweightChart({ candles, loading, type }) {
+function LightweightChart({ candles, loading, type, isIntraday = false }) {
   const containerRef = useRef(null);
   const chartRef     = useRef(null);
 
@@ -115,7 +119,8 @@ function LightweightChart({ candles, loading, type }) {
           grid:   { vertLines: { color: '#F2F4F6' }, horzLines: { color: '#F2F4F6' } },
           crosshair: { mode: CrosshairMode.Normal },
           rightPriceScale: { borderColor: '#E5E8EB' },
-          timeScale: { borderColor: '#E5E8EB', timeVisible: false },
+          // 분봉/시봉: 시간 표시, 일봉+: 날짜만
+          timeScale: { borderColor: '#E5E8EB', timeVisible: isIntraday, secondsVisible: false },
           width,
           height: 300,
         });
@@ -177,7 +182,7 @@ function LightweightChart({ candles, loading, type }) {
 
 // ─── 메인 패널 ──────────────────────────────────────────────
 export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelatedClick, allData = {} }) {
-  const [period,  setPeriod]  = useState('1M');
+  const [period,  setPeriod]  = useState('5분');
   const [candles, setCandles] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartType, setChartType] = useState('candle');
@@ -215,7 +220,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     if (!item) return;
     setChartLoading(true);
     setCandles([]);
-    fetchCandles(item, PERIOD_MAP[period])
+    fetchCandles(item, period)
       .then(data => setCandles(data))
       .catch(() => {
         // 스파크라인 데이터로 fallback
@@ -346,7 +351,12 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
           {/* 차트 — ErrorBoundary로 크래시 격리 */}
           <div className="px-4 pb-2">
             <ChartErrorBoundary>
-              <LightweightChart candles={candles} loading={chartLoading} type={chartType} />
+              <LightweightChart
+                candles={candles}
+                loading={chartLoading}
+                type={chartType}
+                isIntraday={PERIOD_CONFIG[period]?.isIntraday ?? false}
+              />
             </ChartErrorBoundary>
           </div>
 

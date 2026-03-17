@@ -555,11 +555,16 @@ export default function HomeDashboard({
   // 급등 종목 존재 여부 (3% 이상)
   const hasHotItems = useMemo(() => allItems.some(i => getPct(i) >= 3), [allItems]);
 
-  // 급등 카드용 뉴스 컨텍스트 맵 (symbol → 관련 뉴스 1건)
+  // 급등 카드용 뉴스 컨텍스트 맵 (symbol → 관련 뉴스 1건, 7일 이내만)
   const surgeNewsMap = useMemo(() => {
     if (!allNews.length || !surgeItems.length) return {};
+    const recentNews = allNews.filter(n => {
+      if (!n.pubDate) return false;
+      try { return Date.now() - new Date(n.pubDate).getTime() < 7 * 24 * 60 * 60 * 1000; }
+      catch { return false; }
+    });
     return surgeItems.reduce((acc, item) => {
-      const news = findRelatedNews(item, allNews);
+      const news = findRelatedNews(item, recentNews);
       if (news) acc[item.symbol] = news;
       return acc;
     }, {});
@@ -586,8 +591,14 @@ export default function HomeDashboard({
 
   const insights = useMemo(() => {
     if (!allNews.length || !topMovers.length) return [];
+    // 7일 이내 뉴스만 인사이트로 사용 (오래된 뉴스 신뢰 손상 방지)
+    const recentNews = allNews.filter(n => {
+      if (!n.pubDate) return false;
+      try { return Date.now() - new Date(n.pubDate).getTime() < 7 * 24 * 60 * 60 * 1000; }
+      catch { return false; }
+    });
     return topMovers
-      .map(mover => ({ mover, news: findRelatedNews(mover, allNews) }))
+      .map(mover => ({ mover, news: findRelatedNews(mover, recentNews) }))
       .filter(({ news }) => news !== null)
       .slice(0, 6);
   }, [topMovers, allNews]);

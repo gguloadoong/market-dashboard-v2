@@ -197,13 +197,15 @@ const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, se
         </div>
       </TableCell>
 
-      {/* 현재가 (KRW) — title/subtitle prop 활용 */}
-      <TableCell
-        title={fmtKrwPrice(item, krwRate)}
-        subtitle={usdPrice || undefined}
-        direction="vertical"
-        className="px-3 py-3 text-right"
-      />
+      {/* 현재가 (KRW) */}
+      <TableCell className="px-3 py-3 text-right">
+        <div className="text-[14px] font-semibold text-[#191F28] tabular-nums font-mono">
+          {fmtKrwPrice(item, krwRate)}
+        </div>
+        {usdPrice && (
+          <div className="text-[11px] text-[#8B95A1] tabular-nums font-mono mt-0.5">{usdPrice}</div>
+        )}
+      </TableCell>
 
       {/* 전일대비 */}
       <TableCell className={`px-3 py-3 text-right text-[13px] tabular-nums font-mono ${
