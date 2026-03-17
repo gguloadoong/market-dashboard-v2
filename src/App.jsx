@@ -198,7 +198,13 @@ export default function App() {
     }
   }, [activeTab, krStocks, usStocks, coins, etfs]);
 
-  const allStocks = [...krStocks, ...usStocks];
+  const allStocks = useMemo(() => [...krStocks, ...usStocks], [krStocks, usStocks]);
+
+  // ChartSidePanel에 전달하는 데이터 맵 — 인라인 객체 생성 방지 (WS 틱마다 relatedItems 재계산 차단)
+  const allData = useMemo(
+    () => ({ krStocks, usStocks, coins, etfs }),
+    [krStocks, usStocks, coins, etfs]
+  );
 
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
@@ -273,7 +279,7 @@ export default function App() {
           krwRate={krwRate}
           onClose={() => setSelectedItem(null)}
           onRelatedClick={setSelectedItem}
-          allData={{ krStocks, usStocks, coins, etfs }}
+          allData={allData}
         />
       )}
     </div>
