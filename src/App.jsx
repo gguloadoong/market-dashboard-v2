@@ -15,7 +15,7 @@ import HomeDashboard from './components/HomeDashboard';
 import { KOREAN_STOCKS, US_STOCKS_INITIAL, COINS_INITIAL, ETF_DATA, INDICES_INITIAL } from './data/mock';
 import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
-import { getKoreanMarketStatus, getUsMarketStatus } from './utils/marketHours';
+import { getKoreanMarketStatus } from './utils/marketHours';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 import { requestNotificationPermission, checkAndAlertBatch } from './utils/priceAlert';
 

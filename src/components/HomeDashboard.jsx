@@ -528,8 +528,8 @@ function SectorRotation({ krStocks, usStocks }) {
       <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
         {sectorMap.map(({ name, avg, market }) => {
           const isUp  = avg >= 0;
-          const clr   = avg === 0 ? '#B0B8C1' : isUp ? '#F04452' : '#1A73E8';
-          const bgClr = isUp ? 'rgba(240,68,82,0.12)' : 'rgba(26,115,232,0.12)';
+          const clr   = avg === 0 ? '#B0B8C1' : isUp ? '#F04452' : '#1764ED';
+          const bgClr = isUp ? 'rgba(240,68,82,0.12)' : 'rgba(23,100,237,0.12)';
           const pct   = Math.abs(avg) / maxAbs * 100;
           return (
             <div key={name} className="flex items-center gap-2 min-w-0">
@@ -582,16 +582,6 @@ export default function HomeDashboard({
   const usItems   = useMemo(() => usStocks.map(s => ({ ...s, _market: 'US'   })), [usStocks]);
   const coinItems = useMemo(() => coins.map(c   => ({ ...c, _market: 'COIN' })), [coins]);
   const allItems  = useMemo(() => [...krItems, ...usItems, ...coinItems], [krItems, usItems, coinItems]);
-
-  // 데이터 맵 (연관 종목용)
-  const dataMap = useMemo(() => {
-    const map = {};
-    for (const s of krStocks)  map[s.symbol] = s;
-    for (const s of usStocks)  map[s.symbol] = s;
-    for (const c of coins)     map[c.symbol?.toUpperCase()] = c;
-    for (const s of krStocks)  if (s.name) map[s.name] = s;
-    return map;
-  }, [krStocks, usStocks, coins]);
 
   // ─── SECTION 1: 급등 스포트라이트 계산 ─────────────────────
   const surgeItems = useMemo(() => {
@@ -734,7 +724,7 @@ export default function HomeDashboard({
               const pct    = getPct(item);
               const isUp   = pct >= 0;
               const upClr  = '#F04452';
-              const dnClr  = '#1A73E8';
+              const dnClr  = '#1764ED';
               const clr    = pct === 0 ? '#8B95A1' : isUp ? upClr : dnClr;
               const price  = item._market === 'KR'
                 ? `₩${(item.price ?? 0).toLocaleString()}`
@@ -750,7 +740,7 @@ export default function HomeDashboard({
                   <div className="flex items-center gap-3 min-w-0">
                     <button
                       onClick={e => { e.stopPropagation(); toggle(item.id || item.symbol); }}
-                      className="text-[14px] text-yellow-400 flex-shrink-0"
+                      className="text-[14px] text-yellow-400 flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     >★</button>
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold text-[#191F28] truncate">{item.name ?? item.symbol}</p>
