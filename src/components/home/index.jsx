@@ -13,6 +13,9 @@ import SignalSection from './SignalSection';
 import TopNewsSection from './TopNewsSection';
 import EarlySignalSection from './EarlySignalSection';
 import EventCalendar from './EventCalendar';
+import MarketInvestorSection from './MarketInvestorSection';
+import DexHotSection from './DexHotSection';
+import CoinListingSection from './CoinListingSection';
 
 export default function HomeDashboard({
   indices = [], krStocks = [], usStocks = [], coins = [],
@@ -167,6 +170,9 @@ export default function HomeDashboard({
         onItemClick={onItemClick}
       />
 
+      {/* ─── 2.5 시장 투자자 동향 ────────────────────────────── */}
+      <MarketInvestorSection />
+
       {/* ─── 3. 시장 지수 ─────────────────────────────────── */}
       <MarketIndexSection
         indices={indices}
@@ -198,6 +204,12 @@ export default function HomeDashboard({
           onItemClick={onItemClick}
         />
       )}
+
+      {/* ─── DEX 핫 프로토콜 ─────────────────────────────── */}
+      <DexHotSection />
+
+      {/* ─── 코인 거래소 공지 ───────────────────────────── */}
+      <CoinListingSection />
 
       {/* ─── 5.7 경제 이벤트 캘린더 ──────────────────────── */}
       <EventCalendar />

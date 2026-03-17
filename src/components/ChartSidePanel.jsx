@@ -22,11 +22,12 @@ class ChartErrorBoundary extends Component {
   }
 }
 import { fetchCandles, PERIOD_CONFIG } from '../api/chart';
+import { fetchInvestorDataSafe } from '../api/investor';
 import { useStockNews } from '../hooks/useNewsQuery';
 import InvestorFlow from './InvestorFlow';
 import { findRelatedItems } from '../data/relatedAssets';
 
-// 로고 URL
+// ─── 로고 URL ────────────────────────────────────────────────
 function getLogoUrl(item) {
   if (item.image) return item.image;
   if (item.market === 'us')
@@ -35,12 +36,14 @@ function getLogoUrl(item) {
     return `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${item.symbol}.png`;
   return null;
 }
+
 const PALETTE = ['#3182F6','#F04452','#FF9500','#2AC769','#8B5CF6','#EC4899','#14B8A6','#F59E0B'];
 function colorFor(s = '') {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
   return PALETTE[Math.abs(h) % PALETTE.length];
 }
+
 function PanelLogo({ item }) {
   const [err, setErr] = useState(false);
   const url = getLogoUrl(item);
@@ -59,14 +62,41 @@ function PanelLogo({ item }) {
   );
 }
 
-// 타임프레임 버튼 목록 (PERIOD_CONFIG 키와 일치)
+// ─── 시장 배지 컴포넌트 ────────────────────────────────────────
+function MarketBadge({ item }) {
+  if (item.id) {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100] flex-shrink-0">
+        코인
+      </span>
+    );
+  }
+  if (item.market === 'kr') {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E3F2FD] text-[#1565C0] flex-shrink-0">
+        국장
+      </span>
+    );
+  }
+  if (item.market === 'us') {
+    return (
+      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8F5E9] text-[#2E7D32] flex-shrink-0">
+        미장
+      </span>
+    );
+  }
+  return null;
+}
+
+// ─── 타임프레임 버튼 목록 (PERIOD_CONFIG 키와 일치) ──────────────
 const PERIODS = ['5분', '15분', '30분', '1시간', '4시간', '일', '주', '월'];
 const PERIOD_LABEL = {
   '5분': '5분', '15분': '15분', '30분': '30분',
   '1시간': '1H', '4시간': '4H',
-  '일': '일봉', '주': '주봉', '월': '월봉',
+  '일': '1D', '주': '1W', '월': '1M',
 };
 
+// ─── 숫자 포맷 헬퍼 ───────────────────────────────────────────
 function fmt(n, d = 0) {
   if (n == null || isNaN(n)) return '—';
   return Number(n).toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -85,6 +115,14 @@ function fmtKrwPrice(item, krwRate) {
   return `₩${fmt(item.price)}`;
 }
 
+// 절대 가격 (원화 기준)
+function getAbsPrice(item, krwRate) {
+  if (item.id) return item.priceKrw || (item.priceUsd ?? 0) * krwRate;
+  if (item.market === 'kr') return item.price ?? 0;
+  if (item.market === 'us') return (item.price ?? 0) * krwRate;
+  return item.price ?? 0;
+}
+
 function getPct(item) {
   return item.id ? (item.change24h ?? 0) : (item.changePct ?? 0);
 }
@@ -97,7 +135,105 @@ function timeAgo(date) {
   return `${Math.floor(diff / 86400)}일 전`;
 }
 
-// ─── 차트 컴포넌트 ──────────────────────────────────────────
+// ─── 시가총액 포맷 (조/억 단위) ──────────────────────────────────
+function fmtMcap(v, isCoin = false, krwRate = 1466) {
+  if (!v) return '—';
+  // 코인: USD 기준 → 조(T), 억(B)
+  if (isCoin) {
+    if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+    if (v >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
+    if (v >= 1e6)  return `$${(v / 1e6).toFixed(0)}M`;
+    return `$${fmt(v)}`;
+  }
+  // 미국: USD 기준
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+  if (v >= 1e9)  return `$${(v / 1e9).toFixed(1)}B`;
+  // 국내: 원화 기준
+  const krw = v;
+  if (krw >= 1e12) return `${(krw / 1e12).toFixed(1)}조`;
+  if (krw >= 1e8)  return `${Math.round(krw / 1e8)}억`;
+  return `₩${fmt(krw)}`;
+}
+
+// 거래량 포맷
+function fmtVolume(v, isCoin = false, market = 'kr') {
+  if (!v) return '—';
+  if (isCoin) {
+    if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+    if (v >= 1e6) return `$${(v / 1e6).toFixed(1)}M`;
+    return `$${fmt(v)}`;
+  }
+  if (market === 'us') {
+    if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M주`;
+    if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K주`;
+    return `${fmt(v)}주`;
+  }
+  // 국내: 거래량(주 단위)
+  if (v >= 1e8) return `${(v / 1e8).toFixed(1)}억주`;
+  if (v >= 1e4) return `${Math.round(v / 1e4)}만주`;
+  return `${fmt(v)}주`;
+}
+
+// 현재가 52주 위치 퍼센트 (0~100)
+function get52wPct(price, low, high) {
+  if (!price || !low || !high || high === low) return null;
+  return Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
+}
+
+// ─── 52주 고저가 슬라이더 ────────────────────────────────────────
+function RangeMeter({ low, high, current, label52Low = '52주저가', label52High = '52주고가' }) {
+  const pct = get52wPct(current, low, high);
+  if (pct === null) return null;
+
+  const posLabel = pct < 30 ? '하단' : pct < 70 ? '중간' : '상단';
+  const posColor = pct < 30 ? '#1764ED' : pct < 70 ? '#FF9500' : '#F04452';
+
+  return (
+    <div className="px-5 pt-1 pb-4">
+      {/* 레인지 바 */}
+      <div className="relative h-1.5 bg-[#E5E8EB] rounded-full mt-2 mb-1">
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow-sm transition-all"
+          style={{ left: `${pct}%`, transform: 'translateX(-50%) translateY(-50%)', background: posColor }}
+        />
+      </div>
+      {/* 레이블 */}
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-[10px] text-[#B0B8C1] font-mono tabular-nums">{label52Low}</span>
+        <span className="text-[10px] font-bold tabular-nums" style={{ color: posColor }}>
+          {posLabel} {pct.toFixed(0)}%
+        </span>
+        <span className="text-[10px] text-[#B0B8C1] font-mono tabular-nums">{label52High}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── 투자자 동향 인사이트 문구 생성 ──────────────────────────────
+function genInvestorInsight(data) {
+  if (!data) return null;
+  const foreign = data.foreign?.netAmt ?? 0;
+  const inst    = data.institution?.netAmt ?? 0;
+
+  if (foreign > 0 && inst > 0) return { text: '외인·기관 동반 순매수', color: '#F04452', badge: '강세' };
+  if (foreign > 0 && inst < 0) return { text: '외인 순매수, 기관 순매도', color: '#FF9500', badge: '혼조' };
+  if (foreign < 0 && inst > 0) return { text: '기관 순매수, 외인 순매도', color: '#8B5CF6', badge: '혼조' };
+  if (foreign < 0 && inst < 0) return { text: '외인·기관 동반 순매도', color: '#1764ED', badge: '약세' };
+  return null;
+}
+
+// ─── 뉴스 시그널 라벨 (간단 버전) ────────────────────────────────
+function extractSignalLabel(title = '') {
+  const t = title.toLowerCase();
+  if (/급등|상승|돌파|신고가|매수|호재/.test(title)) return { label: '호재', color: '#F04452', bg: '#FFF0F1' };
+  if (/급락|하락|하한가|매도|악재|리스크/.test(title)) return { label: '악재', color: '#1764ED', bg: '#EDF4FF' };
+  if (/실적|매출|영업이익|어닝/.test(title))            return { label: '실적', color: '#8B5CF6', bg: '#F5F3FF' };
+  if (/배당|주주|자사주/.test(title))                   return { label: '배당', color: '#2AC769', bg: '#F0FFF4' };
+  if (/규제|법안|SEC|금감원/.test(title))               return { label: '규제', color: '#FF9500', bg: '#FFF8E7' };
+  return null;
+}
+
+// ─── 차트 컴포넌트 ──────────────────────────────────────────────
 function LightweightChart({ candles, loading, type, isIntraday = false }) {
   const containerRef = useRef(null);
   const chartRef     = useRef(null);
@@ -127,7 +263,7 @@ function LightweightChart({ candles, loading, type, isIntraday = false }) {
         chartRef.current = chart;
 
         if (type === 'candle') {
-          // lightweight-charts v5 API: addSeries(SeriesType, options)
+          // lightweight-charts v5 API
           const s = chart.addSeries(CandlestickSeries, { upColor:'#F04452', downColor:'#1764ED', borderVisible:false, wickUpColor:'#F04452', wickDownColor:'#1764ED' });
           s.setData(candles);
         } else {
@@ -180,15 +316,152 @@ function LightweightChart({ candles, loading, type, isIntraday = false }) {
   return <div ref={containerRef} className="w-full" />;
 }
 
-// ─── 메인 패널 ──────────────────────────────────────────────
+// ─── 핵심 지표 그리드 ─────────────────────────────────────────────
+function MetricsGrid({ item, krwRate }) {
+  const isCoin = !!item.id;
+  const high   = isCoin ? item.high24h : item.high52w;
+  const low    = isCoin ? item.low24h  : item.low52w;
+  const curPx  = isCoin ? (item.priceKrw || (item.priceUsd ?? 0) * krwRate) : item.price;
+  const pct52  = get52wPct(curPx, low, high);
+
+  const posLabel = pct52 == null ? '—'
+    : pct52 < 30 ? `하단 ${pct52.toFixed(0)}%`
+    : pct52 < 70 ? `중간 ${pct52.toFixed(0)}%`
+    : `상단 ${pct52.toFixed(0)}%`;
+  const posColor = pct52 == null ? '#B0B8C1'
+    : pct52 < 30 ? '#1764ED'
+    : pct52 < 70 ? '#FF9500'
+    : '#F04452';
+
+  // 지표 목록 — null이면 숨김
+  const cells = [];
+
+  // 시가총액
+  const mcapStr = fmtMcap(item.marketCap, isCoin, krwRate);
+  if (mcapStr !== '—') cells.push({ label: '시가총액', value: mcapStr, mono: true });
+
+  // 거래량
+  const volStr = fmtVolume(
+    isCoin ? item.volume24h : item.volume,
+    isCoin,
+    item.market
+  );
+  if (volStr !== '—') cells.push({ label: isCoin ? '24h 거래량' : '거래량', value: volStr, mono: true });
+
+  // P/E (미국주식)
+  if (item.market === 'us' && item.pe) cells.push({ label: 'P/E', value: `${Number(item.pe).toFixed(1)}x`, mono: true });
+
+  // 코인 상장 거래소 수
+  if (isCoin && item.exchanges?.length > 0) {
+    cells.push({ label: '거래소', value: `${item.exchanges.length}개`, mono: false });
+  }
+
+  // 52주 고가
+  const highLabel = isCoin ? '24h 고가' : '52주 고가';
+  const highVal = high
+    ? isCoin
+      ? `$${Number(high).toFixed(2)}`
+      : `₩${fmt(Math.round(high))}`
+    : '—';
+  if (highVal !== '—') cells.push({ label: highLabel, value: highVal, mono: true });
+
+  // 52주 저가
+  const lowLabel = isCoin ? '24h 저가' : '52주 저가';
+  const lowVal = low
+    ? isCoin
+      ? `$${Number(low).toFixed(2)}`
+      : `₩${fmt(Math.round(low))}`
+    : '—';
+  if (lowVal !== '—') cells.push({ label: lowLabel, value: lowVal, mono: true });
+
+  // 현재가 위치
+  if (pct52 !== null) {
+    cells.push({ label: '현재가 위치', value: posLabel, color: posColor, mono: true });
+  }
+
+  // 섹터
+  if (item.sector) cells.push({ label: '섹터', value: item.sector, mono: false });
+
+  // 영문명 (미국 주식)
+  if (item.nameEn) cells.push({ label: '영문명', value: item.nameEn, mono: false });
+
+  if (!cells.length) return null;
+
+  return (
+    <div className="mx-5 mb-4 border border-[#F2F4F6] rounded-xl overflow-hidden">
+      <div className="grid grid-cols-3 divide-x divide-[#F2F4F6]">
+        {cells.map((cell, i) => (
+          <div
+            key={cell.label}
+            className={`px-3 py-2.5 ${i % 3 === 0 ? 'col-span-1' : ''} ${
+              Math.floor(i / 3) % 2 === 0 ? 'bg-[#FAFBFC]' : 'bg-white'
+            }`}
+          >
+            <div className="text-[10px] text-[#B0B8C1] mb-0.5 leading-none">{cell.label}</div>
+            <div
+              className={`text-[13px] font-semibold leading-snug truncate ${cell.mono ? 'font-mono tabular-nums' : ''}`}
+              style={{ color: cell.color || '#191F28' }}
+            >
+              {cell.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── 강화된 투자자 동향 섹션 (국내주식 전용) ──────────────────────
+function InvestorFlowEnhanced({ symbol }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!symbol || !/^\d{6}$/.test(symbol)) { setLoading(false); return; }
+    setLoading(true);
+    // InvestorFlow와 같은 API 사용 — 정적 import로 공유
+    fetchInvestorDataSafe(symbol).then(setData).finally(() => setLoading(false));
+  }, [symbol]);
+
+  if (!symbol || !/^\d{6}$/.test(symbol)) return null;
+
+  const insight = genInvestorInsight(data);
+
+  return (
+    <div className="mx-5 mb-4">
+      {/* 인사이트 배너 — 데이터 있을 때만 */}
+      {!loading && insight && (
+        <div
+          className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2"
+          style={{ background: insight.color + '11' }}
+        >
+          <span
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: insight.color + '22', color: insight.color }}
+          >
+            {insight.badge}
+          </span>
+          <span className="text-[12px] font-medium" style={{ color: insight.color }}>
+            {insight.text}
+          </span>
+        </div>
+      )}
+      {/* 기존 InvestorFlow 컴포넌트 재사용 */}
+      <InvestorFlow symbol={symbol} />
+    </div>
+  );
+}
+
+// ─── 메인 패널 ──────────────────────────────────────────────────
 export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelatedClick, allData = {} }) {
-  const [period,  setPeriod]  = useState('5분');
-  const [candles, setCandles] = useState([]);
+  const [period,    setPeriod]    = useState('5분');
+  const [candles,   setCandles]   = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartType, setChartType] = useState('candle');
+  const [showMoreNews, setShowMoreNews] = useState(false); // "더 보기" 상태
+  const [isFav, setIsFav]         = useState(false);       // 관심 종목 토글 (UI 전용)
 
   // 종목 키워드 기반 관련 뉴스 — React Query 캐시 활용
-  // market: 코인=COIN, 국장=KR, 미장=US
   const newsMarket = item?.id ? 'COIN' : item?.market === 'kr' ? 'KR' : 'US';
   const { news: relatedNews, isLoading: newsLoading } = useStockNews(
     item?.symbol || item?.id,
@@ -205,14 +478,27 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     for (const s of usStocks) dataMap[s.symbol] = s;
     for (const e of etfs)     dataMap[e.symbol] = e;
     for (const c of coins)    dataMap[c.symbol?.toUpperCase()] = c;
-    // RELATED_ASSETS 키는 대문자 심볼 (BTC, NVDA, 005930 등) 기준
     const sym = item.symbol?.toUpperCase() || item.id?.toUpperCase() || '';
-    return findRelatedItems(sym, dataMap);
+    return findRelatedItems(sym, dataMap, 8); // 최대 8개
   }, [item?.symbol, item?.name, allData]);
+
+  // ETF와 일반종목 분리
+  const etfItems     = relatedItems.filter(r => r.isEtf);
+  const nonEtfItems  = relatedItems.filter(r => !r.isEtf);
 
   const pct    = item ? getPct(item) : 0;
   const isUp   = pct > 0;
   const isDown = pct < 0;
+
+  // 현재가 (KRW 기준 숫자)
+  const curPriceRaw = item ? getAbsPrice(item, krwRate) : 0;
+  // 52주 고저가
+  const isCoin = !!item?.id;
+  const high52 = isCoin ? item?.high24h : item?.high52w;
+  const low52  = isCoin ? item?.low24h  : item?.low52w;
+
+  // 뉴스 표시 개수: showMoreNews ? 10 : 5
+  const visibleNews = showMoreNews ? relatedNews.slice(0, 10) : relatedNews.slice(0, 5);
 
   // ESC 닫기
   useEffect(() => {
@@ -229,7 +515,6 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     fetchCandles(item, period)
       .then(data => setCandles(data))
       .catch(() => {
-        // 스파크라인 데이터로 fallback
         const spark = item.sparkline ?? [];
         const today = new Date();
         const fake  = spark.map((close, i) => {
@@ -250,36 +535,16 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
 
   if (!item) return null;
 
-  const isCoin = !!item.id;
-  const high   = isCoin ? item.high24h : item.high52w;
-  const low    = isCoin ? item.low24h  : item.low52w;
-  const volume = isCoin ? item.volume24h : item.volume;
-  const mcap   = item.marketCap;
-
-  const infoRows = [
-    { label: '거래량',   value: volume ? `${(volume / 1e6).toFixed(2)}M` : '—' },
-    { label: '시가총액', value: mcap ? (mcap >= 1e12 ? `${(mcap / 1e12).toFixed(1)}조` : `${(mcap / 1e8).toFixed(0)}억`) : '—' },
-    isCoin
-      ? { label: '24h 고가', value: high ? `$${Number(high).toFixed(2)}` : '—' }
-      : { label: '52주 고가', value: high ? fmtKrwPrice({ ...item, price: high }, krwRate) : '—' },
-    isCoin
-      ? { label: '24h 저가', value: low ? `$${Number(low).toFixed(2)}` : '—' }
-      : { label: '52주 저가', value: low ? fmtKrwPrice({ ...item, price: low }, krwRate) : '—' },
-    item.sector && { label: '섹터', value: item.sector },
-    item.nameEn && { label: '영문명', value: item.nameEn },
-  ].filter(Boolean);
-
   return (
     <>
-      {/* 딤 오버레이 — z-[150] (sticky 헤더/배너 모두 위) */}
+      {/* 딤 오버레이 */}
       <div
         className="fixed inset-0 bg-black/30"
         style={{ zIndex: 150 }}
         onClick={onClose}
       />
 
-      {/* 패널 — full-height, 헤더·배너 위로 슬라이드 */}
-      {/* 모바일: 전체 너비 (48vw = ~180px로 차트 렌더 불가), sm+: min(620px, 48vw) */}
+      {/* 패널 — full-height 슬라이드 */}
       <div
         className="fixed top-0 right-0 bg-white shadow-2xl flex flex-col w-full sm:w-[min(620px,48vw)]"
         style={{
@@ -289,48 +554,118 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
           animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1)',
         }}
       >
-        {/* 헤더 */}
-        <div className="flex-shrink-0 px-6 py-4 border-b border-[#F2F4F6]">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
+        {/* ─── 헤더 ─────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-5 pt-4 pb-3 border-b border-[#F2F4F6]">
+
+          {/* 1행: 로고 + 종목명 + 닫기 + 관심 */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2.5 min-w-0">
               <PanelLogo item={item} />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[18px] font-bold text-[#191F28] truncate">{item.name}</span>
-                  <span className="text-[11px] font-bold text-[#8B95A1] font-mono bg-[#F2F4F6] px-2 py-0.5 rounded-full flex-shrink-0">{item.symbol}</span>
-                  {item.sector && <span className="text-[10px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded-full flex-shrink-0">{item.sector}</span>}
+              <div className="min-w-0 flex-1">
+                {/* 시장배지 + 심볼 */}
+                <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                  <MarketBadge item={item} />
+                  <span className="text-[18px] font-bold text-[#191F28] truncate leading-tight">
+                    {item.name}
+                  </span>
+                  <span className="text-[11px] font-bold text-[#8B95A1] font-mono bg-[#F2F4F6] px-2 py-0.5 rounded-full flex-shrink-0">
+                    {item.symbol}
+                  </span>
                 </div>
-                <div className="flex items-baseline gap-2.5 mt-1">
-                  <span className="text-[24px] font-bold text-[#191F28] tabular-nums font-mono">
+
+                {/* 현재가 + 등락 */}
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-[22px] font-bold text-[#191F28] tabular-nums font-mono leading-tight">
                     {fmtKrwPrice(item, krwRate)}
                   </span>
-                  <span className={`text-[15px] font-semibold tabular-nums font-mono ${isUp ? 'text-[#F04452]' : isDown ? 'text-[#1764ED]' : 'text-[#6B7684]'}`}>
+                  <span className={`text-[14px] font-semibold tabular-nums font-mono ${isUp ? 'text-[#F04452]' : isDown ? 'text-[#1764ED]' : 'text-[#6B7684]'}`}>
                     {isUp ? '▲' : isDown ? '▼' : '—'}{Math.abs(pct).toFixed(2)}%
                   </span>
                 </div>
+
+                {/* 미국 주식 USD 가격 병기 */}
                 {item.market === 'us' && item.price && (
-                  <div className="text-[12px] text-[#B0B8C1] mt-0.5 font-mono">${fmt(item.price, 2)} USD</div>
+                  <div className="text-[11px] text-[#B0B8C1] font-mono tabular-nums mt-0.5">
+                    ${fmt(item.price, 2)} USD
+                  </div>
                 )}
-                {/* 코인 상장 거래소 — exchanges 필드가 있는 코인에만 표시 */}
+
+                {/* 코인 상장 거래소 */}
                 {item.id && item.exchanges?.length > 0 && (
-                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    <span className="text-[10px] text-[#8B95A1]">상장 거래소</span>
+                  <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                    <span className="text-[10px] text-[#8B95A1]">거래소</span>
                     {item.exchanges.map(ex => (
-                      <span key={ex} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F2F4F6] text-[#4E5968]">{ex}</span>
+                      <span key={ex} className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F2F4F6] text-[#4E5968]">{ex}</span>
                     ))}
                   </div>
                 )}
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-[#B0B8C1] hover:text-[#191F28] flex-shrink-0 p-1.5 rounded-lg hover:bg-[#F2F4F6] transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
+
+            {/* 우측 버튼 영역 */}
+            <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+              {/* 관심 토글 */}
+              <button
+                onClick={() => setIsFav(v => !v)}
+                className="p-1.5 rounded-lg hover:bg-[#F2F4F6] transition-colors"
+                title="관심 종목"
+              >
+                <span className="text-[18px] leading-none">{isFav ? '★' : '☆'}</span>
+              </button>
+              {/* 닫기 */}
+              <button
+                onClick={onClose}
+                className="text-[#B0B8C1] hover:text-[#191F28] p-1.5 rounded-lg hover:bg-[#F2F4F6] transition-colors"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {/* ─── "왜 지금?" 컨텍스트 1문장 ─────────────────── */}
+          {/* 52주/24h 레인지 슬라이더 */}
+          {high52 && low52 && (
+            <div className="mt-2 -mx-1">
+              <div className="px-1">
+                {/* 고저가 숫자 */}
+                <div className="flex items-center justify-between text-[10px] text-[#B0B8C1] font-mono tabular-nums mb-1">
+                  <span>{isCoin ? '24h저' : '52주저'} {isCoin ? `$${Number(low52).toFixed(2)}` : `₩${fmt(Math.round(low52))}`}</span>
+                  <span>{isCoin ? '24h고' : '52주고'} {isCoin ? `$${Number(high52).toFixed(2)}` : `₩${fmt(Math.round(high52))}`}</span>
+                </div>
+                {/* 레인지 바 */}
+                {(() => {
+                  const pctPos = get52wPct(curPriceRaw, low52, high52);
+                  if (pctPos === null) return null;
+                  const dotColor = pctPos < 30 ? '#1764ED' : pctPos < 70 ? '#FF9500' : '#F04452';
+                  return (
+                    <div className="relative h-1.5 bg-[#E5E8EB] rounded-full">
+                      {/* 그라디언트 레인지 채우기 */}
+                      <div
+                        className="absolute left-0 top-0 h-full rounded-full"
+                        style={{
+                          width: `${pctPos}%`,
+                          background: `linear-gradient(90deg, #1764ED, ${dotColor})`,
+                          opacity: 0.35,
+                        }}
+                      />
+                      {/* 현재가 점 */}
+                      <div
+                        className="absolute top-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
+                        style={{
+                          left: `${pctPos}%`,
+                          transform: 'translateX(-50%) translateY(-50%)',
+                          background: dotColor,
+                        }}
+                      />
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* ─── "왜 지금?" WHY 배지 ──────────────────────────── */}
           {!newsLoading && relatedNews.length > 0 && (
             <div className="mt-3 flex items-start gap-2 bg-[#F8F9FA] rounded-xl px-3 py-2.5">
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#191F28] text-white flex-shrink-0 mt-0.5">
@@ -361,31 +696,42 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
           )}
         </div>
 
-        {/* 스크롤 영역 */}
+        {/* ─── 스크롤 영역 ──────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
-          {/* 기간 + 차트 타입 */}
-          <div className="flex items-center justify-between px-4 py-3 gap-2">
-            {/* 타임프레임 버튼 — 모바일에서 가로 스크롤 */}
+
+          {/* ── 투자자 동향 — 국내주식만, WHY 배지 바로 아래 ────── */}
+          {item.market === 'kr' && (
+            <div className="pt-3">
+              <InvestorFlowEnhanced symbol={item.symbol} />
+            </div>
+          )}
+
+          {/* ── 타임프레임 + 차트 타입 버튼 ──────────────────────── */}
+          <div className="flex items-center justify-between px-4 py-2.5 gap-2">
+            {/* 타임프레임 pill 버튼 — 모바일 가로 스크롤 */}
             <div className="flex gap-1 overflow-x-auto no-scrollbar flex-shrink-1 min-w-0">
               {PERIODS.map(p => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={`px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 ${
-                    period === p ? 'bg-[#191F28] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
+                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all flex-shrink-0 ${
+                    period === p
+                      ? 'bg-[#191F28] text-white shadow-sm'
+                      : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
                   }`}
                 >
                   {PERIOD_LABEL[p]}
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 flex-shrink-0">
+            {/* 캔들/라인 토글 */}
+            <div className="flex gap-1 flex-shrink-0 bg-[#F2F4F6] p-0.5 rounded-xl">
               {['candle', 'line'].map(t => (
                 <button
                   key={t}
                   onClick={() => setChartType(t)}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
-                    chartType === t ? 'bg-[#191F28] text-white' : 'bg-[#F2F4F6] text-[#6B7684]'
+                  className={`px-2.5 py-1 rounded-lg text-[12px] font-medium transition-all ${
+                    chartType === t ? 'bg-white text-[#191F28] shadow-sm' : 'text-[#6B7684]'
                   }`}
                 >
                   {t === 'candle' ? '캔들' : '라인'}
@@ -394,7 +740,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
             </div>
           </div>
 
-          {/* 차트 — ErrorBoundary로 크래시 격리 */}
+          {/* ── 차트 — ErrorBoundary 크래시 격리 ──────────────────── */}
           <div className="px-4 pb-2">
             <ChartErrorBoundary>
               <LightweightChart
@@ -406,86 +752,141 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
             </ChartErrorBoundary>
           </div>
 
-          {/* 종목 정보 그리드 */}
-          <div className="mx-5 mb-4 border border-[#F2F4F6] rounded-xl overflow-hidden">
-            <div className="grid grid-cols-2 divide-x divide-[#F2F4F6]">
-              {infoRows.map((row, i) => (
-                <div
-                  key={row.label}
-                  className={`px-4 py-3 ${i % 4 < 2 ? 'bg-[#F8F9FA]' : 'bg-white'}`}
-                >
-                  <div className="text-[11px] text-[#B0B8C1] mb-0.5">{row.label}</div>
-                  <div className="text-[14px] font-semibold text-[#191F28] tabular-nums font-mono">{row.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* ── 핵심 지표 그리드 ────────────────────────────────── */}
+          <MetricsGrid item={item} krwRate={krwRate} />
 
-          {/* 투자자 동향 — 국내 종목만 */}
-          {item.market === 'kr' && <InvestorFlow symbol={item.symbol} />}
-
-          {/* 연관 종목 — ETF, 동일 섹터, 상관 자산 */}
+          {/* ── 연관 ETF / 연관 종목 섹션 ──────────────────────── */}
           {relatedItems.length > 0 && (
-            <div className="border-t border-[#F2F4F6] mt-2 pt-4 px-5 mb-2">
-              <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide mb-3">
-                연관 종목
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {relatedItems.map(({ ticker, item: rel, isEtf }) => {
-                  const relPct = rel ? (rel.change24h ?? rel.changePct ?? 0) : null;
-                  const relColor = relPct == null ? '#B0B8C1'
-                    : relPct > 0 ? '#F04452'
-                    : relPct < 0 ? '#1764ED'
-                    : '#8B95A1';
-                  const relPrice = rel
-                    ? rel.priceKrw
-                      ? `₩${fmt(Math.round(rel.priceKrw))}`
-                      : rel.price
-                      ? `₩${fmt(Math.round((rel.price ?? 0) * (rel.market === 'us' ? krwRate : 1)))}`
-                      : null
-                    : null;
-
-                  return (
-                    <button
-                      key={ticker}
-                      onClick={() => rel && onRelatedClick?.(rel)}
-                      disabled={!rel}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left ${
-                        rel
-                          ? 'border-[#E5E8EB] hover:border-[#B0B8C1] hover:shadow-sm cursor-pointer bg-white'
-                          : 'border-[#F2F4F6] bg-[#FAFBFC] cursor-default opacity-60'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center gap-1 mb-0.5">
-                          {isEtf && (
-                            <span className="text-[10px] font-bold text-[#3182F6] bg-[#EDF4FF] px-1 rounded">ETF</span>
+            <div className="border-t border-[#F2F4F6] pt-4 pb-2 px-5 mb-1">
+              {/* ETF 섹션 — 상단 우선 표시 */}
+              {etfItems.length > 0 && (
+                <>
+                  <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide mb-2">
+                    연관 ETF
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {etfItems.map(({ ticker, item: rel, reason }) => {
+                      const relPct   = rel ? (rel.change24h ?? rel.changePct ?? 0) : null;
+                      const relColor = relPct == null ? '#B0B8C1' : relPct > 0 ? '#F04452' : relPct < 0 ? '#1764ED' : '#8B95A1';
+                      const relPrice = rel
+                        ? rel.price != null
+                          ? `$${fmt(rel.price, 2)}`
+                          : null
+                        : null;
+                      return (
+                        <button
+                          key={ticker}
+                          onClick={() => rel && onRelatedClick?.(rel)}
+                          disabled={!rel}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left ${
+                            rel
+                              ? 'border-[#3182F6]/30 bg-[#EDF4FF] hover:border-[#3182F6] hover:shadow-sm cursor-pointer'
+                              : 'border-[#F2F4F6] bg-[#FAFBFC] cursor-default opacity-50'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <span className="text-[10px] font-bold text-[#3182F6] bg-white px-1 rounded flex-shrink-0">ETF</span>
+                              <span className="text-[12px] font-bold text-[#191F28] font-mono truncate">{ticker}</span>
+                            </div>
+                            {relPrice && (
+                              <div className="text-[10px] text-[#3182F6] font-mono tabular-nums">{relPrice}</div>
+                            )}
+                            {reason && (
+                              <div className="text-[10px] text-[#8B95A1] truncate mt-0.5">{reason}</div>
+                            )}
+                          </div>
+                          {relPct != null && (
+                            <span className="text-[11px] font-bold tabular-nums font-mono flex-shrink-0 ml-1" style={{ color: relColor }}>
+                              {relPct > 0 ? '▲' : relPct < 0 ? '▼' : ''}{Math.abs(relPct).toFixed(2)}%
+                            </span>
                           )}
-                          <span className="text-[12px] font-bold text-[#191F28] font-mono">{ticker}</span>
-                        </div>
-                        {relPrice && (
-                          <div className="text-[10px] text-[#8B95A1] font-mono tabular-nums">{relPrice}</div>
-                        )}
-                        {!rel && (
-                          <div className="text-[10px] text-[#C9CDD2]">미추적</div>
-                        )}
-                      </div>
-                      {relPct != null && (
-                        <span className="text-[12px] font-bold tabular-nums font-mono" style={{ color: relColor }}>
-                          {relPct > 0 ? '▲' : relPct < 0 ? '▼' : ''}{Math.abs(relPct).toFixed(2)}%
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* 일반 연관 종목 */}
+              {nonEtfItems.length > 0 && (
+                <>
+                  <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide mb-2">
+                    연관 종목
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {nonEtfItems.map(({ ticker, item: rel, type, reason }) => {
+                      const relPct   = rel ? (rel.change24h ?? rel.changePct ?? 0) : null;
+                      const relColor = relPct == null ? '#B0B8C1' : relPct > 0 ? '#F04452' : relPct < 0 ? '#1764ED' : '#8B95A1';
+                      const relPrice = rel
+                        ? rel.priceKrw
+                          ? `₩${fmt(Math.round(rel.priceKrw))}`
+                          : rel.price != null
+                          ? `₩${fmt(Math.round((rel.price ?? 0) * (rel.market === 'us' ? krwRate : 1)))}`
+                          : null
+                        : null;
+
+                      // 타입별 배지
+                      const typeBadge = type === 'coin'
+                        ? { label: '코인', bg: '#FFF3E0', color: '#E65100' }
+                        : type === 'stock' || type === 'sector'
+                        ? { label: '주식', bg: '#F2F4F6', color: '#4E5968' }
+                        : null;
+
+                      return (
+                        <button
+                          key={ticker}
+                          onClick={() => rel && onRelatedClick?.(rel)}
+                          disabled={!rel}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left ${
+                            rel
+                              ? 'border-[#E5E8EB] hover:border-[#B0B8C1] hover:shadow-sm cursor-pointer bg-white'
+                              : 'border-[#F2F4F6] bg-[#FAFBFC] cursor-default opacity-60'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1 mb-0.5 flex-wrap">
+                              {typeBadge && (
+                                <span className="text-[10px] font-bold px-1 rounded flex-shrink-0"
+                                  style={{ background: typeBadge.bg, color: typeBadge.color }}>
+                                  {typeBadge.label}
+                                </span>
+                              )}
+                              <span className="text-[12px] font-bold text-[#191F28] font-mono truncate">{ticker}</span>
+                            </div>
+                            {relPrice && (
+                              <div className="text-[10px] text-[#8B95A1] font-mono tabular-nums">{relPrice}</div>
+                            )}
+                            {!rel && <div className="text-[10px] text-[#C9CDD2]">미추적</div>}
+                          </div>
+                          {relPct != null && (
+                            <span className="text-[12px] font-bold tabular-nums font-mono flex-shrink-0 ml-1" style={{ color: relColor }}>
+                              {relPct > 0 ? '▲' : relPct < 0 ? '▼' : ''}{Math.abs(relPct).toFixed(2)}%
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {/* 관련 뉴스 — useStockNews 훅으로 React Query 캐시 활용, 결과 없으면 안내 메시지 표시 */}
-          <div className="border-t border-[#F2F4F6] mt-4 pt-4 mb-6">
-            <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide px-4 mb-2">
-              관련 뉴스
+          {/* ── 관련 뉴스 — 시그널 라벨 + 더 보기 ──────────────── */}
+          <div className="border-t border-[#F2F4F6] mt-3 pt-3 mb-6">
+            <div className="flex items-center justify-between px-4 mb-2">
+              <span className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide">
+                관련 뉴스
+              </span>
+              {relatedNews.length > 5 && (
+                <button
+                  onClick={() => setShowMoreNews(v => !v)}
+                  className="text-[11px] text-[#3182F6] font-medium hover:underline"
+                >
+                  {showMoreNews ? '접기' : `더 보기 (${Math.min(relatedNews.length, 10)}건)`}
+                </button>
+              )}
             </div>
             {newsLoading ? (
               <div className="px-4 py-4 text-center text-[12px] text-[#B0B8C1]">
@@ -496,23 +897,36 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                 관련 뉴스 없음
               </div>
             ) : (
-              relatedNews.map((n, i) => (
-                <a
-                  key={n.id || i}
-                  href={n.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0"
-                >
-                  {/* 시간만 표시 — 언론사명은 제목에서 이미 제거됨 (cleanTitle 처리) */}
-                  {n.timeAgo && (
-                    <span className="text-[10px] text-[#B0B8C1] mb-0.5 block">{n.timeAgo}</span>
-                  )}
-                  <div className="text-[12px] text-[#191F28] font-medium leading-snug line-clamp-2">
-                    {n.title}
-                  </div>
-                </a>
-              ))
+              visibleNews.map((n, i) => {
+                const signal = extractSignalLabel(n.title);
+                return (
+                  <a
+                    key={n.id || i}
+                    href={n.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0 transition-colors"
+                  >
+                    {/* 메타 행: 시간 + 시그널 라벨 */}
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      {n.timeAgo && (
+                        <span className="text-[10px] text-[#B0B8C1]">{n.timeAgo}</span>
+                      )}
+                      {signal && (
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                          style={{ background: signal.bg, color: signal.color }}
+                        >
+                          {signal.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[12px] text-[#191F28] font-medium leading-snug line-clamp-2">
+                      {n.title}
+                    </div>
+                  </a>
+                );
+              })
             )}
           </div>
         </div>
