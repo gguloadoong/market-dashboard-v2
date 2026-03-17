@@ -29,8 +29,8 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
 
     const hot = all.filter(i => i.pct >= 3);
     const hasHot = hot.length > 0;
-    // 급등 있으면 급등만, 없으면 상위 5개
-    const base = hasHot ? hot : all.slice(0, 5);
+    // 급등 있으면 급등만 최대 20개, 없으면 상위 5개 (250개 코인 확장 후 너무 많아지는 방지)
+    const base = hasHot ? hot.slice(0, 20) : all.slice(0, 5);
     // 무한 스크롤 효과를 위해 2배 복제
     return { items: [...base, ...base], hasHot };
   }, [stocks, coins]);

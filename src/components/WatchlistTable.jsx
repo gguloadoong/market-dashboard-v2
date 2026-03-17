@@ -406,8 +406,9 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const hasMore       = type === 'coin' && flatSorted.length > pageLimit;
 
   const renderRows = () => {
-    // 초기 로딩: 데이터 없고 loading 중일 때 스켈레톤 표시
-    if (loading && items.length === 0) {
+    // 초기 로딩: 데이터 없거나, 코인 탭에서 30개 이하(COINS_INITIAL mock) + 로딩 중이면 스켈레톤
+    const isInitialCoinLoad = type === 'coin' && loading && items.length <= 30;
+    if ((loading && items.length === 0) || isInitialCoinLoad) {
       return Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />);
     }
     return displayedRows.map((item, i) => (
