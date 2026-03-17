@@ -21,6 +21,20 @@
 //   - 실제 온체인 고래 TX 추적은 불가
 //   - 가격/거래량 이상 징후 감지로 대체 (간접 지표)
 
+// ─── 환율 / BTC 가격 (App.jsx에서 주입) ──────────────────────
+let currentKrwRate    = 1466;       // USD → KRW 환율
+let currentBtcKrwPrice = 130_000_000; // BTC 현재가 (원)
+
+/** USD/KRW 환율 업데이트 — App.jsx에서 fetchExchangeRate() 결과로 호출 */
+export function setWhaleKrwRate(rate) {
+  if (rate > 0) currentKrwRate = rate;
+}
+
+/** BTC KRW 가격 업데이트 — App.jsx에서 coins 갱신 시 호출 */
+export function setWhaleBtcKrwPrice(price) {
+  if (price > 0) currentBtcKrwPrice = price;
+}
+
 // ─── 스냅샷 저장소 ────────────────────────────────────────────
 // { coinId: { priceKrw, volume24h, timestamp } }
 let prevSnapshot = {};
@@ -269,8 +283,8 @@ function connectBtcWs(callback) {
         // outputs 합산 (satoshi → BTC)
         const totalBtc = (tx.out || []).reduce((s, o) => s + (o.value || 0), 0) / 1e8;
         if (totalBtc < BTC_WHALE_THRESHOLD) return;
-        // 전역 BTC 가격 활용 (WhalePanel에서 window.__btcKrwRate__ 설정)
-        const amtKrw = totalBtc * (window.__btcKrwRate__ || 100_000_000);
+        // 모듈 레벨 BTC KRW 가격 사용 (setWhaleBtcKrwPrice로 주입)
+        const amtKrw = totalBtc * currentBtcKrwPrice;
         callback({
           id:        tx.hash?.slice(0, 8) + '-btc',
           symbol:    'BTC',
@@ -382,7 +396,7 @@ async function pollWhaleAlert(callback) {
         symbol:       tx.symbol?.toUpperCase() || '?',
         chain:        tx.blockchain,
         side:         '온체인',
-        tradeAmt:     Math.round((tx.amount_usd || 0) * 1300), // USD→KRW 근사
+        tradeAmt:     Math.round((tx.amount_usd || 0) * currentKrwRate), // USD→KRW (환율 동적 반영)
         volume:       tx.amount,
         severity:     tx.amount_usd >= 10_000_000 ? 'high' : 'normal',
         timestamp:    (tx.timestamp || 0) * 1000,

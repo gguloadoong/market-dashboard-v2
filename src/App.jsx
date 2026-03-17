@@ -18,6 +18,7 @@ import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate, fetchUpbitAllSymbol
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission } from './utils/priceAlert';
+import { setWhaleKrwRate, setWhaleBtcKrwPrice } from './api/whale';
 
 const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
 // ETF 목록은 정적 데이터 — 컴포넌트 외부에서 한 번만 계산
@@ -157,8 +158,17 @@ export default function App() {
   useEffect(() => { const id = setInterval(refreshKoreanStocks,30000); return () => clearInterval(id); }, [refreshKoreanStocks]);
   useEffect(() => { const id = setInterval(refreshIndices,     60000); return () => clearInterval(id); }, [refreshIndices]);
 
-  // 환율 변경 시 ref 동기화 (WS 핸들러에서 클로저 없이 사용)
-  useEffect(() => { krwRateRef.current = krwRate; }, [krwRate]);
+  // 환율 변경 시 ref 동기화 + whale 모듈 환율 주입
+  useEffect(() => {
+    krwRateRef.current = krwRate;
+    setWhaleKrwRate(krwRate);
+  }, [krwRate]);
+
+  // 코인 업데이트 시 whale 모듈에 BTC KRW 가격 주입
+  useEffect(() => {
+    const btc = coins.find(c => c.symbol === 'BTC');
+    if (btc?.priceKrw) setWhaleBtcKrwPrice(btc.priceKrw);
+  }, [coins]);
 
   // ── 브라우저 알림 권한 요청 (초기 1회) ──────────────────────────
   useEffect(() => { requestNotificationPermission(); }, []);

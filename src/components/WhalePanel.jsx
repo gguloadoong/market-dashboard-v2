@@ -2,7 +2,7 @@
 // 소스 1: Upbit WebSocket (2000만원+ 단일 체결)
 // 소스 2: Blockchain.com WebSocket (10 BTC+ 온체인 이동)
 // 소스 3: Whale Alert REST 폴링 (Vercel 프록시, 60초 간격)
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   subscribeUpbitWhaleTrades,
   unsubscribeUpbitWhaleTrades,
@@ -11,6 +11,7 @@ import {
   startWhaleAlertPolling,
   stopWhaleAlertPolling,
 } from '../api/whale';
+import { fetchUpbitAllSymbols } from '../api/coins';
 import { pushWhaleEvent } from '../state/whaleBus';
 
 const MAX_EVENTS = 30;
@@ -320,8 +321,8 @@ function EventRow({ event, onItemClick, coinMap }) {
   );
 }
 
-// Upbit KRW 마켓 감시 종목 목록
-const WATCH_SYMBOLS = [
+// 폴백: Upbit KRW 마켓 기본 20개 (동적 로딩 전 사용)
+const FALLBACK_SYMBOLS = [
   'BTC','ETH','XRP','SOL','ADA','DOGE','AVAX','DOT','LINK','UNI',
   'NEAR','APT','ARB','SUI','OP','PEPE','XLM','TON','ATOM','INJ',
 ];
@@ -331,12 +332,20 @@ export default function WhalePanel({ isVisible = true, coins = [], onItemClick }
   const [connected,    setConnected]    = useState(false);
   const [btcConnected, setBtcConnected] = useState(false);
   const [msgCount,     setMsgCount]     = useState(0); // WS 수신 전체 체결 수
+  const [watchSymbols, setWatchSymbols] = useState(FALLBACK_SYMBOLS); // 동적 Upbit 심볼
 
-  // 심볼 → 코인 빠른 조회 맵
-  const coinMap = coins.reduce((m, c) => {
+  // 심볼 → 코인 빠른 조회 맵 (coins 변경 시에만 재계산)
+  const coinMap = useMemo(() => coins.reduce((m, c) => {
     if (c.symbol) m[c.symbol.toUpperCase()] = c;
     return m;
-  }, {});
+  }, {}), [coins]);
+
+  // Upbit 전체 KRW 마켓 심볼 동적 로딩 (1회)
+  useEffect(() => {
+    fetchUpbitAllSymbols()
+      .then(symbols => { if (symbols.length > 0) setWatchSymbols(symbols); })
+      .catch(() => {}); // 실패 시 폴백 유지
+  }, []);
 
   // 이벤트 추가 헬퍼 (MAX_EVENTS 제한 + 버스 발행)
   const addEvent = (evt) => {
@@ -351,8 +360,8 @@ export default function WhalePanel({ isVisible = true, coins = [], onItemClick }
     setBtcConnected(false);
     setMsgCount(0);
 
-    // ── 소스 1: Upbit WebSocket ─────────────────────────────────
-    subscribeUpbitWhaleTrades(WATCH_SYMBOLS, (evt) => {
+    // ── 소스 1: Upbit WebSocket (전체 KRW 마켓 감시) ─────────────
+    subscribeUpbitWhaleTrades(watchSymbols, (evt) => {
       if (evt._connected) { setConnected(true); return; }
       if (evt._tick)      { setConnected(true); setMsgCount(p => p + 1); return; }
       setConnected(true);
@@ -379,7 +388,7 @@ export default function WhalePanel({ isVisible = true, coins = [], onItemClick }
       setConnected(false);
       setBtcConnected(false);
     };
-  }, [isVisible]);
+  }, [isVisible, watchSymbols]);
 
   // 연결 상태 텍스트
   const connStatus = connected && btcConnected
