@@ -18,7 +18,7 @@ import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins'
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
 import { getKoreanMarketStatus } from './utils/marketHours';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
-import { requestNotificationPermission, checkAndAlertBatch } from './utils/priceAlert';
+import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission } from './utils/priceAlert';
 
 const US_SYMBOLS   = US_STOCKS_INITIAL.map(s => s.symbol);
 const COIN_SYMBOLS = COINS_INITIAL.map(c => c.symbol);
@@ -54,6 +54,12 @@ export default function App() {
   const [loading, setLoading]             = useState(false);
   const [selectedItem, setSelectedItem]   = useState(null);
   const [searchOpen, setSearchOpen]       = useState(false);
+  // 알림 권한 차단 시 복구 배너 표시 여부
+  const [notifBanner, setNotifBanner]     = useState(() => {
+    const perm = getNotificationPermission();
+    const dismissed = sessionStorage.getItem('notif-banner-dismissed');
+    return perm === 'denied' && !dismissed;
+  });
   const loadingRef  = useRef(false);
   const krwRateRef  = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
 
@@ -244,6 +250,23 @@ export default function App() {
       <div className="sticky top-0 z-20">
         <SurgeBanner stocks={allStocks} coins={coins} onClick={setSelectedItem} />
       </div>
+
+      {/* 알림 권한 차단 복구 배너 */}
+      {notifBanner && (
+        <div className="sticky top-0 z-[19] bg-[#FFF8E1] border-b border-[#FFD54F] px-4 py-2 flex items-center gap-3">
+          <span className="text-[14px]">🔔</span>
+          <p className="flex-1 text-[12px] text-[#7B5D00]">
+            급등 알림이 차단되어 있어요.&nbsp;
+            <span className="font-semibold">주소창 왼쪽 🔒 아이콘 → 알림 → 허용</span>으로 설정해 주세요.
+          </p>
+          <button
+            onClick={() => { sessionStorage.setItem('notif-banner-dismissed', '1'); setNotifBanner(false); }}
+            className="text-[12px] text-[#7B5D00] hover:text-[#3E2E00] font-medium px-2 py-1 rounded hover:bg-[#FFE082] transition-colors flex-shrink-0"
+          >
+            닫기
+          </button>
+        </div>
+      )}
 
       {/* 헤더 (sticky, z-20 — DOM 순서상 SurgeBanner 위에 쌓임) */}
       <Header

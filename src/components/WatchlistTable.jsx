@@ -390,9 +390,9 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-      {/* 검색 + 필터 — 모바일에서 가로 스크롤 (flex-wrap 제거로 줄바꿈 방지) */}
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#F2F4F6] overflow-x-auto no-scrollbar">
-        <div className="relative">
+      {/* 1행: 검색 + 메인 필터 + 관심종목 토글 */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#F2F4F6]">
+        <div className="relative flex-shrink-0">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#C9CDD2]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
@@ -400,21 +400,21 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="종목명·티커 검색"
-            className="pl-8 pr-3 py-1.5 text-[13px] bg-[#F7F8FA] rounded-lg outline-none placeholder:text-[#C9CDD2] w-44 focus:w-56 transition-all duration-200 border border-transparent focus:border-[#E5E8EB]"
+            className="pl-8 pr-3 py-1.5 text-[13px] bg-[#F7F8FA] rounded-lg outline-none placeholder:text-[#C9CDD2] w-32 sm:w-44 focus:w-44 sm:focus:w-56 transition-all duration-200 border border-transparent focus:border-[#E5E8EB]"
           />
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-shrink-0">
           {[
             { key: 'all',  label: '전체' },
-            { key: 'hot',  label: `🔥 급등${hotCount > 0 ? ` ${hotCount}` : ''}` },
-            { key: 'up',   label: '▲ 상승' },
-            { key: 'down', label: '▼ 하락' },
+            { key: 'hot',  label: `🔥${hotCount > 0 ? ` ${hotCount}` : ''}` },
+            { key: 'up',   label: '▲' },
+            { key: 'down', label: '▼' },
           ].map(f => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-colors ${
+              className={`px-2 py-1.5 text-[11px] rounded-lg font-semibold transition-colors ${
                 filter === f.key
                   ? 'bg-[#191F28] text-white'
                   : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
@@ -425,45 +425,45 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
           ))}
         </div>
 
-        {/* 섹터 필터 칩 — kr/us 탭에만 표시 */}
-        {availableSectors.length > 0 && (
-          <div className="flex gap-1 flex-shrink-0">
-            <button
-              onClick={() => setSector(null)}
-              className={`px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${
-                !sector ? 'bg-[#3182F6] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
-              }`}
-            >
-              전체
-            </button>
-            {availableSectors.map(s => (
-              <button
-                key={s}
-                onClick={() => setSector(prev => prev === s ? null : s)}
-                className={`px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${
-                  sector === s ? 'bg-[#3182F6] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* ★ 관심종목만 보기 토글 버튼 */}
         <button
           onClick={() => setShowWatchlistOnly(p => !p)}
-          className={`px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-colors flex-shrink-0 ${
             showWatchlistOnly
               ? 'bg-[#191F28] text-white border-[#191F28]'
               : 'text-[#6B7684] border-[#E5E8EB] hover:bg-[#F2F4F6]'
           }`}
         >
-          ★ 관심종목
+          ★
         </button>
 
-        <span className="ml-auto text-[11px] text-[#B0B8C1] tabular-nums">{totalCount}개 종목</span>
+        <span className="ml-auto text-[11px] text-[#B0B8C1] tabular-nums flex-shrink-0">{totalCount}개</span>
       </div>
+
+      {/* 2행: 섹터 칩 — kr/us 탭에만, 모바일 가로 스크롤 */}
+      {availableSectors.length > 0 && (
+        <div className="flex gap-1 px-4 py-2 border-b border-[#F2F4F6] overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setSector(null)}
+            className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${
+              !sector ? 'bg-[#3182F6] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
+            }`}
+          >
+            전체
+          </button>
+          {availableSectors.map(s => (
+            <button
+              key={s}
+              onClick={() => setSector(prev => prev === s ? null : s)}
+              className={`px-2.5 py-1 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${
+                sector === s ? 'bg-[#3182F6] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 테이블 — CDS Table 컴포넌트 사용 */}
       <div className="overflow-x-auto">
