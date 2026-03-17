@@ -205,13 +205,33 @@ const KR_COIN_NEWS_QUERIES = [
   },
 ];
 
+// [코인] 영문 직접 RSS 피드 — CoinDesk, Decrypt, CoinTelegraph
+const EN_COIN_RSS_FEEDS = [
+  {
+    url: 'https://www.coindesk.com/arc/outboundfeeds/rss/',
+    source: 'CoinDesk',
+  },
+  {
+    url: 'https://decrypt.co/feed',
+    source: 'Decrypt',
+  },
+  {
+    url: 'https://cointelegraph.com/rss',
+    source: 'CoinTelegraph',
+  },
+];
+
 async function fetchCoinNews() {
   const cached = cacheGet('coin');
   if (cached?.fresh) return cached.data;
 
-  // 2개 쿼리 병렬 취득
+  // 한국어 구글뉴스 2개 + 영문 직접 RSS 3개 — 총 5개 소스 병렬 취득
+  const allFeeds = [
+    ...KR_COIN_NEWS_QUERIES.map(({ url, source }) => ({ url, source })),
+    ...EN_COIN_RSS_FEEDS,
+  ];
   const results = await Promise.allSettled(
-    KR_COIN_NEWS_QUERIES.map(({ url, source }) =>
+    allFeeds.map(({ url, source }) =>
       fetchRSS(url, 'coin', source)
     )
   );
@@ -252,15 +272,32 @@ const KR_US_NEWS_QUERIES = [
   },
 ];
 
-// [미장] 한국어 구글뉴스 멀티쿼리 — 미증시 + 연준/금리 + 유가 + 지정학
-// 영어 RSS 완전 제거 → 번역 없이 한국어 기사로 직접 커버
+// [미장] 영문 직접 RSS 피드 — Yahoo Finance, MarketWatch
+const EN_US_RSS_FEEDS = [
+  {
+    url: 'https://finance.yahoo.com/news/rssindex',
+    source: 'Yahoo Finance',
+  },
+  {
+    url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories',
+    source: 'MarketWatch',
+  },
+];
+
+// [미장] 한국어 구글뉴스 멀티쿼리 + 영문 직접 RSS
+// 한국어 구글뉴스: 미증시 + 연준/금리 + 유가 + 지정학
+// 영문 직접 RSS: Yahoo Finance, MarketWatch
 async function fetchUsNews() {
   const cached = cacheGet('us');
   if (cached?.fresh) return cached.data;
 
-  // 4개 쿼리 병렬 취득 (개별 실패해도 나머지 표시)
+  // 한국어 구글뉴스 4개 + 영문 직접 RSS 2개 — 총 6개 소스 병렬 취득
+  const allFeeds = [
+    ...KR_US_NEWS_QUERIES.map(({ url, source }) => ({ url, source })),
+    ...EN_US_RSS_FEEDS,
+  ];
   const results = await Promise.allSettled(
-    KR_US_NEWS_QUERIES.map(({ url, source }) =>
+    allFeeds.map(({ url, source }) =>
       fetchRSS(url, 'us', source)
     )
   );
@@ -299,13 +336,37 @@ const KR_STOCK_NEWS_QUERIES = [
   },
 ];
 
+// [국장] 한국 금융 직접 RSS 피드 — 한경, 매경, 연합뉴스 경제, 블록미디어
+const KR_DIRECT_RSS_FEEDS = [
+  {
+    url: 'https://www.hankyung.com/feed/all-news',
+    source: '한국경제',
+  },
+  {
+    url: 'https://www.mk.co.kr/rss/30000001/',
+    source: '매일경제',
+  },
+  {
+    url: 'https://www.yna.co.kr/rss/economy.xml',
+    source: '연합뉴스',
+  },
+  {
+    url: 'https://www.blockmedia.co.kr/feed',
+    source: '블록미디어',
+  },
+];
+
 async function fetchKrNews() {
   const cached = cacheGet('kr');
   if (cached?.fresh) return cached.data;
 
-  // 4개 쿼리 병렬 취득 (각 섹터 커버)
+  // 구글뉴스 4개 쿼리 + 직접 RSS 4개 — 총 8개 소스 병렬 취득
+  const allFeeds = [
+    ...KR_STOCK_NEWS_QUERIES.map(({ url, source }) => ({ url, source })),
+    ...KR_DIRECT_RSS_FEEDS,
+  ];
   const results = await Promise.allSettled(
-    KR_STOCK_NEWS_QUERIES.map(({ url, source }) =>
+    allFeeds.map(({ url, source }) =>
       fetchRSS(url, 'kr', source)
     )
   );

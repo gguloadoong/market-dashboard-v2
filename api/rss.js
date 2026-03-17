@@ -14,6 +14,16 @@ const ALLOWED_DOMAINS = [
   'feeds.reuters.com',
   'www.bloomberg.com',
   'feeds.bbci.co.uk',
+  // 코인 뉴스 직접 RSS
+  'www.coindesk.com',
+  'decrypt.co',
+  'cointelegraph.com',
+  // 한국 금융 뉴스 직접 RSS
+  'www.yna.co.kr',
+  'www.blockmedia.co.kr',
+  // 미국 주식 뉴스 직접 RSS
+  'finance.yahoo.com',
+  'feeds.content.dowjones.io',
 ];
 
 export default async function handler(request) {

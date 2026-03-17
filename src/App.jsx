@@ -20,6 +20,7 @@ import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
 import { requestNotificationPermission, checkAndAlertBatch, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
 import { setWhaleKrwRate, setWhaleBtcKrwPrice } from './api/whale';
 import { useWatchlist } from './hooks/useWatchlist';
+import { useKisWebSocket } from './hooks/useKisWebSocket';
 
 const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
 
@@ -31,6 +32,17 @@ export default function App() {
   const [usStocks, setUsStocks]           = useState(US_STOCKS_INITIAL);
   const [krStocks, setKrStocks]           = useState(KOREAN_STOCKS);
   const [etfs, setEtfs]                   = useState(ETF_DATA);
+
+  // ── KIS WebSocket 실시간 국장 가격 ──────────────────────────
+  // 30초 폴링을 보완하는 실시간 체결가 스트림 (최대 20개 종목)
+  // WebSocket 실패 시 기존 폴링이 계속 동작 (자동 fallback)
+  const krSymbols = useMemo(() => KOREAN_STOCKS.map(s => s.symbol).slice(0, 20), []);
+  const handleKisQuote = useCallback((quote) => {
+    setKrStocks(prev => prev.map(s =>
+      s.symbol === quote.symbol ? { ...s, ...quote } : s
+    ));
+  }, []);
+  useKisWebSocket(krSymbols, handleKisQuote);
   const [indices, setIndices]             = useState(INDICES_INITIAL);
   const [krwRate, setKrwRate]             = useState(1466);
   const [lastUpdated, setLastUpdated]     = useState(null);

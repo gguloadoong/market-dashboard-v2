@@ -1,5 +1,5 @@
 // 주식 데이터
-// 미국: Stooq.com (CORS OK) → Yahoo Finance v7 프록시 fallback → v8 chart fallback
+// 미국: Stooq.com (CORS OK) → Alpaca Markets (키 있을 때) → Yahoo Finance v7 프록시 fallback → v8 chart fallback
 // 한국: Naver Finance 모바일 API via allorigins → Yahoo .KS 프록시 fallback
 
 const PROXY_BASE = 'https://api.allorigins.win/get?url=';
@@ -23,7 +23,8 @@ async function fetchStooq(symbols) {
   const syms = symbols.map(s => `${s.toLowerCase()}.us`).join(',');
   // f=sd2t2ohlcvnp: p 필드로 전일 종가(Prev_Close) 포함
   const url  = `https://stooq.com/q/l/?s=${syms}&f=sd2t2ohlcvnp&h&e=json`;
-  const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  // 타임아웃 5000ms — 실패 시 빠르게 다음 소스로 fallback
+  const res  = await fetch(url, { signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const data = await res.json();
   return (data.symbols || [])
@@ -41,8 +42,44 @@ async function fetchStooq(symbols) {
           ? parseFloat(((close - prevClose) / prevClose * 100).toFixed(2))
           : 0,
         volume:    parseInt(s.Volume) || 0,
+        _source:   'stooq', // 데이터 소스 태그
       };
     });
+}
+
+// ─── Alpaca Markets (미국 주식, 무료 티어 실시간 데이터) ───────
+// VITE_ALPACA_KEY, VITE_ALPACA_SECRET 환경변수 필요
+// 키 미설정 시 자동으로 다음 소스(Yahoo)로 fallback
+async function fetchAlpaca(symbols) {
+  const key    = import.meta.env.VITE_ALPACA_KEY;
+  const secret = import.meta.env.VITE_ALPACA_SECRET;
+  if (!key || !secret) throw new Error('Alpaca 키 미설정');
+
+  const url = `https://data.alpaca.markets/v2/stocks/quotes/latest?symbols=${symbols.join(',')}`;
+  const res = await fetch(url, {
+    headers: {
+      'APCA-API-KEY-ID':     key,
+      'APCA-API-SECRET-KEY': secret,
+    },
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) throw new Error(`Alpaca ${res.status}`);
+  const data = await res.json();
+
+  // ask + bid 중간값을 현재가로 사용 (change는 이 소스에서 제공 안 함)
+  return symbols.map(sym => {
+    const q = data.quotes?.[sym];
+    if (!q) return null;
+    const price = (q.ap + q.bp) / 2; // ask/bid midpoint
+    return {
+      symbol:    sym,
+      price,
+      change:    0,
+      changePct: 0,
+      volume:    0,
+      _source:   'alpaca', // 데이터 소스 태그
+    };
+  }).filter(Boolean);
 }
 
 // ─── Yahoo Finance v7 (배치) via allorigins ───────────────────
@@ -70,6 +107,7 @@ async function fetchYahooChart(symbol) {
     high52w:   meta.fiftyTwoWeekHigh,
     low52w:    meta.fiftyTwoWeekLow,
     sparkline: closes.slice(-20),
+    _source:   'yahoo', // 데이터 소스 태그
   };
 }
 
@@ -81,7 +119,13 @@ export async function fetchUsStocksBatch(symbols) {
     if (data.length >= symbols.length * 0.7) return data;
   } catch {}
 
-  // 2) Yahoo v7 batch via allorigins proxy — Stooq 실패 시 fallback
+  // 2) Alpaca Markets — VITE_ALPACA_KEY 설정 시만 시도 (미설정이면 자동 skip)
+  try {
+    const data = await fetchAlpaca(symbols);
+    if (data.length >= symbols.length * 0.7) return data;
+  } catch {}
+
+  // 3) Yahoo v7 batch via allorigins proxy — Stooq/Alpaca 실패 시 fallback
   try {
     const results = await fetchYahooQuoteBatch(symbols);
     if (results.length >= symbols.length * 0.7) return results.map(r => ({
@@ -93,10 +137,11 @@ export async function fetchUsStocksBatch(symbols) {
       marketCap: r.marketCap,
       high52w:   r.fiftyTwoWeekHigh,
       low52w:    r.fiftyTwoWeekLow,
+      _source:   'yahoo', // 데이터 소스 태그
     }));
   } catch {}
 
-  // 3) Yahoo v8 개별 chart — 전일 종가(previousClose) 기반
+  // 4) Yahoo v8 개별 chart — 전일 종가(previousClose) 기반
   const settled = await Promise.allSettled(symbols.map(fetchYahooChart));
   return settled.filter(r => r.status === 'fulfilled').map(r => r.value);
 }
