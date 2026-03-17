@@ -66,16 +66,23 @@ export function useNewsRefresh() {
 
 // 종목 키워드 기반 뉴스 필터 훅 — ChartSidePanel에서 사용
 export function useStockNews(symbol, name) {
-  const { data: allNews = [] } = useAllNewsQuery();
+  const { data: allNews = [], isLoading } = useAllNewsQuery();
 
-  if (!symbol) return [];
+  if (!symbol) return { news: [], isLoading: false };
 
-  const keywords = [symbol, name].filter(Boolean).map(k => k.toLowerCase());
+  // 영문명이 너무 길면 첫 단어만 사용 (예: "Apple" not "Apple Inc.")
+  const shortName = name ? name.split(/[\s\/]/)[0] : null;
+  const keywords = [symbol, name, shortName]
+    .filter(Boolean)
+    .map(k => k.toLowerCase())
+    .filter((k, i, arr) => arr.indexOf(k) === i); // 중복 제거
 
-  return allNews
+  const news = allNews
     .filter(item => {
       const text = (item.title + ' ' + (item.summary || item.description || '')).toLowerCase();
-      return keywords.some(kw => text.includes(kw));
+      return keywords.some(kw => kw.length >= 2 && text.includes(kw));
     })
-    .slice(0, 5);
+    .slice(0, 6);
+
+  return { news, isLoading };
 }

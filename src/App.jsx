@@ -209,6 +209,7 @@ export default function App() {
                 loading={loading && indices.every(i => !i.value)}
               />
               <WatchlistTable
+                key={activeTab}
                 items={tabItems}
                 type={activeTab}
                 krwRate={krwRate}
@@ -234,7 +235,7 @@ export default function App() {
           krwRate={krwRate}
           onClose={() => setSelectedItem(null)}
           onRelatedClick={setSelectedItem}
-          allData={{ krStocks, usStocks, coins }}
+          allData={{ krStocks, usStocks, coins, etfs }}
         />
       )}
     </div>

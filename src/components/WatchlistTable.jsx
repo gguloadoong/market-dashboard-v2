@@ -315,6 +315,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const [sortDir, setSortDir] = useState('desc');
   const [search,  setSearch]  = useState('');
   const [filter,  setFilter]  = useState('all');
+  const [sector,  setSector]  = useState(null);
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
   const { toggle, isWatched, watchlist } = useWatchlist();
 
@@ -326,7 +327,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const sortFn = (list) => [...list].sort((a, b) => {
     let va, vb;
     if (sortKey === 'changePct') {
-      va = Math.abs(getPct(a)); vb = Math.abs(getPct(b));
+      va = getPct(a); vb = getPct(b);
     } else if (sortKey === 'price') {
       va = a.id ? (a.priceKrw || (a.priceUsd ?? 0) * krwRate) : (a.market === 'us' ? (a.price ?? 0) * krwRate : (a.price ?? 0));
       vb = b.id ? (b.priceKrw || (b.priceUsd ?? 0) * krwRate) : (b.market === 'us' ? (b.price ?? 0) * krwRate : (b.price ?? 0));
@@ -351,6 +352,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         (i.symbol || '').toLowerCase().includes(q)
       );
     }
+    if (sector) list = list.filter(i => i.sector === sector);
     if (filter === 'up')        list = list.filter(i => getPct(i) > 0);
     if (filter === 'down')      list = list.filter(i => getPct(i) < 0);
     if (filter === 'hot')       list = list.filter(i => getPct(i) >= 3);
@@ -358,7 +360,14 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     // ★ 관심종목만 보기 토글
     if (showWatchlistOnly)      list = list.filter(i => isWatched(i.id || i.symbol));
     return list;
-  }, [items, search, filter, showWatchlistOnly, watchlist, isWatched]);
+  }, [items, search, filter, sector, showWatchlistOnly, watchlist, isWatched]);
+
+  // items에서 고유 섹터 목록 동적 추출 (kr/us 탭에서만 의미있음)
+  const availableSectors = useMemo(() => {
+    if (type === 'coin' || type === 'all') return [];
+    const s = new Set(items.map(i => i.sector).filter(Boolean));
+    return [...s].sort();
+  }, [items, type]);
 
   const hotCount = items.filter(i => getPct(i) >= 3).length;
   const isAll = type === 'all';
@@ -459,6 +468,31 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
             </button>
           ))}
         </div>
+
+        {/* 섹터 필터 칩 — kr/us 탭에만 표시 */}
+        {availableSectors.length > 0 && (
+          <div className="flex gap-1 overflow-x-auto no-scrollbar flex-wrap max-w-full">
+            <button
+              onClick={() => setSector(null)}
+              className={`px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${
+                !sector ? 'bg-[#3182F6] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
+              }`}
+            >
+              전체
+            </button>
+            {availableSectors.map(s => (
+              <button
+                key={s}
+                onClick={() => setSector(prev => prev === s ? null : s)}
+                className={`px-2.5 py-1.5 text-[11px] rounded-lg font-semibold transition-colors flex-shrink-0 ${
+                  sector === s ? 'bg-[#3182F6] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ★ 관심종목만 보기 토글 버튼 */}
         <button

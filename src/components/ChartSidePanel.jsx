@@ -183,15 +183,16 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
   const [chartType, setChartType] = useState('candle');
 
   // 종목 키워드 기반 관련 뉴스 — React Query 캐시 활용
-  const relatedNews = useStockNews(item?.symbol || item?.id, item?.name || item?.nameEn);
+  const { news: relatedNews, isLoading: newsLoading } = useStockNews(item?.symbol || item?.id, item?.name || item?.nameEn);
 
   // 연관 종목 — relatedAssets 매핑 기반, allData에서 현재 가격 조회
   const relatedItems = useMemo(() => {
     if (!item) return [];
-    const { krStocks = [], usStocks = [], coins = [] } = allData;
+    const { krStocks = [], usStocks = [], coins = [], etfs = [] } = allData;
     const dataMap = {};
     for (const s of krStocks) { dataMap[s.symbol] = s; if (s.name) dataMap[s.name] = s; }
     for (const s of usStocks) dataMap[s.symbol] = s;
+    for (const e of etfs)     dataMap[e.symbol] = e;
     for (const c of coins)    dataMap[c.symbol?.toUpperCase()] = c;
     // RELATED_ASSETS 키는 대문자 심볼 (BTC, NVDA, 005930 등) 기준
     const sym = item.symbol?.toUpperCase() || item.id?.toUpperCase() || '';
@@ -430,7 +431,11 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
             <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide px-4 mb-2">
               관련 뉴스
             </div>
-            {relatedNews.length === 0 ? (
+            {newsLoading ? (
+              <div className="px-4 py-4 text-center text-[12px] text-[#B0B8C1]">
+                뉴스 로딩 중...
+              </div>
+            ) : relatedNews.length === 0 ? (
               <div className="px-4 py-4 text-center text-[12px] text-[#B0B8C1]">
                 관련 뉴스 없음
               </div>

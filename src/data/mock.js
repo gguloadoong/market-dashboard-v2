@@ -341,6 +341,13 @@ export const US_STOCKS_INITIAL = [
   { symbol:'SNAP',  name:'스냅',          nameEn:'Snap',             market:'us', sector:'소셜미디어',  price:8.45,   change:0.25,  changePct:3.05,  volume:35000000,  marketCap:0.014e12, high52w:17.53,  low52w:8.20   },
   { symbol:'MTCH',  name:'매치그룹',      nameEn:'Match Group',      market:'us', sector:'인터넷',     price:28.45,  change:0.52,  changePct:1.86,  volume:5500000,   marketCap:0.008e12, high52w:39.23,  low52w:26.11  },
   { symbol:'IAC',   name:'IAC',           nameEn:'IAC',              market:'us', sector:'인터넷',     price:38.45,  change:0.85,  changePct:2.26,  volume:3200000,   marketCap:0.004e12, high52w:58.98,  low52w:34.00  },
+  // ─── BTC 채굴/보유 관련주 ─────────────────────────────────────
+  { symbol:'RIOT',  name:'라이엇 플랫폼스',  nameEn:'Riot Platforms',  market:'us', sector:'BTC채굴',   price:10.45, change:0.75,  changePct:7.74,  volume:35000000, marketCap:0.025e12, high52w:22.50, low52w:7.50  },
+  { symbol:'MARA',  name:'마라 홀딩스',      nameEn:'MARA Holdings',   market:'us', sector:'BTC채굴',   price:14.85, change:1.12,  changePct:8.15,  volume:28000000, marketCap:0.030e12, high52w:31.66, low52w:9.50  },
+  { symbol:'CLSK',  name:'클린스파크',       nameEn:'CleanSpark',      market:'us', sector:'BTC채굴',   price:12.85, change:0.95,  changePct:7.98,  volume:18000000, marketCap:0.018e12, high52w:27.52, low52w:7.95  },
+  { symbol:'HUT',   name:'허트8',           nameEn:'Hut 8',           market:'us', sector:'BTC채굴',   price:19.45, change:1.55,  changePct:8.66,  volume:8500000,  marketCap:0.015e12, high52w:35.55, low52w:9.40  },
+  { symbol:'CORZ',  name:'코어사이언티픽',  nameEn:'Core Scientific', market:'us', sector:'BTC채굴',   price:12.45, change:0.98,  changePct:8.55,  volume:25000000, marketCap:0.020e12, high52w:20.10, low52w:4.82  },
+  { symbol:'BITF',  name:'비트팜스',        nameEn:'Bitfarms',        market:'us', sector:'BTC채굴',   price:2.85,  change:0.22,  changePct:8.36,  volume:15000000, marketCap:0.008e12, high52w:5.63,  low52w:1.40  },
 ].map(s => ({ ...s, sparkline: genSparkline(s.price, 20, 0.015) }));
 
 // ─── 코인 초기값 (Upbit 2026-03-13 실제가, CoinGecko로 즉시 갱신됨) ─
@@ -453,6 +460,13 @@ export const ETF_DATA = [
   { symbol:'SOXL',   name:'Direxion Semi Bull 3X',      market:'us', sector:'Leverage', category:'레버리지', price:21.45, change:1.12,  changePct:5.51,  volume:62000000, aum:9e9    },
   { symbol:'SOXS',   name:'Direxion Semi Bear 3X',      market:'us', sector:'Inverse',  category:'인버스',   price:8.32,  change:-0.55, changePct:-6.20, volume:38000000, aum:1.5e9  },
   { symbol:'TLT',    name:'iShares 20Y+ Treasury',      market:'us', sector:'Bond',     category:'채권',     price:86.45, change:0.45,  changePct:0.52,  volume:22000000, aum:40e9   },
+  // ─── BTC/ETH 현물 ETF ────────────────────────────────────────
+  { symbol:'IBIT',  name:'iShares Bitcoin Trust',      market:'us', sector:'BTC ETF',  category:'코인ETF', price:52.45,  change:2.85,  changePct:5.75,  volume:42000000, aum:38e9  },
+  { symbol:'FBTC',  name:'Fidelity Bitcoin',           market:'us', sector:'BTC ETF',  category:'코인ETF', price:75.32,  change:4.12,  changePct:5.79,  volume:18000000, aum:18e9  },
+  { symbol:'GBTC',  name:'Grayscale Bitcoin Trust',    market:'us', sector:'BTC ETF',  category:'코인ETF', price:61.85,  change:3.42,  changePct:5.86,  volume:12000000, aum:21e9  },
+  { symbol:'ETHA',  name:'iShares Ethereum Trust',     market:'us', sector:'ETH ETF',  category:'코인ETF', price:24.85,  change:1.45,  changePct:6.19,  volume:8500000,  aum:3.2e9 },
+  { symbol:'ETHE',  name:'Grayscale Ethereum Trust',   market:'us', sector:'ETH ETF',  category:'코인ETF', price:18.45,  change:1.12,  changePct:6.47,  volume:4500000,  aum:5.8e9 },
+  { symbol:'FETH',  name:'Fidelity Ethereum',          market:'us', sector:'ETH ETF',  category:'코인ETF', price:28.45,  change:1.75,  changePct:6.56,  volume:6200000,  aum:2.1e9 },
   { symbol:'373220', name:'KODEX 2차전지산업',           market:'kr', sector:'배터리',   category:'섹터',     price:12850, change:185,   changePct:1.46,  volume:8500000,  aum:2.1e12 },
   { symbol:'091230', name:'TIGER 반도체',                market:'kr', sector:'반도체',   category:'섹터',     price:27650, change:455,   changePct:1.67,  volume:2100000,  aum:1.8e12 },
   { symbol:'122630', name:'KODEX 레버리지',              market:'kr', sector:'레버리지', category:'레버리지', price:15420, change:-285,  changePct:-1.82, volume:28000000, aum:4.2e12 },

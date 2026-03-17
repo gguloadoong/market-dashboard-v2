@@ -216,22 +216,23 @@ async function fetchYahooRace(symbol, id) {
 // ─── Stooq 한국 지수 (CORS 허용, 실시간에 가까운 데이터) ──────
 // 검증 결과: ^kospi 동작 확인, ^kosdaq N/D
 async function fetchStooqKospi() {
-  // Stooq CSV 형식: Symbol,Date,Time,Open,High,Low,Close,Volume,
-  const res = await fetch('https://stooq.com/q/l/?s=^kospi&f=sd2t2ohlcvn&h&e=json', {
+  // f=sd2t2ohlcvnp: p 필드로 전일 종가(Prev_Close) 포함
+  const res = await fetch('https://stooq.com/q/l/?s=^kospi&f=sd2t2ohlcvnp&h&e=json', {
     signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) throw new Error(`Stooq KOSPI ${res.status}`);
   const data = await res.json();
   const s = (data.symbols || []).find(x => x.Close && x.Close !== 'N/D');
   if (!s) throw new Error('Stooq KOSPI: N/D');
-  const close = parseFloat(s.Close);
-  const open  = parseFloat(s.Open) || close;
+  const close     = parseFloat(s.Close);
+  // Prev_Close(p 필드) 전일 종가 기준 등락 계산 — Open 대비(당일시가) 아닌 전일종가 대비
+  const prevClose = parseFloat(s.Prev_Close || s.Open) || close;
   return {
     id:        'KOSPI',
     value:     parseFloat(close.toFixed(2)),
-    change:    parseFloat((close - open).toFixed(2)),
-    changePct: parseFloat(((close - open) / open * 100).toFixed(2)),
-    isDelayed: false, // Stooq는 실시간(추정)
+    change:    parseFloat((close - prevClose).toFixed(2)),
+    changePct: parseFloat(((close - prevClose) / prevClose * 100).toFixed(2)),
+    isDelayed: false,
     dataDelay: '실시간(추정)',
   };
 }
