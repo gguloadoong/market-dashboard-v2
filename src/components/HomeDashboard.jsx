@@ -522,6 +522,12 @@ export default function HomeDashboard({
       .slice(0, 6);
   }, [topMovers, allNews]);
 
+  // ─── 관심종목 필터링 ────────────────────────────────────────
+  const watchedItems = useMemo(
+    () => allItems.filter(i => isWatched(i.id || i.symbol)),
+    [allItems, watchlist] // watchlist dep: Set 변경 시 재계산
+  );
+
   // ─── 관심종목 기반 인사이트 (Job 3 — 포트폴리오 × 뉴스 매칭) ─
   const watchlistInsights = useMemo(() => {
     if (!allNews.length || !watchedItems.length) return [];
@@ -537,12 +543,6 @@ export default function HomeDashboard({
   }, [watchedItems, allNews]);
 
   const hasData = krStocks.length > 0 || usStocks.length > 0 || coins.length > 0;
-
-  // ─── 관심종목 필터링 ────────────────────────────────────────
-  const watchedItems = useMemo(
-    () => allItems.filter(i => isWatched(i.id || i.symbol)),
-    [allItems, watchlist] // watchlist dep: Set 변경 시 재계산
-  );
 
   const today = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
