@@ -17,6 +17,7 @@ import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate } from './api/coins'
 import { fetchUsStocksBatch, fetchKoreanStocksBatch, fetchIndices } from './api/stocks';
 import { getKoreanMarketStatus, getUsMarketStatus } from './utils/marketHours';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from './api/coinWs';
+import { requestNotificationPermission, checkAndAlertBatch } from './utils/priceAlert';
 
 const US_SYMBOLS   = US_STOCKS_INITIAL.map(s => s.symbol);
 const COIN_SYMBOLS = COINS_INITIAL.map(c => c.symbol);
@@ -64,7 +65,13 @@ export default function App() {
       setCoins(prev => {
         if (!prev.length) return prev;
         fetchCoinsUpbitOnly(prev, rate)
-          .then(data => { if (data.length) setCoins(data); })
+          .then(data => {
+            if (data.length) {
+              setCoins(data);
+              // 코인 급등/급락 브라우저 알림 체크 (폴링에서만, WS 틱 아님)
+              checkAndAlertBatch(data, 'coin');
+            }
+          })
           .catch(() => {});
         return prev;
       });
@@ -96,6 +103,7 @@ export default function App() {
           const u = data.find(d => d.symbol === s.symbol);
           return u?.price ? { ...s, ...u, sparkline: u.sparkline?.length ? u.sparkline : s.sparkline } : s;
         }));
+        checkAndAlertBatch(data, 'us');
       }
     } catch (e) { console.warn('미장 갱신 실패:', e.message); }
   }, []);
@@ -109,6 +117,7 @@ export default function App() {
           const u = data.find(d => d.symbol === s.symbol);
           return u?.price ? { ...s, ...u, sparkline: [...s.sparkline.slice(1), u.price] } : s;
         }));
+        checkAndAlertBatch(data, 'kr');
       }
     } catch (e) { console.warn('국장 갱신 실패:', e.message); }
   }, []);
@@ -167,6 +176,9 @@ export default function App() {
 
   // 환율 변경 시 ref 동기화 (WS 핸들러에서 클로저 없이 사용)
   useEffect(() => { krwRateRef.current = krwRate; }, [krwRate]);
+
+  // ── 브라우저 알림 권한 요청 (초기 1회) ──────────────────────────
+  useEffect(() => { requestNotificationPermission(); }, []);
 
   // ── Upbit WebSocket 코인 가격 실시간 스트림 ─────────────────────
   // 폴링(10초)과 병행 — WS가 연결되면 <1초 단위 가격 갱신, 끊기면 자동 재연결
