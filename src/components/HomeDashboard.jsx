@@ -397,27 +397,6 @@ const InsightCard = memo(function InsightCard({ mover, news, onMoverClick }) {
   );
 });
 
-const MockInsightCard = memo(function MockInsightCard({ mock }) {
-  const badgePalette = { COIN: { bg: '#FFF4E6', color: '#FF9500' }, US: { bg: '#EDF4FF', color: '#3182F6' }, KR: { bg: '#FFF0F0', color: '#F04452' } };
-  const badge = badgePalette[mock.moverMarket] || { bg: '#F2F4F6', color: '#8B95A1' };
-  return (
-    <a
-      href={mock.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex-shrink-0 w-[260px] block rounded-xl border border-[#F2F4F6] p-3 hover:opacity-90 transition-opacity bg-[#FAFBFC]"
-    >
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className="text-[12px] font-bold text-[#191F28]">{mock.moverName}</span>
-        <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: badge.bg, color: badge.color }}>
-          {mock.moverMarket}
-        </span>
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#F2F4F6] text-[#8B95A1] flex-shrink-0">예시</span>
-      </div>
-      <div className="text-[12px] text-[#4E5968] leading-snug line-clamp-2">{mock.title}</div>
-    </a>
-  );
-});
 
 // ─── 스켈레톤 ─────────────────────────────────────────────────
 function SkeletonSurgeCard({ count = 5 }) {
@@ -453,27 +432,6 @@ function SkeletonHotRow({ count = 5 }) {
   ));
 }
 
-// ─── mock 인사이트 데이터 ─────────────────────────────────────
-const MOCK_INSIGHTS = [
-  {
-    id: 'mock-btc',
-    moverName: 'BTC', moverMarket: 'COIN', moverPct: null,
-    title: '비트코인 급등세 — 업비트 거래량 급증, 고래 매수 신호 포착',
-    timeAgo: '', link: 'https://coindesk.com',
-  },
-  {
-    id: 'mock-nvda',
-    moverName: 'NVDA', moverMarket: 'US', moverPct: null,
-    title: 'NVDA AI 모멘텀 지속 — AI 반도체 수요 지속 확대로 실적 전망 상향',
-    timeAgo: '', link: 'https://finance.yahoo.com',
-  },
-  {
-    id: 'mock-samsung',
-    moverName: '삼성전자', moverMarket: 'KR', moverPct: null,
-    title: '삼성전자 외국인 순매수 — HBM4 납품 기대감에 외국인 3일 연속 순매수',
-    timeAgo: '', link: 'https://news.naver.com',
-  },
-];
 
 // ─── 섹터 로테이션 컴포넌트 ──────────────────────────────────
 // 국장 + 미장 sector 필드 기반 섹터별 평균 등락률 막대 시각화
@@ -870,8 +828,8 @@ export default function HomeDashboard({
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[#F2F4F6]">
           <span className="text-[14px]">💡</span>
           <span className="text-[14px] font-bold text-[#191F28]">인사이트</span>
-          {!newsLoading && insights.length === 0 && (
-            <span className="text-[10px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded ml-1">뉴스 로드 중</span>
+          {newsLoading && (
+            <span className="text-[10px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded ml-1">로딩 중</span>
           )}
           <span className="text-[11px] text-[#B0B8C1] ml-auto">급등종목 관련 뉴스</span>
         </div>
@@ -894,9 +852,13 @@ export default function HomeDashboard({
               onMoverClick={onItemClick}
             />
           ))}
-          {!newsLoading && insights.length === 0 && MOCK_INSIGHTS.map(mock => (
-            <MockInsightCard key={mock.id} mock={mock} />
-          ))}
+          {!newsLoading && insights.length === 0 && (
+            <div className="flex flex-col items-center justify-center w-full py-6 gap-1.5">
+              <span className="text-[22px]">📰</span>
+              <span className="text-[13px] text-[#B0B8C1]">현재 급등 종목과 매칭된 뉴스가 없습니다</span>
+              <span className="text-[11px] text-[#C8CDD4]">뉴스가 들어오면 자동으로 표시돼요</span>
+            </div>
+          )}
         </div>
       </div>
 
