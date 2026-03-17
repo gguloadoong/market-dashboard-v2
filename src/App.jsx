@@ -44,8 +44,9 @@ export default function App() {
     return perm === 'denied' && !dismissed;
   });
   const loadingRef  = useRef(false);
-  const krwRateRef  = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
-  const wsThrottleRef = useRef({}); // 심볼별 마지막 WS 업데이트 시각 (100ms throttle)
+  const krwRateRef    = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
+  const wsTickBufRef  = useRef({});   // WS 틱 배치 버퍼: { [symbol]: tick }
+  const wsFlushTimer  = useRef(null); // 배치 flush 타이머 (200ms)
 
   // ── 코인 빠른 갱신 — Upbit만 (10초, 가격·등락률만 업데이트) ──
   // krwRateRef 사용 → krwRate state dep 불필요 (환율 변경 시 interval 재설정 방지)
@@ -201,28 +202,44 @@ export default function App() {
   // ── Upbit WebSocket 코인 가격 실시간 스트림 ─────────────────────
   // 1단계: 초기 30개로 빠르게 구독 시작
   // 2단계: Upbit 전체 KRW 마켓 목록 로드 후 재구독 (200개+)
+  // 배치 처리: 틱마다 setCoins 대신 200ms마다 버퍼 flush → re-render 초당 5회 이하
   useEffect(() => {
     let cancelled = false;
 
+    const flushTicks = () => {
+      wsFlushTimer.current = null;
+      const buf = wsTickBufRef.current;
+      if (!Object.keys(buf).length) return;
+      wsTickBufRef.current = {};
+      setCoins(prev => {
+        const rate    = krwRateRef.current;
+        const updated = [...prev];
+        let   changed = false;
+        for (const sym of Object.keys(buf)) {
+          const tick = buf[sym];
+          const idx  = updated.findIndex(c => c.symbol === sym);
+          if (idx === -1) continue;
+          updated[idx] = {
+            ...updated[idx],
+            priceKrw:    tick.priceKrw,
+            priceUsd:    tick.priceKrw / rate,
+            change24h:   tick.change24h,
+            priceSource: 'upbit-ws',
+          };
+          changed = true;
+        }
+        return changed ? updated : prev;
+      });
+    };
+
     const wsHandler = (tick) => {
       if (tick._connected) return;
-      const now = Date.now();
-      if (now - (wsThrottleRef.current[tick.symbol] ?? 0) < 100) return;
-      wsThrottleRef.current[tick.symbol] = now;
-      setCoins(prev => {
-        const rate = krwRateRef.current;
-        const idx  = prev.findIndex(c => c.symbol === tick.symbol);
-        if (idx === -1) return prev;
-        const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          priceKrw:    tick.priceKrw,
-          priceUsd:    tick.priceKrw / rate,
-          change24h:   tick.change24h,
-          priceSource: 'upbit-ws',
-        };
-        return updated;
-      });
+      // 버퍼에 축적 (같은 심볼은 최신 틱으로 덮어씀)
+      wsTickBufRef.current[tick.symbol] = tick;
+      // 200ms debounce flush — 이미 타이머 있으면 재설정 없음 (배치 누적)
+      if (!wsFlushTimer.current) {
+        wsFlushTimer.current = setTimeout(flushTicks, 200);
+      }
     };
 
     // 1단계: COINS_INITIAL 30개로 즉시 구독 (빠른 시작)
@@ -235,21 +252,29 @@ export default function App() {
       })
       .catch(() => {}); // 실패 시 초기 30개 유지
 
-    return () => { cancelled = true; unsubscribeCoinPrices(); };
+    return () => {
+      cancelled = true;
+      clearTimeout(wsFlushTimer.current);
+      wsFlushTimer.current = null;
+      unsubscribeCoinPrices();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 탭별 종목 데이터 (all 탭 제거, home은 HomeDashboard가 담당) ───
   // ETF_ITEMS는 모듈 레벨 상수 — etfs dep 불필요 (렌더마다 새 배열 생성 방지)
+  // 최적화: coins 탭이 아닐 때 WS 틱으로 coins가 변해도 tabItems 재계산 방지
+  // → activeCoinData: coin 탭일 때만 coins 참조, 아닐 때 undefined (stable)
+  const activeCoinData = activeTab === 'coin' ? coins : undefined;
   const tabItems = useMemo(() => {
     switch (activeTab) {
       case 'home': return [];
       case 'kr':   return krStocks;
       case 'us':   return usStocks;
-      case 'coin': return coins;
+      case 'coin': return activeCoinData ?? [];
       case 'etf':  return ETF_ITEMS;
       default:     return krStocks;
     }
-  }, [activeTab, krStocks, usStocks, coins]);
+  }, [activeTab, krStocks, usStocks, activeCoinData]);
 
   const allStocks = useMemo(() => [...krStocks, ...usStocks], [krStocks, usStocks]);
 
