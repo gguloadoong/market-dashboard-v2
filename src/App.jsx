@@ -62,6 +62,7 @@ export default function App() {
   });
   const loadingRef  = useRef(false);
   const krwRateRef  = useRef(1466); // WS 핸들러에서 클로저 없이 최신 환율 참조
+  const wsThrottleRef = useRef({}); // 심볼별 마지막 WS 업데이트 시각 (100ms throttle)
 
   // ── 코인 빠른 갱신 — Upbit만 (10초, 가격·등락률만 업데이트) ──
   // krwRateRef 사용 → krwRate state dep 불필요 (환율 변경 시 interval 재설정 방지)
@@ -190,21 +191,26 @@ export default function App() {
 
   // ── 탭 타이틀 동적 업데이트 — 급등 종목 있을 때 "⚡ BTC +5.2% — 마켓레이더" ──
   // Job 2 강화: 다른 탭에서 작업 중에도 탭 전환기로 급등 종목 인지
+  // 1초 디바운스: Upbit WS 틱(<1초)마다 정렬 폭주 방지
+  const titleTimerRef = useRef(null);
   useEffect(() => {
-    const all = [
-      ...krStocks.map(s => ({ name: s.name || s.symbol, pct: s.changePct ?? 0 })),
-      ...usStocks.map(s => ({ name: s.name || s.symbol, pct: s.changePct ?? 0 })),
-      ...coins.map(c =>   ({ name: c.name  || c.symbol, pct: c.change24h ?? 0 })),
-    ].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
-
-    const top = all[0];
-    if (top && top.pct >= 3) {
-      document.title = `⚡ ${top.name} +${top.pct.toFixed(1)}% — 마켓레이더`;
-    } else if (top && top.pct <= -3) {
-      document.title = `📉 ${top.name} ${top.pct.toFixed(1)}% — 마켓레이더`;
-    } else {
-      document.title = '마켓레이더';
-    }
+    clearTimeout(titleTimerRef.current);
+    titleTimerRef.current = setTimeout(() => {
+      const all = [
+        ...krStocks.map(s => ({ name: s.name || s.symbol, pct: s.changePct ?? 0 })),
+        ...usStocks.map(s => ({ name: s.name || s.symbol, pct: s.changePct ?? 0 })),
+        ...coins.map(c =>   ({ name: c.name  || c.symbol, pct: c.change24h ?? 0 })),
+      ].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+      const top = all[0];
+      if (top && top.pct >= 3) {
+        document.title = `⚡ ${top.name} +${top.pct.toFixed(1)}% — 마켓레이더`;
+      } else if (top && top.pct <= -3) {
+        document.title = `📉 ${top.name} ${top.pct.toFixed(1)}% — 마켓레이더`;
+      } else {
+        document.title = '마켓레이더';
+      }
+    }, 1000);
+    return () => clearTimeout(titleTimerRef.current);
   }, [krStocks, usStocks, coins]);
 
   // ── 전역 종목 검색: `/` 키 → 검색 모달 ─────────────────────────
@@ -224,6 +230,10 @@ export default function App() {
   useEffect(() => {
     subscribeCoinPrices(COIN_SYMBOLS, (tick) => {
       if (tick._connected) return; // 연결 이벤트 무시
+      // 100ms throttle — 같은 심볼 중복 틱 차단 (WS 폭주 방지)
+      const now = Date.now();
+      if (now - (wsThrottleRef.current[tick.symbol] ?? 0) < 100) return;
+      wsThrottleRef.current[tick.symbol] = now;
       setCoins(prev => {
         const rate = krwRateRef.current;
         const idx  = prev.findIndex(c => c.symbol === tick.symbol);

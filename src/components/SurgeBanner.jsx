@@ -2,9 +2,10 @@
 // 급등(>=3%) 종목만 표시, 없으면 상위 5개
 // 급등 있을 때: 어두운 배경 + 빨간 강조
 // 없을 때: 중립 배경
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 
-export default function SurgeBanner({ stocks = [], coins = [], onClick }) {
+// React.memo: coins WS 틱마다 재렌더 방지 — 급등 순위 실제 변경 시에만 업데이트
+const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick }) {
   // 급등 종목 선별 (>=3%), 없으면 상위 5개
   const { items, hasHot } = useMemo(() => {
     const all = [
@@ -105,4 +106,6 @@ export default function SurgeBanner({ stocks = [], coins = [], onClick }) {
       </div>
     </div>
   );
-}
+});
+
+export default SurgeBanner;
