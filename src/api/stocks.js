@@ -136,17 +136,28 @@ const HANTOO_BATCH = 18;
 async function fetchKoreanStocksHantoo(stocks) {
   const symbols = stocks.map(s => s.symbol);
   const results = [];
+  let firstBatchFailed = false;
 
   for (let i = 0; i < symbols.length; i += HANTOO_BATCH) {
     const chunk = symbols.slice(i, i + HANTOO_BATCH);
-    const res = await fetch(
-      `/api/hantoo-price?symbols=${chunk.join(',')}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    // 키 미설정(503) 또는 서버 오류(500) → fallback
-    if (!res.ok) throw new Error(`한투 프록시 ${res.status}`);
-    const json = await res.json();
-    if (Array.isArray(json.data)) results.push(...json.data);
+    try {
+      const res = await fetch(
+        `/api/hantoo-price?symbols=${chunk.join(',')}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      // 키 미설정(503)은 첫 배치에서만 전체 중단 (불필요한 배치 요청 방지)
+      if (!res.ok) {
+        if (i === 0) throw new Error(`한투 프록시 ${res.status}`);
+        continue; // 중간 배치 실패는 건너뜀
+      }
+      const json = await res.json();
+      if (Array.isArray(json.data)) results.push(...json.data);
+    } catch (e) {
+      if (i === 0) throw e; // 첫 배치 실패 = API 자체 미사용 → fallback
+      // 중간 배치 실패 시 경고 후 계속
+      console.warn(`[한투] 배치 ${i / HANTOO_BATCH + 1} 실패 (건너뜀):`, e.message);
+      continue;
+    }
     // 배치 간 딜레이 (마지막 배치 제외)
     if (i + HANTOO_BATCH < symbols.length) {
       await new Promise(r => setTimeout(r, 50));

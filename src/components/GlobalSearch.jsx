@@ -28,16 +28,43 @@ const MARKET_COLOR = { kr: '#F04452', us: '#3182F6', coin: '#FF9500', etf: '#8B5
 
 export default function GlobalSearch({ krStocks = [], usStocks = [], coins = [], etfs = [], krwRate = 1466, onSelect, onClose }) {
   const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
 
   // 포커스
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // ESC 닫기
+  // 쿼리 변경 시 선택 초기화
   useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') onClose?.(); };
+    setSelectedIndex(-1);
+  }, [query]);
+
+  // ESC + 키보드 네비게이션
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') { onClose?.(); return; }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const count = listRef.current?.querySelectorAll('button[data-idx]').length ?? 0;
+        setSelectedIndex(i => Math.min(i + 1, count - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(i => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        setSelectedIndex(i => {
+          if (i >= 0) {
+            // results는 클로저 밖이므로 DOM에서 클릭 트리거
+            const btns = listRef.current?.querySelectorAll('button[data-idx]');
+            btns?.[i]?.click();
+          }
+          return i;
+        });
+      }
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
@@ -112,23 +139,34 @@ export default function GlobalSearch({ krStocks = [], usStocks = [], coins = [],
         </div>
 
         {/* 결과 */}
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div ref={listRef} className="max-h-[60vh] overflow-y-auto">
           {query && results.length === 0 ? (
             <div className="px-5 py-8 text-center text-[14px] text-[#B0B8C1]">
               "{query}" 검색 결과가 없습니다.
             </div>
           ) : results.length > 0 ? (
-            results.map(item => {
+            results.map((item, idx) => {
               const pct = getPct(item);
               const isUp = pct > 0;
               const isDown = pct < 0;
               const market = item._market;
+              const isSelected = idx === selectedIndex;
               return (
                 <button
                   key={item.id || item.symbol}
+                  data-idx={idx}
                   onClick={() => handleSelect(item)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#F7F8FA] active:bg-[#F2F4F6] border-b border-[#F2F4F6] last:border-0 transition-colors text-left"
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  className={`w-full flex items-center gap-3 py-3 border-b border-[#F2F4F6] last:border-0 transition-colors text-left relative ${isSelected ? 'bg-[#F2F4F6]' : 'hover:bg-[#F7F8FA] active:bg-[#F2F4F6]'}`}
                 >
+                  {/* 선택 accent bar */}
+                  {isSelected && (
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r" style={{ background: '#3182F6' }} />
+                  )}
+
+                  {/* 왼쪽 패딩 */}
+                  <div className="w-4 flex-shrink-0" />
+
                   {/* 마켓 배지 */}
                   <span
                     className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
@@ -152,7 +190,7 @@ export default function GlobalSearch({ krStocks = [], usStocks = [], coins = [],
                   </div>
 
                   {/* 가격 + 등락률 */}
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right flex-shrink-0 pr-4">
                     <div className="text-[13px] font-semibold text-[#191F28] tabular-nums font-mono">
                       {getPrice(item, krwRate)}
                     </div>
