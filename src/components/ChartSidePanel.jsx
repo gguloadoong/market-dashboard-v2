@@ -273,11 +273,11 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
       />
 
       {/* 패널 — full-height, 헤더·배너 위로 슬라이드 */}
+      {/* 모바일: 전체 너비 (48vw = ~180px로 차트 렌더 불가), sm+: min(620px, 48vw) */}
       <div
-        className="fixed top-0 right-0 bg-white shadow-2xl flex flex-col"
+        className="fixed top-0 right-0 bg-white shadow-2xl flex flex-col w-full sm:w-[min(620px,48vw)]"
         style={{
           zIndex: 151,
-          width: 'min(620px, 48vw)',
           height: '100vh',
           borderLeft: '1px solid #E5E8EB',
           animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1)',
@@ -319,13 +319,14 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
         {/* 스크롤 영역 */}
         <div className="flex-1 overflow-y-auto">
           {/* 기간 + 차트 타입 */}
-          <div className="flex items-center justify-between px-6 py-3">
-            <div className="flex gap-1.5">
+          <div className="flex items-center justify-between px-4 py-3 gap-2">
+            {/* 타임프레임 버튼 — 모바일에서 가로 스크롤 */}
+            <div className="flex gap-1 overflow-x-auto no-scrollbar flex-shrink-1 min-w-0">
               {PERIODS.map(p => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0 ${
                     period === p ? 'bg-[#191F28] text-white' : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
                   }`}
                 >
@@ -333,7 +334,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                 </button>
               ))}
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1 flex-shrink-0">
               {['candle', 'line'].map(t => (
                 <button
                   key={t}

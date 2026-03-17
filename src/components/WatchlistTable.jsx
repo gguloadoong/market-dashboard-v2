@@ -1,5 +1,5 @@
 // 워치리스트 테이블 — 로고 + 섹션 구분 + 티커 심볼 + 클릭 시 차트
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import React from 'react';
 import Sparkline from './Sparkline';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -314,7 +314,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  const sortFn = (list) => [...list].sort((a, b) => {
+  const sortFn = useCallback((list) => [...list].sort((a, b) => {
     let va, vb;
     if (sortKey === 'changePct') {
       va = getPct(a); vb = getPct(b);
@@ -331,7 +331,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
       va = a[sortKey] ?? 0; vb = b[sortKey] ?? 0;
     }
     return sortDir === 'desc' ? (vb - va) : (va - vb);
-  });
+  }), [sortKey, sortDir, krwRate]);
 
   const filtered = useMemo(() => {
     let list = [...items];
@@ -363,8 +363,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
 
   const flatSorted = useMemo(
     () => sortFn(filtered),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filtered, sortKey, sortDir, krwRate]
+    [filtered, sortFn]
   );
 
   const totalCount = flatSorted.length;
