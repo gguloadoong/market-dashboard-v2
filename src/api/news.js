@@ -10,7 +10,8 @@
 //   - corsproxy.io: 무료 플랜 서버사이드 요청 차단 (유료 전환)
 
 // ─── localStorage 캐시 ─────────────────────────────────────────
-const CACHE_TTL   = 5 * 60 * 1000;
+// TTL 3분으로 단축 — 기존 5분은 Vercel CDN s-maxage=300과 겹쳐 최대 10분 지연 발생
+const CACHE_TTL   = 3 * 60 * 1000;
 const CACHE_STALE = 24 * 60 * 60 * 1000;
 
 function cacheGet(key) {
@@ -32,9 +33,16 @@ function cacheSet(key, data) {
 }
 
 // ─── 시간 포맷 ────────────────────────────────────────────────
+// dateInput: Unix초(number) 또는 ISO 날짜문자열 또는 밀리초(number, >1e12)
 function timeAgo(dateInput) {
   if (!dateInput) return '';
-  const ms   = typeof dateInput === 'number' ? dateInput * 1000 : new Date(dateInput).getTime();
+  let ms;
+  if (typeof dateInput === 'number') {
+    // 밀리초(13자리)와 초(10자리) 자동 구분
+    ms = dateInput > 1e12 ? dateInput : dateInput * 1000;
+  } else {
+    ms = new Date(dateInput).getTime();
+  }
   if (isNaN(ms)) return '';
   const diff = (Date.now() - ms) / 1000;
   if (diff < 60)    return `${Math.floor(diff)}초 전`;
@@ -87,6 +95,36 @@ function cleanTitle(title, sourceName) {
   return t.trim();
 }
 
+// ─── pubDate 안전 파싱 ────────────────────────────────────────
+// RSS pubDate 포맷 예시:
+//   RFC 2822: "Wed, 18 Mar 2026 14:00:00 +0900"  ← new Date() OK
+//   요일 없음: "18 Mar 2026 14:00:00 +0000"       ← new Date() 일부 환경에서 NaN
+//   ISO 8601: "2026-03-18T14:00:00Z"             ← new Date() OK
+//   한국어: "2026년 3월 18일 14:00"               ← new Date() NaN → fallback 처리
+function parsePubDate(raw) {
+  if (!raw) return Date.now();
+
+  // 1차 시도: 표준 파싱 (RFC2822 / ISO8601)
+  let ms = new Date(raw).getTime();
+  if (!isNaN(ms)) return ms;
+
+  // 2차 시도: 요일 없는 RFC 2822 — "18 Mar 2026 14:00:00 +0900"
+  // 앞에 "dummy, " 를 붙여 RFC 파서가 인식하도록 강제
+  ms = new Date(`dummy, ${raw}`).getTime();
+  if (!isNaN(ms)) return ms;
+
+  // 3차 시도: 한국어 날짜 포맷 "2026년 3월 18일 14:00" 또는 "2026.03.18"
+  const krMatch = raw.match(/(\d{4})[년.\-\/]?\s*(\d{1,2})[월.\-\/]?\s*(\d{1,2})[일]?\s*(?:(\d{1,2}):(\d{2}))?/);
+  if (krMatch) {
+    const [, y, mo, d, h = '0', m = '0'] = krMatch;
+    ms = new Date(+y, +mo - 1, +d, +h, +m).getTime();
+    if (!isNaN(ms)) return ms;
+  }
+
+  // 최후 fallback: 현재 시간 (시간 정보 없는 기사보다 필터 통과가 나음)
+  return Date.now();
+}
+
 // ─── RSS XML 파서 ──────────────────────────────────────────────
 function parseRssXml(xmlText, category, sourceName) {
   try {
@@ -97,14 +135,20 @@ function parseRssXml(xmlText, category, sourceName) {
       const link = get('link') || get('guid') || el.querySelector('link')?.getAttribute('href') || '';
       const title = cleanTitle(get('title'), sourceName);
       if (!title || !link) return null;
-      const pubDate = get('pubDate') || get('published') || get('updated') || new Date().toISOString();
+
+      // pubDate: 여러 태그명 순서대로 시도
+      const rawDate = get('pubDate') || get('published') || get('updated') || get('dc:date') || '';
+      // parsePubDate로 안전하게 밀리초 취득 (NaN 방지)
+      const pubMs = parsePubDate(rawDate);
+      const pubIso = new Date(pubMs).toISOString();
+
       return {
         id:          get('guid') || link,
         title,
         description: get('description').replace(/<[^>]+>/g, '').slice(0, 200),
         link,
-        pubDate:     new Date(pubDate).toISOString(),
-        timeAgo:     timeAgo(pubDate),
+        pubDate:     pubIso,
+        timeAgo:     timeAgo(pubMs), // pubMs는 밀리초 — timeAgo 내부에서 자동 구분
         source:      sourceName,
         image:       el.querySelector('enclosure')?.getAttribute('url') || null,
         category,
@@ -383,6 +427,8 @@ async function fetchKrNews() {
 
 // ─── Promise 디덥 + stale-while-revalidate ────────────────────
 // stale 데이터가 있으면 즉시 반환하고, 백그라운드에서 갱신
+// 주의: fetchFn(내부 fetchCoinNews 등)도 캐시를 체크하므로,
+//       stale 상태에서 강제 갱신할 때는 캐시를 무효화하고 호출해야 함
 const _pending = { all: null, coin: null, us: null, kr: null };
 
 function withDedup(key, fetchFn) {
@@ -391,10 +437,16 @@ function withDedup(key, fetchFn) {
   // fresh 캐시 — 즉시 반환, 네트워크 호출 없음
   if (cached?.fresh) return Promise.resolve(cached.data);
 
-  // stale 캐시 — 즉시 반환 후 백그라운드에서 갱신 (stale-while-revalidate)
+  // stale 캐시 — 즉시 반환 후 백그라운드에서 강제 갱신
+  // 핵심: stale 상태에서 백그라운드 갱신 시 캐시를 먼저 삭제해야
+  //       fetchFn 내부의 `if (cached?.fresh)` 체크를 우회하고 실제 네트워크 요청을 보냄
   if (cached?.data) {
     if (!_pending[key]) {
-      _pending[key] = fetchFn().finally(() => { _pending[key] = null; });
+      _pending[key] = (async () => {
+        // 캐시 삭제 → fetchFn 내부 fresh 체크 우회 → 실제 네트워크 요청
+        try { localStorage.removeItem(`news_${key}`); } catch {}
+        return fetchFn();
+      })().finally(() => { _pending[key] = null; });
     }
     // stale 데이터를 즉시 반환 (사용자 체감 속도 개선)
     return Promise.resolve(cached.data);

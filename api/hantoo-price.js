@@ -34,10 +34,15 @@ async function fetchSinglePrice(symbol, token) {
   const price = parseInt(o.stck_prpr || '0', 10);
   if (!price) throw new Error(`${symbol}: 가격 없음`);
 
+  // prdy_vrss_sign: 1=상한 2=상승 3=보합 4=하한 5=하락 → 하락 계열이면 음수
+  const sign      = o.prdy_vrss_sign ?? '3';
+  const changeAbs = parseInt(o.prdy_vrss || '0', 10);
+  const change    = (sign === '4' || sign === '5') ? -changeAbs : changeAbs;
+
   return {
     symbol,
     price,
-    change:    parseInt(o.prdy_vrss   || '0', 10),
+    change,
     changePct: parseFloat(o.prdy_ctrt || '0'),
     volume:    parseInt(o.acml_vol    || '0', 10),
     // hts_avls: HTS 시가총액 (억원 단위) → 원화로 변환

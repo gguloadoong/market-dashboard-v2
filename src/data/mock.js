@@ -153,6 +153,17 @@ export const KOREAN_STOCKS = [
   { symbol:'030000', name:'제일기획',       market:'kr', sector:'광고',    price:18500,  change:0,   changePct:0,  volume:185000,   marketCap:2.2e12, high52w:22000,   low52w:14500  },
   { symbol:'007310', name:'오뚜기',         market:'kr', sector:'식품',    price:385000, change:0, changePct:0, volume:8500,     marketCap:1.0e12, high52w:498000,  low52w:330000 },
   { symbol:'009240', name:'한샘',           market:'kr', sector:'가구',    price:52000,  change:0,   changePct:0,  volume:52000,    marketCap:1.0e12, high52w:72000,   low52w:40000  },
+  // ─── 신규 추가: 반도체 장비/소재 ─────────────────────────────
+  { symbol:'042700', name:'한미반도체',     market:'kr', sector:'반도체장비', price:110000, change:0, changePct:0, volume:580000,  marketCap:6.8e12, high52w:175000, low52w:85000  },
+  { symbol:'166090', name:'하나머티리얼즈', market:'kr', sector:'반도체소재', price:58000,  change:0, changePct:0, volume:85000,   marketCap:0.7e12, high52w:82000,  low52w:42000  },
+  { symbol:'058470', name:'리노공업',       market:'kr', sector:'반도체',    price:160000, change:0, changePct:0, volume:42000,   marketCap:1.4e12, high52w:220000, low52w:125000 },
+  // ─── 신규 추가: 항공 ──────────────────────────────────────────
+  { symbol:'003490', name:'대한항공',       market:'kr', sector:'항공',      price:24000,  change:0, changePct:0, volume:1800000, marketCap:10e12,  high52w:32000,  low52w:18500  },
+  { symbol:'020560', name:'아시아나항공',   market:'kr', sector:'항공',      price:10000,  change:0, changePct:0, volume:3500000, marketCap:2.1e12, high52w:15000,  low52w:7800   },
+  // ─── 신규 추가: 보험 ──────────────────────────────────────────
+  { symbol:'088350', name:'한화생명',       market:'kr', sector:'보험',      price:3500,   change:0, changePct:0, volume:5500000, marketCap:3.5e12, high52w:5200,   low52w:2800   },
+  // ─── 신규 추가: 유통 ──────────────────────────────────────────
+  { symbol:'139480', name:'이마트',         market:'kr', sector:'유통',      price:68000,  change:0, changePct:0, volume:185000,  marketCap:3.8e12, high52w:95000,  low52w:55000  },
 ].map(s => ({ ...s, sparkline: genSparkline(s.price, 20, 0.012) }));
 
 // ─── 미국 주식 (Yahoo Finance로 실시간 갱신) ─────────────────
@@ -348,42 +359,57 @@ export const US_STOCKS_INITIAL = [
   { symbol:'HUT',   name:'허트8',           nameEn:'Hut 8',           market:'us', sector:'BTC채굴',   price:19.45, change:0,  changePct:0,  volume:8500000,  marketCap:0.015e12, high52w:35.55, low52w:9.40  },
   { symbol:'CORZ',  name:'코어사이언티픽',  nameEn:'Core Scientific', market:'us', sector:'BTC채굴',   price:12.45, change:0,  changePct:0,  volume:25000000, marketCap:0.020e12, high52w:20.10, low52w:4.82  },
   { symbol:'BITF',  name:'비트팜스',        nameEn:'Bitfarms',        market:'us', sector:'BTC채굴',   price:2.85,  change:0,  changePct:0,  volume:15000000, marketCap:0.008e12, high52w:5.63,  low52w:1.40  },
+  // ─── 신규 추가: 핀테크/모빌리티 ─────────────────────────────
+  { symbol:'LYFT',  name:'리프트',          nameEn:'Lyft',            market:'us', sector:'모빌리티',  price:14.45, change:0, changePct:0, volume:22000000, marketCap:0.006e12, high52w:23.92, low52w:9.36  },
+  { symbol:'HOOD',  name:'로빈후드',        nameEn:'Robinhood',       market:'us', sector:'핀테크',    price:45.45, change:0, changePct:0, volume:28000000, marketCap:0.040e12, high52w:54.00, low52w:11.38 },
+  // ─── 신규 추가: 애드테크 ─────────────────────────────────────
+  { symbol:'APP',   name:'앱러빈',          nameEn:'AppLovin',        market:'us', sector:'애드테크',  price:330.45, change:0, changePct:0, volume:12000000, marketCap:0.11e12, high52w:531.00, low52w:42.95 },
+  { symbol:'TTD',   name:'더트레이드데스크',nameEn:'The Trade Desk',  market:'us', sector:'애드테크',  price:75.45,  change:0, changePct:0, volume:8500000,  marketCap:0.037e12, high52w:141.73, low52w:55.02 },
+  // ─── 신규 추가: 양자컴퓨팅 ──────────────────────────────────
+  { symbol:'IONQ',  name:'아이온큐',        nameEn:'IonQ',            market:'us', sector:'양자컴퓨팅', price:35.45, change:0, changePct:0, volume:18000000, marketCap:0.008e12, high52w:54.78, low52w:6.06  },
+  { symbol:'RGTI',  name:'리게티컴퓨팅',   nameEn:'Rigetti Computing',market:'us', sector:'양자컴퓨팅', price:12.45, change:0, changePct:0, volume:28000000, marketCap:0.003e12, high52w:21.60, low52w:0.78  },
+  // ─── 신규 추가: AI 소형주 ────────────────────────────────────
+  { symbol:'SOUN',  name:'사운드하운드',    nameEn:'SoundHound AI',   market:'us', sector:'AI',         price:12.45, change:0, changePct:0, volume:35000000, marketCap:0.004e12, high52w:24.98, low52w:2.97  },
+  { symbol:'BBAI',  name:'빅베어AI',        nameEn:'BigBear.ai',      market:'us', sector:'AI',         price:4.45,  change:0, changePct:0, volume:18000000, marketCap:0.001e12, high52w:10.81, low52w:1.15  },
+  // ─── 신규 추가: 우주항공 ─────────────────────────────────────
+  { symbol:'RKLB',  name:'로켓랩',          nameEn:'Rocket Lab',      market:'us', sector:'우주항공',   price:25.45, change:0, changePct:0, volume:22000000, marketCap:0.012e12, high52w:28.58, low52w:4.43  },
 ].map(s => ({ ...s, sparkline: genSparkline(s.price, 20, 0.015) }));
 
 // ─── 코인 초기값 (Upbit 2026-03-13 실제가, CoinGecko로 즉시 갱신됨) ─
 const KRW_RATE = 1466;
 export const COINS_INITIAL = [
   // ── 기존 코인 ────────────────────────────────────────────────
-  { id:'bitcoin',     symbol:'BTC',  name:'Bitcoin',      priceKrw:105943000, priceUsd:105943000/KRW_RATE, change24h:0, volume24h:209e9/KRW_RATE, marketCap:1.43e12 },
-  { id:'ethereum',    symbol:'ETH',  name:'Ethereum',     priceKrw:3112000,   priceUsd:3112000/KRW_RATE,   change24h:0, volume24h:15e9,           marketCap:374e9   },
-  { id:'solana',      symbol:'SOL',  name:'Solana',       priceKrw:132000,    priceUsd:132000/KRW_RATE,    change24h:0, volume24h:4.5e9,          marketCap:45e9    },
-  { id:'ripple',      symbol:'XRP',  name:'XRP',          priceKrw:2090,      priceUsd:2090/KRW_RATE,      change24h:0, volume24h:3e9,            marketCap:130e9   },
-  { id:'cardano',     symbol:'ADA',  name:'Cardano',      priceKrw:402,       priceUsd:402/KRW_RATE,       change24h:0, volume24h:0.5e9,          marketCap:14e9    },
-  { id:'dogecoin',    symbol:'DOGE', name:'Dogecoin',     priceKrw:145,       priceUsd:145/KRW_RATE,       change24h:0, volume24h:1.5e9,          marketCap:21e9    },
-  { id:'avalanche-2', symbol:'AVAX', name:'Avalanche',    priceKrw:14690,     priceUsd:14690/KRW_RATE,     change24h:0, volume24h:0.8e9,          marketCap:6e9     },
-  { id:'shiba-inu',   symbol:'SHIB', name:'Shiba Inu',    priceKrw:0.0137,    priceUsd:0.0137/KRW_RATE,    change24h:0, volume24h:0.6e9,          marketCap:8e9     },
-  { id:'polkadot',    symbol:'DOT',  name:'Polkadot',     priceKrw:2233,      priceUsd:2233/KRW_RATE,      change24h:0, volume24h:0.35e9,         marketCap:3.5e9   },
-  { id:'chainlink',   symbol:'LINK', name:'Chainlink',    priceKrw:13600,     priceUsd:13600/KRW_RATE,     change24h:0, volume24h:0.45e9,         marketCap:9e9     },
-  { id:'uniswap',     symbol:'UNI',  name:'Uniswap',      priceKrw:5980,      priceUsd:5980/KRW_RATE,      change24h:0, volume24h:0.18e9,         marketCap:4.5e9   },
-  { id:'near',        symbol:'NEAR', name:'NEAR Protocol', priceKrw:1984,     priceUsd:1984/KRW_RATE,      change24h:0, volume24h:0.28e9,         marketCap:2.4e9   },
-  { id:'aptos',       symbol:'APT',  name:'Aptos',        priceKrw:1369,      priceUsd:1369/KRW_RATE,      change24h:0, volume24h:0.22e9,         marketCap:2.0e9   },
-  { id:'arbitrum',    symbol:'ARB',  name:'Arbitrum',     priceKrw:154,       priceUsd:154/KRW_RATE,       change24h:0, volume24h:0.32e9,         marketCap:2.0e9   },
-  { id:'sui',         symbol:'SUI',  name:'Sui',          priceKrw:1530,      priceUsd:1530/KRW_RATE,      change24h:0, volume24h:0.55e9,         marketCap:5.2e9   },
-  { id:'optimism',    symbol:'OP',   name:'Optimism',     priceKrw:183,       priceUsd:183/KRW_RATE,       change24h:0, volume24h:0.18e9,         marketCap:0.9e9   },
-  { id:'pepe',        symbol:'PEPE', name:'Pepe',         priceKrw:0.0138,    priceUsd:0.0138/KRW_RATE,    change24h:0, volume24h:0.85e9,         marketCap:5.8e9   },
-  { id:'stellar',         symbol:'XLM',  name:'Stellar',           priceKrw:243,    priceUsd:243/KRW_RATE,    change24h:0, volume24h:0.22e9, marketCap:7.3e9  },
-  { id:'binancecoin',     symbol:'BNB',  name:'BNB',               priceKrw:0,      priceUsd:618.5,           change24h:0, volume24h:1.8e9,  marketCap:87e9   },
-  { id:'litecoin',        symbol:'LTC',  name:'Litecoin',          priceKrw:0,      priceUsd:105.5,           change24h:0, volume24h:0.5e9,  marketCap:7.9e9  },
-  { id:'the-open-network',symbol:'TON',  name:'Toncoin',           priceKrw:4180,   priceUsd:4180/KRW_RATE,   change24h:0, volume24h:0.45e9, marketCap:10.5e9 },
-  { id:'cosmos',          symbol:'ATOM', name:'Cosmos',            priceKrw:5820,   priceUsd:5820/KRW_RATE,   change24h:0, volume24h:0.28e9, marketCap:2.3e9  },
-  { id:'filecoin',        symbol:'FIL',  name:'Filecoin',          priceKrw:5250,   priceUsd:5250/KRW_RATE,   change24h:0, volume24h:0.32e9, marketCap:2.6e9  },
-  { id:'internet-computer', symbol:'ICP', name:'Internet Computer', priceKrw:8650, priceUsd:8650/KRW_RATE,   change24h:0, volume24h:0.18e9, marketCap:4.1e9  },
-  { id:'hedera-hashgraph', symbol:'HBAR', name:'Hedera',           priceKrw:198,    priceUsd:198/KRW_RATE,    change24h:0, volume24h:0.55e9, marketCap:7.8e9  },
-  { id:'ethereum-classic', symbol:'ETC',  name:'Ethereum Classic', priceKrw:25500,  priceUsd:25500/KRW_RATE,  change24h:0, volume24h:0.38e9, marketCap:3.7e9  },
-  { id:'the-sandbox',     symbol:'SAND', name:'The Sandbox',       priceKrw:398,    priceUsd:398/KRW_RATE,    change24h:0, volume24h:0.22e9, marketCap:0.9e9  },
-  { id:'decentraland',    symbol:'MANA', name:'Decentraland',      priceKrw:318,    priceUsd:318/KRW_RATE,    change24h:0, volume24h:0.18e9, marketCap:0.6e9  },
-  { id:'injective-protocol', symbol:'INJ', name:'Injective',       priceKrw:18500,  priceUsd:18500/KRW_RATE,  change24h:0, volume24h:0.42e9, marketCap:1.8e9  },
-  { id:'sei-network',     symbol:'SEI',  name:'Sei',               priceKrw:438,    priceUsd:438/KRW_RATE,    change24h:0, volume24h:0.38e9, marketCap:1.2e9  },
+  // exchanges: 각 코인이 상장된 주요 거래소 목록
+  { id:'bitcoin',     symbol:'BTC',  name:'Bitcoin',      priceKrw:105943000, priceUsd:105943000/KRW_RATE, change24h:0, volume24h:209e9/KRW_RATE, marketCap:1.43e12, exchanges:['업비트','빗썸','바이낸스','코인베이스','OKX'] },
+  { id:'ethereum',    symbol:'ETH',  name:'Ethereum',     priceKrw:3112000,   priceUsd:3112000/KRW_RATE,   change24h:0, volume24h:15e9,           marketCap:374e9,   exchanges:['업비트','빗썸','바이낸스','코인베이스','OKX'] },
+  { id:'solana',      symbol:'SOL',  name:'Solana',       priceKrw:132000,    priceUsd:132000/KRW_RATE,    change24h:0, volume24h:4.5e9,          marketCap:45e9,    exchanges:['업비트','빗썸','바이낸스','바이빗','OKX'] },
+  { id:'ripple',      symbol:'XRP',  name:'XRP',          priceKrw:2090,      priceUsd:2090/KRW_RATE,      change24h:0, volume24h:3e9,            marketCap:130e9,   exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'cardano',     symbol:'ADA',  name:'Cardano',      priceKrw:402,       priceUsd:402/KRW_RATE,       change24h:0, volume24h:0.5e9,          marketCap:14e9,    exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'dogecoin',    symbol:'DOGE', name:'Dogecoin',     priceKrw:145,       priceUsd:145/KRW_RATE,       change24h:0, volume24h:1.5e9,          marketCap:21e9,    exchanges:['업비트','빗썸','바이낸스','로빈후드'] },
+  { id:'avalanche-2', symbol:'AVAX', name:'Avalanche',    priceKrw:14690,     priceUsd:14690/KRW_RATE,     change24h:0, volume24h:0.8e9,          marketCap:6e9,     exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'shiba-inu',   symbol:'SHIB', name:'Shiba Inu',    priceKrw:0.0137,    priceUsd:0.0137/KRW_RATE,    change24h:0, volume24h:0.6e9,          marketCap:8e9,     exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'polkadot',    symbol:'DOT',  name:'Polkadot',     priceKrw:2233,      priceUsd:2233/KRW_RATE,      change24h:0, volume24h:0.35e9,         marketCap:3.5e9,   exchanges:['업비트','빗썸','바이낸스'] },
+  { id:'chainlink',   symbol:'LINK', name:'Chainlink',    priceKrw:13600,     priceUsd:13600/KRW_RATE,     change24h:0, volume24h:0.45e9,         marketCap:9e9,     exchanges:['업비트','빗썸','바이낸스'] },
+  { id:'uniswap',     symbol:'UNI',  name:'Uniswap',      priceKrw:5980,      priceUsd:5980/KRW_RATE,      change24h:0, volume24h:0.18e9,         marketCap:4.5e9,   exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'near',        symbol:'NEAR', name:'NEAR Protocol', priceKrw:1984,     priceUsd:1984/KRW_RATE,      change24h:0, volume24h:0.28e9,         marketCap:2.4e9,   exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'aptos',       symbol:'APT',  name:'Aptos',        priceKrw:1369,      priceUsd:1369/KRW_RATE,      change24h:0, volume24h:0.22e9,         marketCap:2.0e9,   exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'arbitrum',    symbol:'ARB',  name:'Arbitrum',     priceKrw:154,       priceUsd:154/KRW_RATE,       change24h:0, volume24h:0.32e9,         marketCap:2.0e9,   exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'sui',         symbol:'SUI',  name:'Sui',          priceKrw:1530,      priceUsd:1530/KRW_RATE,      change24h:0, volume24h:0.55e9,         marketCap:5.2e9,   exchanges:['업비트','빗썸','바이낸스','바이빗','OKX'] },
+  { id:'optimism',    symbol:'OP',   name:'Optimism',     priceKrw:183,       priceUsd:183/KRW_RATE,       change24h:0, volume24h:0.18e9,         marketCap:0.9e9,   exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'pepe',        symbol:'PEPE', name:'Pepe',         priceKrw:0.0138,    priceUsd:0.0138/KRW_RATE,    change24h:0, volume24h:0.85e9,         marketCap:5.8e9,   exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'stellar',         symbol:'XLM',  name:'Stellar',           priceKrw:243,    priceUsd:243/KRW_RATE,    change24h:0, volume24h:0.22e9, marketCap:7.3e9,  exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'binancecoin',     symbol:'BNB',  name:'BNB',               priceKrw:0,      priceUsd:618.5,           change24h:0, volume24h:1.8e9,  marketCap:87e9,   exchanges:['바이낸스','OKX'] },
+  { id:'litecoin',        symbol:'LTC',  name:'Litecoin',          priceKrw:0,      priceUsd:105.5,           change24h:0, volume24h:0.5e9,  marketCap:7.9e9,  exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'the-open-network',symbol:'TON',  name:'Toncoin',           priceKrw:4180,   priceUsd:4180/KRW_RATE,   change24h:0, volume24h:0.45e9, marketCap:10.5e9, exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'cosmos',          symbol:'ATOM', name:'Cosmos',            priceKrw:5820,   priceUsd:5820/KRW_RATE,   change24h:0, volume24h:0.28e9, marketCap:2.3e9,  exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'filecoin',        symbol:'FIL',  name:'Filecoin',          priceKrw:5250,   priceUsd:5250/KRW_RATE,   change24h:0, volume24h:0.32e9, marketCap:2.6e9,  exchanges:['업비트','빗썸','바이낸스'] },
+  { id:'internet-computer', symbol:'ICP', name:'Internet Computer', priceKrw:8650, priceUsd:8650/KRW_RATE,   change24h:0, volume24h:0.18e9, marketCap:4.1e9,  exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'hedera-hashgraph', symbol:'HBAR', name:'Hedera',           priceKrw:198,    priceUsd:198/KRW_RATE,    change24h:0, volume24h:0.55e9, marketCap:7.8e9,  exchanges:['업비트','빗썸','바이낸스'] },
+  { id:'ethereum-classic', symbol:'ETC',  name:'Ethereum Classic', priceKrw:25500,  priceUsd:25500/KRW_RATE,  change24h:0, volume24h:0.38e9, marketCap:3.7e9,  exchanges:['업비트','빗썸','바이낸스','OKX'] },
+  { id:'the-sandbox',     symbol:'SAND', name:'The Sandbox',       priceKrw:398,    priceUsd:398/KRW_RATE,    change24h:0, volume24h:0.22e9, marketCap:0.9e9,  exchanges:['업비트','빗썸','바이낸스'] },
+  { id:'decentraland',    symbol:'MANA', name:'Decentraland',      priceKrw:318,    priceUsd:318/KRW_RATE,    change24h:0, volume24h:0.18e9, marketCap:0.6e9,  exchanges:['업비트','빗썸','바이낸스'] },
+  { id:'injective-protocol', symbol:'INJ', name:'Injective',       priceKrw:18500,  priceUsd:18500/KRW_RATE,  change24h:0, volume24h:0.42e9, marketCap:1.8e9,  exchanges:['업비트','빗썸','바이낸스','바이빗'] },
+  { id:'sei-network',     symbol:'SEI',  name:'Sei',               priceKrw:438,    priceUsd:438/KRW_RATE,    change24h:0, volume24h:0.38e9, marketCap:1.2e9,  exchanges:['업비트','빗썸','바이낸스','바이빗'] },
   // Upbit 실시간 추적 30개만 포함 — 미추적 코인 제거 (fetchCoins 후 85→30 급감 방지)
 ].map(c => ({ ...c, sparkline: genSparkline(c.priceUsd || c.priceKrw/KRW_RATE, 20, 0.025) }));
 
@@ -415,6 +441,21 @@ export const ETF_DATA = [
   { symbol:'373220', name:'KODEX 2차전지산업',           market:'kr', sector:'배터리',   category:'섹터',     price:12850, change:0,   changePct:0,  volume:8500000,  aum:2.1e12 },
   { symbol:'091230', name:'TIGER 반도체',                market:'kr', sector:'반도체',   category:'섹터',     price:27650, change:0,   changePct:0,  volume:2100000,  aum:1.8e12 },
   { symbol:'122630', name:'KODEX 레버리지',              market:'kr', sector:'레버리지', category:'레버리지', price:15420, change:0,  changePct:0, volume:28000000, aum:4.2e12 },
+  // ─── BTC 레버리지/인버스 ETF ─────────────────────────────────
+  { symbol:'BITX',  name:'2x Bitcoin Strategy ETF',    market:'us', sector:'BTC ETF',  category:'코인ETF', price:45.45,  change:0, changePct:0, volume:8500000,  aum:1.2e9  },
+  { symbol:'BITU',  name:'ProShares Ultra Bitcoin',    market:'us', sector:'BTC ETF',  category:'코인ETF', price:55.45,  change:0, changePct:0, volume:5500000,  aum:0.8e9  },
+  { symbol:'SBIT',  name:'ProShares Short Bitcoin',    market:'us', sector:'BTC ETF',  category:'코인ETF', price:18.45,  change:0, changePct:0, volume:3500000,  aum:0.3e9  },
+  // ─── ETH 레버리지 ETF ────────────────────────────────────────
+  { symbol:'ETHU',  name:'2x Ether ETF',               market:'us', sector:'ETH ETF',  category:'코인ETF', price:28.45,  change:0, changePct:0, volume:2500000,  aum:0.2e9  },
+  // ─── 블록체인 테마 ETF ───────────────────────────────────────
+  { symbol:'BKCH',  name:'Global X Blockchain ETF',    market:'us', sector:'블록체인', category:'코인ETF', price:28.45,  change:0, changePct:0, volume:1500000,  aum:0.3e9  },
+  { symbol:'BLOK',  name:'Amplify Transformational ETF', market:'us', sector:'블록체인', category:'코인ETF', price:35.45, change:0, changePct:0, volume:1200000,  aum:0.5e9  },
+  { symbol:'IBLC',  name:'iShares Blockchain ETF',     market:'us', sector:'블록체인', category:'코인ETF', price:30.45,  change:0, changePct:0, volume:800000,   aum:0.15e9 },
+  // ─── 추가 섹터 ETF ───────────────────────────────────────────
+  { symbol:'XLK',   name:'Technology Select SPDR',     market:'us', sector:'Tech',     category:'섹터',    price:215.45, change:0, changePct:0, volume:9500000,  aum:68e9   },
+  { symbol:'SMH',   name:'VanEck Semiconductor',       market:'us', sector:'Sector',   category:'섹터',    price:218.45, change:0, changePct:0, volume:5500000,  aum:22e9   },
+  { symbol:'XLV',   name:'Health Care Select SPDR',    market:'us', sector:'Sector',   category:'섹터',    price:148.45, change:0, changePct:0, volume:8500000,  aum:38e9   },
+  { symbol:'DRIV',  name:'Global X Autonomous EV ETF', market:'us', sector:'Thematic', category:'테마',    price:28.45,  change:0, changePct:0, volume:1200000,  aum:0.8e9  },
 ].map(e => ({ ...e, sparkline: genSparkline(e.price, 20, 0.008) }));
 
 // ─── 지수 초기값 ──────────────────────────────────────────────

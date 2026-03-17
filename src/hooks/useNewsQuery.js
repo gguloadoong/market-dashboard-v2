@@ -14,7 +14,8 @@ export const newsKeys = {
 };
 
 const NEWS_OPTIONS = {
-  staleTime:            5 * 60 * 1000,  // 5분 신선
+  // news.js CACHE_TTL(3분)과 동기화 — staleTime > CACHE_TTL이면 React Query가 갱신 요청을 안 보냄
+  staleTime:            3 * 60 * 1000,  // 3분 신선
   gcTime:               15 * 60 * 1000, // 15분 후 메모리 정리
   retry:                1,
   retryDelay:           2000,

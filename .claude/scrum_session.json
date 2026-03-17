@@ -1,0 +1,11 @@
+{
+  "started_at": "2026-03-18T10:40:00.000Z",
+  "total_minutes": 120,
+  "interval_minutes": 10,
+  "iteration": 2,
+  "status": "running",
+  "last_run": "2026-03-18T11:00:00.000Z",
+  "deployed_at": null,
+  "pending_deploy": false,
+  "focus": "사용성·UX·데이터정합성·실데이터구현·서버클라퍼포먼스"
+}

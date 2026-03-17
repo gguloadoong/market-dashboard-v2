@@ -311,6 +311,15 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                 {item.market === 'us' && item.price && (
                   <div className="text-[12px] text-[#B0B8C1] mt-0.5 font-mono">${fmt(item.price, 2)} USD</div>
                 )}
+                {/* 코인 상장 거래소 — exchanges 필드가 있는 코인에만 표시 */}
+                {item.id && item.exchanges?.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="text-[10px] text-[#8B95A1]">상장 거래소</span>
+                    {item.exchanges.map(ex => (
+                      <span key={ex} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F2F4F6] text-[#4E5968]">{ex}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <button

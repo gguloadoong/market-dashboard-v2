@@ -4,6 +4,7 @@ import { useNewsAutoRefetch, useCategoryNewsQuery } from '../hooks/useNewsQuery'
 import WhalePanel from './WhalePanel';
 import { subscribeLatestWhale } from '../state/whaleBus';
 import { extractNewsSignals } from '../utils/newsSignal';
+// NEWS_SIGNALS는 extractNewsSignals 내부에서 처리
 
 // ─── 종목 태그 추출 — 뉴스 제목에서 주요 종목명 감지 ──────────
 // 자주 언급되는 주요 종목명만 체크 (성능 + 정확도 균형)
@@ -25,13 +26,13 @@ function extractStockTags(title) {
   return STOCK_TAG_LIST.filter(name => lower.includes(name.toLowerCase())).slice(0, 3);
 }
 
+// 속보 탭 제거 — 속보는 시그널 태그(🔴 속보)로 자동 표시
 const TABS = [
-  { id: 'breaking', label: '🔴 속보' },
-  { id: 'all',      label: '전체'    },
-  { id: 'kr',       label: '국내'    },
-  { id: 'us',       label: '미장'    },
-  { id: 'coin',     label: '코인'    },
-  { id: 'whale',    label: '🐋 고래' },
+  { id: 'all',   label: '전체'    },
+  { id: 'kr',    label: '국내'    },
+  { id: 'us',    label: '미장'    },
+  { id: 'coin',  label: '코인'    },
+  { id: 'whale', label: '🐋 고래' },
 ];
 
 const CAT_COLOR = {
@@ -41,12 +42,9 @@ const CAT_COLOR = {
 };
 
 function NewsItem({ item }) {
-  // pubDate null/undefined 방어: 유효하지 않은 날짜는 속보 아님으로 처리
-  const pubMs = item.pubDate ? new Date(item.pubDate).getTime() : 0;
-  const isBreaking = pubMs > 0 && (Date.now() - pubMs) < 3600000;
   const cat = CAT_COLOR[item.category] || { bg: '#F2F4F6', color: '#6B7684', label: 'NEWS' };
-  // 뉴스 제목에서 투자 시그널 태그 추출
-  const signals = extractNewsSignals(item.title);
+  // 시그널 태그 추출 — pubDate 전달하여 속보(🔴 속보) 자동 감지, 최대 2개
+  const signals = extractNewsSignals(item.title, item.pubDate);
   // 뉴스 제목에서 종목 태그 추출
   const stockTags = extractStockTags(item.title);
 
@@ -58,11 +56,6 @@ function NewsItem({ item }) {
       className="block px-4 py-3 border-b border-[#F2F4F6] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
     >
       <div className="flex items-center gap-1.5 mb-1.5">
-        {isBreaking && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#FFF0F1] text-[#F04452] flex-shrink-0">
-            🔴 속보
-          </span>
-        )}
         <span
           className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
           style={{ background: cat.bg, color: cat.color }}
@@ -71,7 +64,7 @@ function NewsItem({ item }) {
         </span>
         <span className="text-[11px] text-[#B0B8C1] flex-shrink-0 ml-auto">{item.timeAgo}</span>
       </div>
-      {/* 시그널 태그 — 제목 위에 표시 */}
+      {/* 시그널 태그 — NEWS_SIGNALS 배열 기반 자동 추출, 속보 포함 */}
       {signals.length > 0 && (
         <div className="flex items-center gap-1 mb-1">
           {signals.map(sig => (
@@ -116,8 +109,7 @@ function useTabNews(activeTab) {
     ['kr','us','coin'].includes(activeTab) ? activeTab : null
   );
   // 고래 탭은 뉴스 호출 없음
-  if (activeTab === 'whale')    return { data: [], isLoading: false, isError: false, refetch: () => {} };
-  if (activeTab === 'breaking') return allQuery; // 속보는 전체 뉴스에서 1시간 필터
+  if (activeTab === 'whale') return { data: [], isLoading: false, isError: false, refetch: () => {} };
   if (['kr','us','coin'].includes(activeTab)) return catQuery;
   return allQuery;
 }
@@ -189,17 +181,8 @@ export default function BreakingNewsPanel({ coins = [], onItemClick }) {
     if (activeTab === 'whale') setUnreadWhale(0);
   }, [activeTab]);
 
-  // 속보 탭: 1시간 이내만 필터
-  const ONE_HOUR = 3600000;
-  const filteredNews = activeTab === 'breaking'
-    ? rawNews.filter(n => {
-        const ms = n.pubDate ? new Date(n.pubDate).getTime() : 0;
-        return ms > 0 && (Date.now() - ms) < ONE_HOUR;
-      })
-    : rawNews;
-
-  // 전체/카테고리 탭 모두 1시간 이내 속보를 상단에 핀
-  const news = sortWithBreakingFirst(activeTab === 'all' ? filteredNews.slice(0, 30) : filteredNews);
+  // 전체 탭은 최대 30건, 카테고리 탭은 전체 — 속보는 상단 핀 정렬
+  const news = sortWithBreakingFirst(activeTab === 'all' ? rawNews.slice(0, 30) : rawNews);
 
   return (
     <div className="flex flex-col h-full bg-white border-l border-[#E5E8EB]">
