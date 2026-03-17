@@ -320,6 +320,36 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
+
+          {/* ─── "왜 지금?" 컨텍스트 1문장 ─────────────────── */}
+          {!newsLoading && relatedNews.length > 0 && (
+            <div className="mt-3 flex items-start gap-2 bg-[#F8F9FA] rounded-xl px-3 py-2.5">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#191F28] text-white flex-shrink-0 mt-0.5">
+                WHY
+              </span>
+              <a
+                href={relatedNews[0].link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[12px] text-[#4E5968] leading-snug line-clamp-2 hover:text-[#191F28] transition-colors"
+              >
+                {relatedNews[0].title}
+                {relatedNews[0].timeAgo && (
+                  <span className="text-[10px] text-[#B0B8C1] ml-1.5">{relatedNews[0].timeAgo}</span>
+                )}
+              </a>
+            </div>
+          )}
+          {!newsLoading && relatedNews.length === 0 && Math.abs(pct) >= 2 && (
+            <div className="mt-3 flex items-center gap-2 bg-[#F8F9FA] rounded-xl px-3 py-2.5">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#E5E8EB] text-[#6B7684] flex-shrink-0">
+                WHY
+              </span>
+              <span className="text-[12px] text-[#8B95A1]">
+                {Math.abs(pct).toFixed(1)}% {isUp ? '상승' : '하락'} 중 — 관련 뉴스 분석 중
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 스크롤 영역 */}

@@ -3,7 +3,8 @@
 export default async function handler(req, res) {
   const apiKey = process.env.WHALE_ALERT_KEY;
   if (!apiKey) {
-    return res.status(503).json({ error: 'WHALE_ALERT_KEY not configured' });
+    // 키 미설정 시 빈 결과 반환 — Upbit WS + Blockchain.com WS로 대체 운영
+    return res.status(200).json({ transactions: [], result: 'no_key' });
   }
   try {
     const cursor = req.query.cursor || '';
