@@ -188,6 +188,25 @@ export default function App() {
   // ── 브라우저 알림 권한 요청 (초기 1회) ──────────────────────────
   useEffect(() => { requestNotificationPermission(); }, []);
 
+  // ── 탭 타이틀 동적 업데이트 — 급등 종목 있을 때 "⚡ BTC +5.2% — 마켓레이더" ──
+  // Job 2 강화: 다른 탭에서 작업 중에도 탭 전환기로 급등 종목 인지
+  useEffect(() => {
+    const all = [
+      ...krStocks.map(s => ({ name: s.name || s.symbol, pct: s.changePct ?? 0 })),
+      ...usStocks.map(s => ({ name: s.name || s.symbol, pct: s.changePct ?? 0 })),
+      ...coins.map(c =>   ({ name: c.name  || c.symbol, pct: c.change24h ?? 0 })),
+    ].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+
+    const top = all[0];
+    if (top && top.pct >= 3) {
+      document.title = `⚡ ${top.name} +${top.pct.toFixed(1)}% — 마켓레이더`;
+    } else if (top && top.pct <= -3) {
+      document.title = `📉 ${top.name} ${top.pct.toFixed(1)}% — 마켓레이더`;
+    } else {
+      document.title = '마켓레이더';
+    }
+  }, [krStocks, usStocks, coins]);
+
   // ── 전역 종목 검색: `/` 키 → 검색 모달 ─────────────────────────
   useEffect(() => {
     const onKey = e => {

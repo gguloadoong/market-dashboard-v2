@@ -136,7 +136,6 @@ const HANTOO_BATCH = 18;
 async function fetchKoreanStocksHantoo(stocks) {
   const symbols = stocks.map(s => s.symbol);
   const results = [];
-  let firstBatchFailed = false;
 
   for (let i = 0; i < symbols.length; i += HANTOO_BATCH) {
     const chunk = symbols.slice(i, i + HANTOO_BATCH);
