@@ -65,32 +65,30 @@ export function useNewsRefresh() {
   };
 }
 
+import { buildStockKeywords, matchesKeywords } from '../utils/newsAlias';
+
 // 종목 키워드 기반 뉴스 필터 훅 — ChartSidePanel에서 사용
-export function useStockNews(symbol, name) {
+// market prop 없으면 symbol/name 패턴으로 자동 추정
+export function useStockNews(symbol, name, market) {
   const { data: allNews = [], isLoading } = useAllNewsQuery();
 
   const news = useMemo(() => {
     if (!symbol || !allNews.length) return [];
 
-    // 키워드 구성: symbol + 종목명 + 첫 단어 (영문명 "Apple Inc." → "apple")
-    const shortName = name ? name.split(/[\s\/]/)[0] : null;
-    const rawKeywords = [symbol, name, shortName].filter(Boolean);
+    // market 자동 추정: 6자리 숫자 = KR, id 있으면 COIN, 그 외 US
+    const detectedMarket = market
+      || (/^\d{6}$/.test(symbol) ? 'KR' : 'US');
 
-    // 6자리 숫자 심볼(국장)은 키워드로 쓰면 거짓 양성 많음 — 제외
-    const keywords = rawKeywords
-      .map(k => k.toLowerCase())
-      .filter(k => k.length >= 2 && !/^\d{6}$/.test(k)) // 국장 코드 제외
-      .filter((k, i, arr) => arr.indexOf(k) === i); // 중복 제거
-
+    const keywords = buildStockKeywords(symbol, name, detectedMarket);
     if (!keywords.length) return [];
 
     return allNews
       .filter(item => {
-        const text = (item.title + ' ' + (item.summary || item.description || '')).toLowerCase();
-        return keywords.some(kw => text.includes(kw));
+        const text = item.title + ' ' + (item.summary || item.description || '');
+        return matchesKeywords(text, keywords);
       })
-      .slice(0, 8); // 6 → 8개로 확대
-  }, [symbol, name, allNews]);
+      .slice(0, 8);
+  }, [symbol, name, market, allNews]);
 
   return { news, isLoading };
 }

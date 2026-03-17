@@ -188,7 +188,13 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
   const [chartType, setChartType] = useState('candle');
 
   // 종목 키워드 기반 관련 뉴스 — React Query 캐시 활용
-  const { news: relatedNews, isLoading: newsLoading } = useStockNews(item?.symbol || item?.id, item?.name || item?.nameEn);
+  // market: 코인=COIN, 국장=KR, 미장=US
+  const newsMarket = item?.id ? 'COIN' : item?.market === 'kr' ? 'KR' : 'US';
+  const { news: relatedNews, isLoading: newsLoading } = useStockNews(
+    item?.symbol || item?.id,
+    item?.name || item?.nameEn,
+    newsMarket,
+  );
 
   // 연관 종목 — relatedAssets 매핑 기반, allData에서 현재 가격 조회
   const relatedItems = useMemo(() => {
