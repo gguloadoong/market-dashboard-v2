@@ -481,7 +481,10 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
           <TableCaption className="sr-only">종목 워치리스트 테이블</TableCaption>
           <TableHeader>
             <TableRow className="bg-[#F8F9FA] border-b border-[#F2F4F6]">
-              <TableCell as="th" scope="col" className="pl-4 pr-1 py-2 text-center text-[11px] font-semibold text-[#B0B8C1] w-8">#</TableCell>
+              {/* ★ 관심종목 버튼 헤더 - 빈 컬럼 */}
+              <TableCell as="th" scope="col" className="pl-2 pr-0 w-7" />
+              {/* 기존 # 컬럼 */}
+              <TableCell as="th" scope="col" className="pl-1 pr-1 py-2 text-center text-[11px] font-semibold text-[#B0B8C1] w-8">#</TableCell>
               <TableCell as="th" scope="col" className="px-2 py-2 text-left text-[11px] font-semibold text-[#B0B8C1] min-w-[200px]">종목</TableCell>
               <TableCell as="th" scope="col"
                 className={`px-3 py-2.5 text-right text-[11px] font-semibold cursor-pointer hover:text-[#6B7684] select-none transition-colors ${sortKey === 'price' ? 'text-[#3182F6]' : 'text-[#B0B8C1]'}`}
