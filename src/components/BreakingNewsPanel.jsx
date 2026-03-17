@@ -1,16 +1,37 @@
 // 우측 고정 뉴스·속보 패널 — React Query로 중복 호출 차단
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNewsAutoRefetch, useCategoryNewsQuery } from '../hooks/useNewsQuery';
 import WhalePanel from './WhalePanel';
 import { subscribeLatestWhale } from '../state/whaleBus';
 import { extractNewsSignals } from '../utils/newsSignal';
 
+// ─── 종목 태그 추출 — 뉴스 제목에서 주요 종목명 감지 ──────────
+// 자주 언급되는 주요 종목명만 체크 (성능 + 정확도 균형)
+const STOCK_TAG_LIST = [
+  // 국내
+  '삼성전자','SK하이닉스','LG에너지솔루션','삼성SDI','현대차','기아','LG화학',
+  '셀트리온','삼성바이오로직스','카카오','네이버','NAVER','포스코','에코프로',
+  '한화에어로스페이스','현대중공업','두산에너빌리티','삼성전기','알테오젠','한미약품',
+  // 미국
+  'NVIDIA','엔비디아','애플','Apple','테슬라','Tesla','마이크로소프트','Microsoft',
+  'Meta','아마존','Amazon','구글','Google','알파벳','Alphabet',
+  'AMD','인텔','Intel','퀄컴','Qualcomm','ASML',
+  // 코인
+  '비트코인','이더리움','리플','솔라나','Bitcoin','Ethereum',
+];
+
+function extractStockTags(title) {
+  const lower = title.toLowerCase();
+  return STOCK_TAG_LIST.filter(name => lower.includes(name.toLowerCase())).slice(0, 3);
+}
+
 const TABS = [
-  { id: 'all',   label: '전체'    },
-  { id: 'kr',    label: '국내'    },
-  { id: 'us',    label: '미장'    },
-  { id: 'coin',  label: '코인'    },
-  { id: 'whale', label: '🐋 고래' },
+  { id: 'breaking', label: '🔴 속보' },
+  { id: 'all',      label: '전체'    },
+  { id: 'kr',       label: '국내'    },
+  { id: 'us',       label: '미장'    },
+  { id: 'coin',     label: '코인'    },
+  { id: 'whale',    label: '🐋 고래' },
 ];
 
 const CAT_COLOR = {
@@ -26,6 +47,8 @@ function NewsItem({ item }) {
   const cat = CAT_COLOR[item.category] || { bg: '#F2F4F6', color: '#6B7684', label: 'NEWS' };
   // 뉴스 제목에서 투자 시그널 태그 추출
   const signals = extractNewsSignals(item.title);
+  // 뉴스 제목에서 종목 태그 추출
+  const stockTags = extractStockTags(item.title);
 
   return (
     <a
@@ -60,6 +83,16 @@ function NewsItem({ item }) {
       <div className="text-[13px] font-medium text-[#191F28] leading-snug line-clamp-2">
         {item.title}
       </div>
+      {/* 종목 태그 — 제목 아래 표시 */}
+      {stockTags.length > 0 && (
+        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+          {stockTags.map(tag => (
+            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F2F4F6] text-[#6B7684] font-medium">
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
     </a>
   );
 }
@@ -83,7 +116,8 @@ function useTabNews(activeTab) {
     ['kr','us','coin'].includes(activeTab) ? activeTab : null
   );
   // 고래 탭은 뉴스 호출 없음
-  if (activeTab === 'whale') return { data: [], isLoading: false, isError: false, refetch: () => {} };
+  if (activeTab === 'whale')    return { data: [], isLoading: false, isError: false, refetch: () => {} };
+  if (activeTab === 'breaking') return allQuery; // 속보는 전체 뉴스에서 1시간 필터
   if (['kr','us','coin'].includes(activeTab)) return catQuery;
   return allQuery;
 }
@@ -155,8 +189,17 @@ export default function BreakingNewsPanel({ coins = [], onItemClick }) {
     if (activeTab === 'whale') setUnreadWhale(0);
   }, [activeTab]);
 
+  // 속보 탭: 1시간 이내만 필터
+  const ONE_HOUR = 3600000;
+  const filteredNews = activeTab === 'breaking'
+    ? rawNews.filter(n => {
+        const ms = n.pubDate ? new Date(n.pubDate).getTime() : 0;
+        return ms > 0 && (Date.now() - ms) < ONE_HOUR;
+      })
+    : rawNews;
+
   // 전체/카테고리 탭 모두 1시간 이내 속보를 상단에 핀
-  const news = sortWithBreakingFirst(activeTab === 'all' ? rawNews.slice(0, 30) : rawNews);
+  const news = sortWithBreakingFirst(activeTab === 'all' ? filteredNews.slice(0, 30) : filteredNews);
 
   return (
     <div className="flex flex-col h-full bg-white border-l border-[#E5E8EB]">
