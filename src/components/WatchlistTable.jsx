@@ -325,6 +325,9 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const [filter,  setFilter]  = useState('all');
   const [sector,  setSector]  = useState(null);
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
+  // 코인 탭: 100개씩 표시 (250개 한번에 렌더링 성능 방지)
+  const PAGE_SIZE   = 100;
+  const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
   const { toggle, isWatched, watchlist } = useWatchlist();
 
   const handleSort = (key) => {
@@ -385,13 +388,16 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   );
 
   const totalCount = flatSorted.length;
+  // 코인 탭은 pageLimit만큼만 렌더링, 나머지는 "더 보기"로
+  const displayedRows = type === 'coin' ? flatSorted.slice(0, pageLimit) : flatSorted;
+  const hasMore       = type === 'coin' && flatSorted.length > pageLimit;
 
   const renderRows = () => {
     // 초기 로딩: 데이터 없고 loading 중일 때 스켈레톤 표시
     if (loading && items.length === 0) {
       return Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />);
     }
-    return flatSorted.map((item, i) => (
+    return displayedRows.map((item, i) => (
       <FlashRow
         key={item.id || item.symbol}
         item={item}
@@ -526,6 +532,18 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         {totalCount === 0 && (
           <div className="py-16 text-center text-[14px] text-[#B0B8C1]">
             {search ? `"${search}" 검색 결과가 없습니다.` : '데이터 없음'}
+          </div>
+        )}
+
+        {/* 코인 탭 더 보기 버튼 */}
+        {hasMore && (
+          <div className="py-4 text-center border-t border-[#F2F4F6]">
+            <button
+              onClick={() => setPageLimit(l => l + PAGE_SIZE)}
+              className="px-5 py-2 text-[13px] font-medium text-[#3182F6] bg-[#F0F5FF] hover:bg-[#DCE8FF] rounded-lg transition-colors"
+            >
+              더 보기 ({flatSorted.length - pageLimit}개 남음)
+            </button>
           </div>
         )}
       </div>

@@ -1,5 +1,15 @@
 // 코인 실시간 데이터: Upbit(KRW) + CoinGecko(USD·시총·스파크라인)
 // 코인 커버리지: CoinGecko 시총 상위 250개 + 업비트 상장 전체 (KRW 마켓)
+// 스테이블코인·wrapped 토큰은 급등 캐치 목적과 무관 → fetchCoins()에서 제거
+
+// 필터링 대상: 가격 변동이 없거나 원본 자산의 래핑본인 토큰
+const EXCLUDED_SYMBOLS = new Set([
+  // 스테이블코인 (USD 고정)
+  'USDT','USDC','DAI','BUSD','TUSD','PYUSD','USDS','USDE','FDUSD','FRAX',
+  'LUSD','USDP','GUSD','SUSD','ALUSD','CRVUSD','GHO','CUSD','EURI','USDD',
+  // wrapped / staked 토큰 (원본과 거의 동일)
+  'WBTC','WETH','STETH','WSTETH','CBETH','RETH','WEETH','EZETH','RSETH',
+]);
 
 // ─── Upbit 전체 KRW 마켓 목록 (동적 캐시, 30분 TTL) ──────────
 let upbitMarketCache   = null;
@@ -182,7 +192,9 @@ export async function fetchCoins(krwRate = 1466) {
   if (!cgList.length) throw new Error('CoinGecko 실패 (캐시 없음)');
   if (cgListRaw) cgCache = cgListRaw;
 
-  return cgList.map(coin => {
+  return cgList
+    .filter(coin => !EXCLUDED_SYMBOLS.has(coin.symbol.toUpperCase()))
+    .map(coin => {
     // CoinGecko 심볼 → 대문자로 Upbit 매핑 (UPBIT_TO_CG 하드코딩 불필요)
     const sym    = coin.symbol.toUpperCase();
     const upbit  = upbitMap[sym] ?? {};
