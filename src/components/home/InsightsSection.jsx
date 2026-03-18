@@ -1,5 +1,5 @@
 import { memo, useState, useMemo } from 'react';
-import { getPct, fmt, MARKET_BADGE, TYPE_BADGE, PALETTE, getAvatarBg } from './utils';
+import { getPct, fmt, MARKET_BADGE, TYPE_BADGE, PALETTE, getAvatarBg, getContextLabel } from './utils';
 import { MARKET_FLAG, RELATION_TYPES } from '../../data/relatedAssets';
 import { extractNewsSignals } from '../../utils/newsSignal';
 
@@ -148,7 +148,12 @@ export function WatchlistSection({ watchedItems, toggle, onItemClick }) {
                 >★</button>
                 <div className="min-w-0">
                   <p className="text-[13px] font-semibold text-[#191F28] truncate">{item.name ?? item.symbol}</p>
-                  <p className="text-[11px] text-[#8B95A1]">{item.symbol}</p>
+                  {(() => {
+                    const ctx = getContextLabel(item);
+                    return ctx
+                      ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ color: ctx.color, background: ctx.bg }}>{ctx.label}</span>
+                      : <p className="text-[11px] text-[#8B95A1]">{item.symbol}</p>;
+                  })()}
                 </div>
               </div>
               <div className="text-right flex-shrink-0 ml-3">

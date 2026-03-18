@@ -72,6 +72,46 @@ export function getAvatarBg(symbol) {
   return PALETTE[(symbol || '').split('').reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0) % PALETTE.length] || '#8B95A1';
 }
 
+// ─── 맥락 레이블 — 등락률/거래량/52주 기반 자동 생성 ────────
+// 데이터 없으면 null 반환 (graceful degradation)
+export function getContextLabel(item) {
+  const pct = getPct(item);
+
+  // 52주 고점/저점 (Yahoo 필드명 우선, fallback 포함)
+  const price = item.price ?? 0;
+  const high52 = item.week52High ?? item.fiftyTwoWeekHigh ?? null;
+  const low52  = item.week52Low  ?? item.fiftyTwoWeekLow  ?? null;
+  if (high52 && price > 0) {
+    const fromHigh = (high52 - price) / high52 * 100;
+    if (fromHigh <= 5) return { label: '52주 고점 근처', color: '#F04452', bg: '#FFF0F0' };
+  }
+  if (low52 && price > 0) {
+    const fromLow = (price - low52) / low52 * 100;
+    if (fromLow <= 5) return { label: '52주 저점 근처', color: '#1764ED', bg: '#EDF4FF' };
+  }
+
+  // 거래량 급증 (avgVolume 있을 때만)
+  const vol    = item.volume    ?? item.regularMarketVolume ?? null;
+  const avgVol = item.avgVolume ?? item.averageDailyVolume10Day ?? null;
+  if (vol && avgVol && vol >= avgVol * 3) {
+    return { label: '거래량 급증', color: '#FF9500', bg: '#FFF4E6' };
+  }
+
+  // 등락률 기반 (항상 사용 가능)
+  if (Math.abs(pct) >= 7) {
+    return pct > 0
+      ? { label: '강한 급등', color: '#F04452', bg: '#FFF0F0' }
+      : { label: '강한 급락', color: '#1764ED', bg: '#EDF4FF' };
+  }
+  if (Math.abs(pct) >= 3) {
+    return pct > 0
+      ? { label: '상승 모멘텀', color: '#F04452', bg: '#FFF0F0' }
+      : { label: '하락 압력', color: '#1764ED', bg: '#EDF4FF' };
+  }
+
+  return null;
+}
+
 // ─── 급등 필터 탭 버튼 ──────────────────────────────────────
 export const SURGE_FILTERS = [
   { id: 'all',  label: '전체' },

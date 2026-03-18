@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { getPct, fmt, PALETTE, getAvatarBg } from './utils';
+import { getPct, fmt, PALETTE, getAvatarBg, getContextLabel } from './utils';
 
 // ─── SECTION 3: HOT 리스트 행 (3열 공통) ─────────────────────
 const HotRow = memo(function HotRow({ item, rank, krwRate, onClick }) {
@@ -46,10 +46,15 @@ const HotRow = memo(function HotRow({ item, rank, krwRate, onClick }) {
         </div>
       )}
 
-      {/* 종목명 */}
+      {/* 종목명 + 맥락 레이블 */}
       <div className="flex-1 min-w-0">
         <div className="text-[12px] font-semibold text-[#191F28] truncate">{item.name}</div>
-        <div className="text-[10px] text-[#8B95A1] font-mono truncate">{item.symbol}</div>
+        {(() => {
+          const ctx = getContextLabel(item);
+          return ctx
+            ? <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ color: ctx.color, background: ctx.bg }}>{ctx.label}</span>
+            : <div className="text-[10px] text-[#8B95A1] font-mono truncate">{item.symbol}</div>;
+        })()}
       </div>
 
       {/* 등락률 + 가격 */}
