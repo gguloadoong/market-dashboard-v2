@@ -149,8 +149,8 @@ function fmtKrw(n) {
 function connectWs() {
   if (destroyed || !whaleSymbols || !whaleHandler) return;
 
-  const THRESHOLD_KRW = 100_000_000; // 1억 원 (의미 있는 단일 체결 기준)
-  const HIGH_KRW      = 500_000_000; // 5억 원 (기관급 대량 체결)
+  const THRESHOLD_KRW = 20_000_000;  // 2천만 원 (고래 단일 체결 기준)
+  const HIGH_KRW      = 200_000_000; // 2억 원 (기관급 대량 체결)
   const markets = whaleSymbols.map(s => `KRW-${s}`);
 
   try {
@@ -249,6 +249,91 @@ export function unsubscribeUpbitWhaleTrades() {
   whaleSymbols = null;
   clearTimeout(reconnectTimer);
   if (whaleWs) { try { whaleWs.close(); } catch {} whaleWs = null; }
+}
+
+// ─── Layer 1b: 빗썸 WebSocket — 거래소 대량 체결 ─────────────────────────────
+const BITHUMB_THRESHOLD_KRW = 20_000_000; // 2천만 원
+const BITHUMB_HIGH_KRW      = 200_000_000; // 2억 원
+
+let bithumbWs        = null;
+let bithumbHandler   = null;
+let bithumbSymbols   = null;
+let bithumbDestroyed = false;
+let bithumbReconnect = null;
+
+const BITHUMB_MAIN_SYMBOLS = [
+  'BTC','ETH','XRP','SOL','ADA','DOGE','AVAX','DOT','LINK','SUI',
+  'NEAR','APT','ARB','OP','PEPE','XLM','TON','ATOM','INJ','BNB',
+];
+
+function connectBithumbWs() {
+  if (bithumbDestroyed || !bithumbHandler) return;
+  try {
+    const ws = new WebSocket('wss://pubwss.bithumb.com/pub/ws');
+    bithumbWs = ws;
+
+    ws.onopen = () => {
+      const symbols = (bithumbSymbols || BITHUMB_MAIN_SYMBOLS).map(s => `${s}_KRW`);
+      ws.send(JSON.stringify({ type: 'transaction', symbols }));
+      bithumbHandler?.({ _connected: true, source: 'bithumb' });
+    };
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg.type !== 'transaction' || !msg.content?.list) return;
+        for (const tx of msg.content.list) {
+          const tradeAmt = parseFloat(tx.contAmt || 0);
+          if (tradeAmt < BITHUMB_THRESHOLD_KRW) continue;
+          const symbol = (tx.symbol || '').replace('_KRW', '');
+          // buySellGb: "1"=매도, "2"=매수
+          const side = tx.buySellGb === '2' ? '매수' : '매도';
+          const { signal, insight } = getUpbitInsight(side, tradeAmt);
+          bithumbHandler?.({
+            symbol,
+            type:      'whale_trade',
+            severity:  tradeAmt >= BITHUMB_HIGH_KRW ? 'high' : 'medium',
+            price:     parseFloat(tx.contPrice || 0),
+            volume:    parseFloat(tx.contQty || 0),
+            tradeAmt,
+            side,
+            signal,
+            insight:   `[빗썸] ${insight}`,
+            message:   `${symbol} ${side} ${fmtKrw(tradeAmt)}원`,
+            timestamp: Date.now(),
+            source:    'bithumb',
+          });
+        }
+      } catch {}
+    };
+
+    ws.onerror = () => {};
+    ws.onclose = () => {
+      bithumbWs = null;
+      if (!bithumbDestroyed) {
+        bithumbReconnect = setTimeout(connectBithumbWs, 5000);
+      }
+    };
+  } catch {
+    if (!bithumbDestroyed) bithumbReconnect = setTimeout(connectBithumbWs, 5000);
+  }
+}
+
+export function subscribeBithumbWhaleTrades(symbols, onEvent) {
+  bithumbDestroyed = false;
+  bithumbSymbols   = symbols;
+  bithumbHandler   = onEvent;
+  if (bithumbWs) { try { bithumbWs.close(); } catch {} bithumbWs = null; }
+  clearTimeout(bithumbReconnect);
+  connectBithumbWs();
+}
+
+export function unsubscribeBithumbWhaleTrades() {
+  bithumbDestroyed = true;
+  bithumbHandler   = null;
+  bithumbSymbols   = null;
+  clearTimeout(bithumbReconnect);
+  if (bithumbWs) { try { bithumbWs.close(); } catch {} bithumbWs = null; }
 }
 
 // ─── Layer 2: Blockchain.com WebSocket — BTC 온체인 대형 이동 ──────────────
