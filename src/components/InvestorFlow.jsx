@@ -32,8 +32,46 @@ function SignalBadge({ signal }) {
   );
 }
 
+// 5일 방향 점/화살표 표시
+function TrendDots({ trend }) {
+  return (
+    <div className="divide-y divide-[#F2F4F6]">
+      {ROWS.map(row => {
+        const days = trend.map(d => d[row.key] ?? 0);
+        return (
+          <div key={row.key} className="flex items-center gap-3 px-4 py-2.5">
+            <span className="text-[12px] text-[#6B7684] w-8 flex-shrink-0 font-medium">
+              {row.label}
+            </span>
+            <div className="flex gap-1.5 items-center">
+              {days.map((val, i) => {
+                const isPos = val > 0;
+                const isNeg = val < 0;
+                const color = isPos ? '#F04452' : isNeg ? '#1764ED' : '#D1D6DB';
+                const arrow = isPos ? '▲' : isNeg ? '▼' : '—';
+                return (
+                  <span key={i} className="text-[11px] font-bold tabular-nums"
+                    style={{ color }}>
+                    {arrow}
+                  </span>
+                );
+              })}
+            </div>
+            {/* 최근 누적 방향 요약 */}
+            <span className="text-[10px] text-[#B0B8C1] ml-auto">
+              {days.filter(v => v > 0).length}매수/{days.filter(v => v < 0).length}매도
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function InvestorFlow({ symbol }) {
   const [data,    setData]    = useState(null);
+  const [trend,   setTrend]   = useState(null);
+  const [tab,     setTab]     = useState('today'); // 'today' | '5day'
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,10 +80,18 @@ export default function InvestorFlow({ symbol }) {
       return;
     }
     setLoading(true);
-    fetchInvestorDataSafe(symbol)
-      .then(setData)
-      .finally(() => setLoading(false));
+    setTrend(null);
+    Promise.all([
+      fetchInvestorDataSafe(symbol),
+      fetchInvestorTrendSafe(symbol, 5),
+    ]).then(([d, t]) => {
+      setData(d);
+      setTrend(t?.length > 0 ? t : null);
+    }).finally(() => setLoading(false));
   }, [symbol]);
+
+  // 탭 초기화: symbol 변경 시 오늘 탭으로
+  useEffect(() => { setTab('today'); }, [symbol]);
 
   // 국내 종목 아니면 렌더 안 함
   if (!symbol || !/^\d{6}$/.test(symbol)) return null;
@@ -76,44 +122,75 @@ export default function InvestorFlow({ symbol }) {
       {/* 헤더 */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#F2F4F6] bg-[#FAFBFC]">
         <span className="text-[12px] font-bold text-[#191F28]">👥 투자자 동향</span>
-        <span className="text-[10px] text-[#B0B8C1]">오늘</span>
-        <SignalBadge signal={data.signal} />
+
+        {/* 탭 버튼 */}
+        <div className="flex gap-1 ml-1">
+          <button
+            onClick={() => setTab('today')}
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors"
+            style={{
+              background: tab === 'today' ? '#191F28' : '#F2F4F6',
+              color:      tab === 'today' ? '#fff'    : '#8B95A1',
+            }}
+          >
+            오늘
+          </button>
+          {trend && (
+            <button
+              onClick={() => setTab('5day')}
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors"
+              style={{
+                background: tab === '5day' ? '#191F28' : '#F2F4F6',
+                color:      tab === '5day' ? '#fff'    : '#8B95A1',
+              }}
+            >
+              5일
+            </button>
+          )}
+        </div>
+
+        {tab === 'today' && <SignalBadge signal={data.signal} />}
       </div>
 
-      {/* 외인/기관/개인 행 */}
-      <div className="divide-y divide-[#F2F4F6]">
-        {ROWS.map((row, i) => {
-          const inv   = data[row.key];
-          const net   = inv?.netAmt ?? 0;
-          const isPos = net > 0;
-          const isNeg = net < 0;
-          const color = isPos ? '#F04452' : isNeg ? '#1764ED' : '#B0B8C1';
-          const barW  = bars[i];
+      {/* 오늘 탭: 게이지 바 + 순매수 금액 */}
+      {tab === 'today' && (
+        <div className="divide-y divide-[#F2F4F6]">
+          {ROWS.map((row, i) => {
+            const inv   = data[row.key];
+            const net   = inv?.netAmt ?? 0;
+            const isPos = net > 0;
+            const isNeg = net < 0;
+            const color = isPos ? '#F04452' : isNeg ? '#1764ED' : '#B0B8C1';
+            const barW  = bars[i];
 
-          return (
-            <div key={row.key} className="flex items-center gap-3 px-4 py-2.5">
-              {/* 레이블 */}
-              <span className="text-[12px] text-[#6B7684] w-8 flex-shrink-0 font-medium">
-                {row.label}
-              </span>
+            return (
+              <div key={row.key} className="flex items-center gap-3 px-4 py-2.5">
+                {/* 레이블 */}
+                <span className="text-[12px] text-[#6B7684] w-8 flex-shrink-0 font-medium">
+                  {row.label}
+                </span>
 
-              {/* 게이지 바 */}
-              <div className="flex-1 h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${barW}%`, background: color }}
-                />
+                {/* 게이지 바 */}
+                <div className="flex-1 h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${barW}%`, background: color }}
+                  />
+                </div>
+
+                {/* 순매수 금액 */}
+                <span className="text-[12px] font-bold tabular-nums font-mono w-16 text-right flex-shrink-0"
+                  style={{ color }}>
+                  {inv?.netAmtFormatted ?? '—'}
+                </span>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              {/* 순매수 금액 */}
-              <span className="text-[12px] font-bold tabular-nums font-mono w-16 text-right flex-shrink-0"
-                style={{ color }}>
-                {inv?.netAmtFormatted ?? '—'}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {/* 5일 탭: 방향 점/화살표 */}
+      {tab === '5day' && trend && <TrendDots trend={trend} />}
     </div>
   );
 }
