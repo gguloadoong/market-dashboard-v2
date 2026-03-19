@@ -9,18 +9,46 @@ const CAT_BADGE = {
 };
 
 export default function TopNewsSection({ allNews = [] }) {
-  // 24시간 이내 뉴스 중 상위 5건
+  // 48시간 이내 최신 뉴스 최대 7건 (24h 부족 시 48h로 확장)
   const topNews = useMemo(() => {
-    const cutoff = 24 * 60 * 60 * 1000;
-    return allNews
-      .filter(n => {
-        if (!n.pubDate) return false;
-        try { return Date.now() - new Date(n.pubDate).getTime() < cutoff; }
-        catch { return false; }
-      })
-      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-      .slice(0, 5);
+    if (!allNews.length) return [];
+    const sorted = [...allNews]
+      .filter(n => n.pubDate && n.title)
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+    const cutoff24 = 24 * 60 * 60 * 1000;
+    const cutoff48 = 48 * 60 * 60 * 1000;
+    const news24 = sorted.filter(n => {
+      try { return Date.now() - new Date(n.pubDate).getTime() < cutoff24; } catch { return false; }
+    });
+    // 24h 이내가 3건 미만이면 48h로 확장
+    const base = news24.length >= 3 ? news24 : sorted.filter(n => {
+      try { return Date.now() - new Date(n.pubDate).getTime() < cutoff48; } catch { return false; }
+    });
+    return base.slice(0, 7);
   }, [allNews]);
+
+  // 뉴스 없을 때 skeleton (로딩 중) 표시 — return null 대신
+  if (!allNews.length) {
+    return (
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
+          <span className="text-[13px] font-bold text-[#191F28]">오늘의 핵심 뉴스</span>
+          <span className="text-[10px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded animate-pulse">수집 중</span>
+        </div>
+        {[1,2,3].map(i => (
+          <div key={i} className="flex gap-3 px-4 py-3 border-b border-[#F2F4F6] last:border-0 animate-pulse">
+            <div className="w-4 h-3 bg-[#F2F4F6] rounded mt-1 flex-shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-2.5 bg-[#F2F4F6] rounded w-20" />
+              <div className="h-3 bg-[#F2F4F6] rounded" />
+              <div className="h-3 bg-[#F2F4F6] rounded w-3/4" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (!topNews.length) return null;
 

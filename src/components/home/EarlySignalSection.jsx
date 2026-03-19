@@ -4,6 +4,20 @@ import { useMemo } from 'react';
 import { getPct, fmt, buildKeywords } from './utils';
 import { matchesKeywords } from '../../utils/newsAlias';
 
+// 뉴스 제목에서 호재/악재 분류
+const POSITIVE_KW = ['상승','급등','최고','신고가','돌파','매수','호재','흑자','수주','계약','실적','성장','확대','인수','협력','승인','허가','개발','출시'];
+const NEGATIVE_KW = ['하락','급락','최저','신저가','매도','악재','적자','손실','취소','지연','소송','규제','제재','리콜','파산','부도','의혹','조사','하향'];
+
+function detectSentiment(title = '') {
+  if (!title) return null;
+  const t = title;
+  const posScore = POSITIVE_KW.filter(k => t.includes(k)).length;
+  const negScore = NEGATIVE_KW.filter(k => t.includes(k)).length;
+  if (posScore > negScore) return { label: '호재', bg: '#F0FFF4', color: '#2AC769', icon: '▲' };
+  if (negScore > posScore) return { label: '악재', bg: '#FFF0F1', color: '#F04452', icon: '▼' };
+  return { label: '이슈', bg: '#FFF4E6', color: '#FF9500', icon: '!' };
+}
+
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const PRICE_THRESHOLD = 1.5; // 이 미만이면 "아직 미반응"
 
@@ -41,6 +55,8 @@ function EarlySignalCard({ mover, news, krwRate, onItemClick }) {
     ? Math.floor((Date.now() - new Date(news.pubDate).getTime()) / 60000)
     : null;
 
+  const sentiment = detectSentiment(news.title);
+
   return (
     <button
       onClick={() => onItemClick?.(mover)}
@@ -55,8 +71,18 @@ function EarlySignalCard({ mover, news, krwRate, onItemClick }) {
           {mktBadge.label}
         </span>
         <div className="min-w-0">
-          <div className="text-[13px] font-bold text-[#191F28] truncate">{mover.name}</div>
-          <div className="text-[11px] text-[#8B95A1] truncate leading-tight mt-0.5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="text-[13px] font-bold text-[#191F28] truncate">{mover.name}</div>
+            {sentiment && (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ background: sentiment.bg, color: sentiment.color }}
+              >
+                {sentiment.icon} {sentiment.label}
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] text-[#8B95A1] truncate leading-tight">
             {(news.title?.length ?? 0) > 50 ? news.title.slice(0, 48) + '…' : (news.title ?? '')}
           </div>
         </div>
