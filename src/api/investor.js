@@ -7,20 +7,16 @@
 // 주의: 국내 주식(코스피/코스닥 종목코드 6자리)만 지원
 //       미장/코인은 Naver API 미지원 → null 반환
 
-const PROXY_BASE = 'https://api.allorigins.win/get?url=';
-const TIMEOUT    = 7000;
-
-// ─── allorigins를 통한 Naver API 호출 ────────────────────────
-async function naverProxyFetch(naverUrl) {
-  const res = await fetch(
-    `${PROXY_BASE}${encodeURIComponent(naverUrl)}`,
-    { signal: AbortSignal.timeout(TIMEOUT) },
-  );
-  if (!res.ok) throw new Error(`proxy ${res.status}`);
-  const wrapper = await res.json();
-  const text    = wrapper.contents ?? '';
-  if (!text) throw new Error('allorigins: 빈 응답');
-  return JSON.parse(text);
+// ─── Naver 투자자 동향 — 서버사이드 프록시 경유 (allorigins 제거) ─
+async function naverProxyFetch(symbol, trend = false, days = 5) {
+  const url = trend
+    ? `/api/naver-investor?symbol=${symbol}&trend=${days}`
+    : `/api/naver-investor?symbol=${symbol}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`naver-investor proxy ${res.status}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 
 // ─── 숫자 파싱 헬퍼 ──────────────────────────────────────────
@@ -110,9 +106,8 @@ export async function fetchInvestorData(symbol) {
     console.warn(`[투자자동향] 한투 fallback → Naver: ${e.message}`);
   }
 
-  // 2순위: Naver Finance (한투 실패 시 fallback)
-  const url  = `https://m.stock.naver.com/api/stock/${symbol}/investor`;
-  const data = await naverProxyFetch(url);
+  // 2순위: Naver Finance 서버사이드 프록시 (한투 실패 시 fallback)
+  const data = await naverProxyFetch(symbol);
 
   // Naver 응답 필드명 (실제 응답 기준)
   // stcTrdDd: 거래일, indvNetAmt/frgnNetAmt/instNetAmt: 순매수금액(원)
@@ -165,9 +160,8 @@ export async function fetchInvestorData(symbol) {
 export async function fetchInvestorTrend(symbol, days = 5) {
   if (!/^\d{6}$/.test(symbol)) return [];
 
-  // Naver 모바일 /investors 엔드포인트 — 복수형 주의
-  const url  = `https://m.stock.naver.com/api/stock/${symbol}/investors?periodType=DAILY&count=${days}`;
-  const data = await naverProxyFetch(url);
+  // Naver 모바일 /investors 엔드포인트 — 서버사이드 프록시 경유
+  const data = await naverProxyFetch(symbol, true, days);
 
   // 응답이 배열이거나 data.list 형태일 수 있음
   const list = Array.isArray(data) ? data : (data.list ?? data.investorList ?? []);

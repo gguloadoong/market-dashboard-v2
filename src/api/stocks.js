@@ -368,84 +368,42 @@ async function fetchYahooRace(symbol, id) {
   });
 }
 
-// ─── Stooq 한국 지수 (CORS 허용, 실시간에 가까운 데이터) ──────
-// 검증 결과: ^kospi 동작 확인, ^kosdaq N/D
-async function fetchStooqKospi() {
-  // f=sd2t2ohlcvnp: p 필드로 전일 종가(Prev_Close) 포함
-  const res = await fetch('https://stooq.com/q/l/?s=^kospi&f=sd2t2ohlcvnp&h&e=json', {
-    signal: AbortSignal.timeout(5000),
-  });
-  if (!res.ok) throw new Error(`Stooq KOSPI ${res.status}`);
-  const data = await res.json();
-  const s = (data.symbols || []).find(x => x.Close && x.Close !== 'N/D');
-  if (!s) throw new Error('Stooq KOSPI: N/D');
-  const close     = parseFloat(s.Close);
-  // Prev_Close(p 필드) 전일 종가 기준 — 없으면 change=0 (Open 근사 제거)
-  const prevClose = parseFloat(s.Prev_Close) || 0;
-  return {
-    id:        'KOSPI',
-    value:     parseFloat(close.toFixed(2)),
-    change:    prevClose > 0 ? parseFloat((close - prevClose).toFixed(2)) : 0,
-    changePct: prevClose > 0 ? parseFloat(((close - prevClose) / prevClose * 100).toFixed(2)) : 0,
-    isDelayed: false,
-    dataDelay: '실시간(추정)',
-  };
-}
-
-// ─── Stooq 전체 지수 배치 (KOSPI·KOSDAQ·SPX·NDX·DJI·DXY) ──────
-// Stooq 심볼 매핑: ^KS11=KOSPI, ^KQ11=KOSDAQ, ^SPX=SPX, ^NDX=NDX, ^DJI=DJI, DX-Y.NYB=DXY
-const STOOQ_INDEX_MAP = [
-  { id: 'KOSPI',  symbol: '^ks11'     },
-  { id: 'KOSDAQ', symbol: '^kq11'     },
-  { id: 'SPX',    symbol: '^spx'      },
-  { id: 'NDX',    symbol: '^ndx'      },
-  { id: 'DJI',    symbol: '^dji'      },
-  { id: 'DXY',    symbol: 'dx-y.nyb'  },
+// 지수 Stooq 직접 배치 (CORS 허용, allorigins 불필요) — 서버 프록시 실패 시 fallback
+const STOOQ_INDICES_DIRECT = [
+  { id: 'KOSPI',  symbol: '^ks11'    },
+  { id: 'KOSDAQ', symbol: '^kq11'    },
+  { id: 'SPX',    symbol: '^spx'     },
+  { id: 'NDX',    symbol: '^ndx'     },
+  { id: 'DJI',    symbol: '^dji'     },
+  { id: 'DXY',    symbol: 'dx-y.nyb' },
 ];
 
-async function fetchStooqAllIndices() {
-  const syms = STOOQ_INDEX_MAP.map(m => m.symbol).join(',');
-  // f=sd2t2ohlcvnp: p 필드로 전일 종가(Prev_Close) 포함
+async function fetchStooqIndicesDirect() {
+  const syms = STOOQ_INDICES_DIRECT.map(m => m.symbol).join(',');
   const res = await fetch(`https://stooq.com/q/l/?s=${syms}&f=sd2t2ohlcvnp&h&e=json`, {
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(7000),
   });
-  if (!res.ok) throw new Error(`Stooq indices ${res.status}`);
+  if (!res.ok) throw new Error(`Stooq direct ${res.status}`);
   const data = await res.json();
-
-  const results = [];
-  for (const entry of STOOQ_INDEX_MAP) {
+  return STOOQ_INDICES_DIRECT.map(entry => {
     const s = (data.symbols || []).find(
-      x => x.Symbol?.toLowerCase() === entry.symbol && x.Close && x.Close !== 'N/D'
+      x => x.Symbol?.toLowerCase() === entry.symbol
     );
-    if (!s) continue;
-    const close     = parseFloat(s.Close);
-    const prevClose = parseFloat(s.Prev_Close) || 0;
-    results.push({
+    if (!s || !s.Close || s.Close === 'N/D') return null;
+    const close = parseFloat(s.Close);
+    if (!close) return null;
+    const prev = parseFloat(s.Prev_Close) || close;
+    return {
       id:        entry.id,
       value:     parseFloat(close.toFixed(2)),
-      change:    prevClose > 0 ? parseFloat((close - prevClose).toFixed(2)) : 0,
-      changePct: prevClose > 0 ? parseFloat(((close - prevClose) / prevClose * 100).toFixed(2)) : 0,
-      isDelayed: false,
-      dataDelay: '실시간(추정)',
-    });
-  }
-
-  if (results.length < 4) throw new Error(`Stooq indices 부족: ${results.length}개`);
-  return results;
+      change:    parseFloat((close - prev).toFixed(2)),
+      changePct: parseFloat(((close - prev) / prev * 100).toFixed(2)),
+    };
+  }).filter(Boolean);
 }
 
-// 모든 지수 — Yahoo Finance 티커 매핑 (Stooq 실패 시 fallback)
-const ALL_INDICES = [
-  // KOSPI는 Stooq로 별도 처리
-  { id: 'KOSDAQ', symbol: '^KQ11'    },
-  { id: 'SPX',    symbol: '^GSPC'    },
-  { id: 'NDX',    symbol: '^IXIC'    },
-  { id: 'DJI',    symbol: '^DJI'     },
-  { id: 'DXY',    symbol: 'DX-Y.NYB' },
-];
-
 export async function fetchIndices() {
-  // 0순위: Vercel Edge 프록시 (서버사이드 Yahoo 직접 호출, CORS 없음)
+  // 0순위: Vercel Edge 프록시 (서버사이드 Stooq 1순위 → Yahoo fallback)
   try {
     const res = await fetch('/api/market-indices', { signal: AbortSignal.timeout(6000) });
     if (res.ok) {
@@ -454,43 +412,19 @@ export async function fetchIndices() {
     }
   } catch {}
 
-  // 1순위: Stooq 배치 (KOSPI·KOSDAQ·SPX·NDX·DJI·DXY 전체)
+  // 1순위 fallback: Stooq 직접 배치 (브라우저 CORS 허용, allorigins 불필요)
   try {
-    return await fetchStooqAllIndices();
+    const results = await fetchStooqIndicesDirect();
+    if (results.length >= 4) return results;
   } catch {}
 
-  // 2순위 fallback: KOSPI Stooq + 나머지 Yahoo (기존 로직)
-  // KOSPI: Stooq 1순위 → Yahoo fallback
-  const kospiPromise = (async () => {
-    try {
-      return await fetchStooqKospi();
-    } catch {
-      // Stooq 실패 시 Yahoo Finance fallback (최대 ~10분 지연 가능)
-      const result = await fetchYahooRace('^KS11', 'KOSPI');
-      return {
-        ...result,
-        isDelayed: true,    // Yahoo 경유 시 지연 가능성 있음
-        dataDelay: '~10분 지연',
-      };
-    }
-  })();
-
-  // KOSDAQ + 해외 지수: Yahoo Finance (지연 가능성 명시)
-  const otherResults = await Promise.allSettled(
-    ALL_INDICES.map(({ id, symbol }) => fetchYahooRace(symbol, id))
+  // 2순위 fallback: Yahoo v8 개별 (allorigins 경유) — 최후 수단
+  const settled = await Promise.allSettled(
+    STOOQ_INDICES_DIRECT.map(({ id, symbol }) => {
+      // Stooq 심볼 → Yahoo 심볼 변환
+      const yahooSym = { '^ks11': '^KS11', '^kq11': '^KQ11', '^spx': '^GSPC', '^ndx': '^IXIC', '^dji': '^DJI', 'dx-y.nyb': 'DX-Y.NYB' }[symbol] ?? symbol;
+      return fetchYahooRace(yahooSym, id);
+    })
   );
-
-  const others = otherResults
-    .filter(r => r.status === 'fulfilled')
-    .map(r => {
-      const v = r.value;
-      // KOSDAQ은 Yahoo 경유 — 지연 가능성 플래그
-      if (v.id === 'KOSDAQ') {
-        return { ...v, isDelayed: true, dataDelay: '~10분 지연' };
-      }
-      return { ...v, isDelayed: false, dataDelay: '실시간(추정)' };
-    });
-
-  const kospi = await kospiPromise.catch(() => null);
-  return [...(kospi ? [kospi] : []), ...others];
+  return settled.filter(r => r.status === 'fulfilled').map(r => r.value);
 }

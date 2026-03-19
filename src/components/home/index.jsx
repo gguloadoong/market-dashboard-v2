@@ -104,10 +104,7 @@ export default function HomeDashboard({
 
       {/* ─── 상단 헤더 ─────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-[18px] font-bold text-[#191F28] leading-tight">지금 뭐가 움직이고 있어?</h2>
-          <p className="text-[12px] text-[#8B95A1] mt-0.5">{today}</p>
-        </div>
+        <p className="text-[12px] text-[#8B95A1]">{today}</p>
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg border border-[#F2F4F6] shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-[#2AC769] animate-pulse" />
           <span className="text-[11px] text-[#6B7684] font-medium">실시간</span>

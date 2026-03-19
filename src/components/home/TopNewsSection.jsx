@@ -8,24 +8,37 @@ const CAT_BADGE = {
   kr:   { bg: '#FFF0F0', color: '#F04452', label: '국내' },
 };
 
+// 가격 관련 키워드 — 포함된 뉴스를 우선 노출
+const PRICE_KW = ['급등','급락','상승','하락','%','주가','강세','약세','돌파','신고가','신저가','폭등','폭락','급반등'];
+
+function priceRelevanceScore(title = '') {
+  return PRICE_KW.reduce((score, kw) => score + (title.includes(kw) ? 1 : 0), 0);
+}
+
 export default function TopNewsSection({ allNews = [] }) {
-  // 48시간 이내 최신 뉴스 최대 7건 (24h 부족 시 48h로 확장)
+  // 48시간 이내 최신 뉴스 최대 3건, 가격 관련 뉴스 우선 (24h 부족 시 48h 확장)
   const topNews = useMemo(() => {
     if (!allNews.length) return [];
-    const sorted = [...allNews]
-      .filter(n => n.pubDate && n.title)
-      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    const filtered = [...allNews].filter(n => n.pubDate && n.title);
 
     const cutoff24 = 24 * 60 * 60 * 1000;
     const cutoff48 = 48 * 60 * 60 * 1000;
-    const news24 = sorted.filter(n => {
+    const news24 = filtered.filter(n => {
       try { return Date.now() - new Date(n.pubDate).getTime() < cutoff24; } catch { return false; }
     });
     // 24h 이내가 3건 미만이면 48h로 확장
-    const base = news24.length >= 3 ? news24 : sorted.filter(n => {
+    const base = news24.length >= 3 ? news24 : filtered.filter(n => {
       try { return Date.now() - new Date(n.pubDate).getTime() < cutoff48; } catch { return false; }
     });
-    return base.slice(0, 7);
+
+    // 가격 관련 키워드 점수 내림차순 → 동점이면 최신순
+    return base
+      .sort((a, b) => {
+        const scoreDiff = priceRelevanceScore(b.title) - priceRelevanceScore(a.title);
+        if (scoreDiff !== 0) return scoreDiff;
+        return new Date(b.pubDate) - new Date(a.pubDate);
+      })
+      .slice(0, 3);
   }, [allNews]);
 
   // 뉴스 없을 때 skeleton (로딩 중) 표시 — return null 대신

@@ -28,7 +28,7 @@ function toWon(pbmnStr) {
 // iscd: '0001'(코스피) | '1001'(코스닥)
 async function fetchMarketFromHantoo(token, iscd, today) {
   const url = new URL(`${HANTOO_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor`);
-  url.searchParams.set('FID_COND_MRKT_DIV_CODE', 'U'); // U = 지수
+  url.searchParams.set('FID_COND_MRKT_DIV_CODE', 'J'); // J = KOSPI/KOSDAQ 지수 투자자 동향 (U는 개별 종목용)
   url.searchParams.set('FID_INPUT_ISCD',    iscd);
   url.searchParams.set('FID_INPUT_DATE_1',  today);
   url.searchParams.set('FID_INPUT_DATE_2',  today);
@@ -61,20 +61,20 @@ async function fetchMarketFromHantoo(token, iscd, today) {
   };
 }
 
-// Naver 모바일 API fallback (allorigins 경유)
+// Naver 모바일 API fallback — 서버사이드 직접 fetch (allorigins 불안정으로 제거)
 // 코스피: KOSPI, 코스닥: KOSDAQ
 async function fetchMarketFromNaver(marketCode) {
-  const PROXY = 'https://api.allorigins.win/get?url=';
   const naverUrl = `https://m.stock.naver.com/api/index/${marketCode}/investor`;
-  const res = await fetch(
-    `${PROXY}${encodeURIComponent(naverUrl)}`,
-    { signal: AbortSignal.timeout(7000) },
-  );
-  if (!res.ok) throw new Error(`Naver proxy ${res.status}`);
-  const wrapper = await res.json();
-  const text    = wrapper.contents ?? '';
-  if (!text) throw new Error('allorigins 빈 응답');
-  const json = JSON.parse(text);
+  const res = await fetch(naverUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible)',
+      'Accept': 'application/json',
+      'Referer': 'https://m.stock.naver.com/',
+    },
+    signal: AbortSignal.timeout(7000),
+  });
+  if (!res.ok) throw new Error(`Naver ${res.status}`);
+  const json = await res.json();
 
   // Naver 지수 investor 응답 필드 파싱
   const toNum = v => parseInt((String(v || '0')).replace(/,/g, ''), 10) || 0;
@@ -93,15 +93,24 @@ export default async function handler(req, res) {
   try {
     let kospi, kosdaq;
 
-    // 한투 API 키가 설정된 경우 — 정확한 실시간 데이터
+    // 한투 API 1순위 — 키가 설정된 경우 시도, 실패 시 Naver fallback
     if (process.env.HANTOO_APP_KEY && process.env.HANTOO_APP_SECRET) {
-      const token = await getHantooToken();
-      [kospi, kosdaq] = await Promise.all([
-        fetchMarketFromHantoo(token, '0001', today),
-        fetchMarketFromHantoo(token, '1001', today),
-      ]);
+      try {
+        const token = await getHantooToken();
+        [kospi, kosdaq] = await Promise.all([
+          fetchMarketFromHantoo(token, '0001', today),
+          fetchMarketFromHantoo(token, '1001', today),
+        ]);
+      } catch (hantooErr) {
+        // 한투 실패(장애·토큰 만료·rate limit) → Naver 자동 fallback
+        console.warn('[market-investor] 한투 실패 → Naver fallback:', hantooErr.message);
+        [kospi, kosdaq] = await Promise.all([
+          fetchMarketFromNaver('KOSPI'),
+          fetchMarketFromNaver('KOSDAQ'),
+        ]);
+      }
     } else {
-      // Naver fallback — 한투 키 미설정 시
+      // 한투 키 미설정 → Naver
       console.warn('[market-investor] HANTOO_APP_KEY 미설정 → Naver fallback');
       [kospi, kosdaq] = await Promise.all([
         fetchMarketFromNaver('KOSPI'),
