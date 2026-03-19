@@ -125,6 +125,17 @@ async function fetchYahooChart(symbol) {
 
 // ─── 미국 주식 ─────────────────────────────────────────────────
 export async function fetchUsStocksBatch(symbols) {
+  // 0) Vercel Edge Function 프록시 (서버사이드 Yahoo 직접 호출, CORS 없음)
+  try {
+    const res = await fetch(`/api/us-price?symbols=${symbols.join(',')}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.results?.length >= symbols.length * 0.7) return data.results;
+    }
+  } catch {}
+
   // 1) Stooq (직접 CORS 허용, 안정적) — Prev_Close 필드 기반 전일 종가 대비 등락률
   try {
     const data = await fetchStooq(symbols);
@@ -381,7 +392,49 @@ async function fetchStooqKospi() {
   };
 }
 
-// 모든 지수 — Yahoo Finance 티커 매핑 (KOSPI 제외: Stooq 사용)
+// ─── Stooq 전체 지수 배치 (KOSPI·KOSDAQ·SPX·NDX·DJI·DXY) ──────
+// Stooq 심볼 매핑: ^KS11=KOSPI, ^KQ11=KOSDAQ, ^SPX=SPX, ^NDX=NDX, ^DJI=DJI, DX-Y.NYB=DXY
+const STOOQ_INDEX_MAP = [
+  { id: 'KOSPI',  symbol: '^ks11'     },
+  { id: 'KOSDAQ', symbol: '^kq11'     },
+  { id: 'SPX',    symbol: '^spx'      },
+  { id: 'NDX',    symbol: '^ndx'      },
+  { id: 'DJI',    symbol: '^dji'      },
+  { id: 'DXY',    symbol: 'dx-y.nyb'  },
+];
+
+async function fetchStooqAllIndices() {
+  const syms = STOOQ_INDEX_MAP.map(m => m.symbol).join(',');
+  // f=sd2t2ohlcvnp: p 필드로 전일 종가(Prev_Close) 포함
+  const res = await fetch(`https://stooq.com/q/l/?s=${syms}&f=sd2t2ohlcvnp&h&e=json`, {
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) throw new Error(`Stooq indices ${res.status}`);
+  const data = await res.json();
+
+  const results = [];
+  for (const entry of STOOQ_INDEX_MAP) {
+    const s = (data.symbols || []).find(
+      x => x.Symbol?.toLowerCase() === entry.symbol && x.Close && x.Close !== 'N/D'
+    );
+    if (!s) continue;
+    const close     = parseFloat(s.Close);
+    const prevClose = parseFloat(s.Prev_Close) || 0;
+    results.push({
+      id:        entry.id,
+      value:     parseFloat(close.toFixed(2)),
+      change:    prevClose > 0 ? parseFloat((close - prevClose).toFixed(2)) : 0,
+      changePct: prevClose > 0 ? parseFloat(((close - prevClose) / prevClose * 100).toFixed(2)) : 0,
+      isDelayed: false,
+      dataDelay: '실시간(추정)',
+    });
+  }
+
+  if (results.length < 4) throw new Error(`Stooq indices 부족: ${results.length}개`);
+  return results;
+}
+
+// 모든 지수 — Yahoo Finance 티커 매핑 (Stooq 실패 시 fallback)
 const ALL_INDICES = [
   // KOSPI는 Stooq로 별도 처리
   { id: 'KOSDAQ', symbol: '^KQ11'    },
@@ -401,6 +454,12 @@ export async function fetchIndices() {
     }
   } catch {}
 
+  // 1순위: Stooq 배치 (KOSPI·KOSDAQ·SPX·NDX·DJI·DXY 전체)
+  try {
+    return await fetchStooqAllIndices();
+  } catch {}
+
+  // 2순위 fallback: KOSPI Stooq + 나머지 Yahoo (기존 로직)
   // KOSPI: Stooq 1순위 → Yahoo fallback
   const kospiPromise = (async () => {
     try {

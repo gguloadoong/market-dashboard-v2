@@ -2,16 +2,13 @@ import { useState, useMemo } from 'react';
 import SectorRotation from '../SectorRotation';
 import { useAllNewsQuery } from '../../hooks/useNewsQuery';
 import { useWatchlist } from '../../hooks/useWatchlist';
-import { findRelatedItems, MARKET_FLAG, RELATION_TYPES } from '../../data/relatedAssets';
-import { extractNewsSignals } from '../../utils/newsSignal';
-import { getPct, buildKeywords, findRelatedNews, findRelatedNewsMulti, fmt } from './utils';
+import { getPct, findRelatedNews, findRelatedNewsMulti } from './utils';
 import SurgeSection from './SurgeSection';
 import HotListSection from './HotListSection';
-import InsightsSection, { WatchlistSection, WatchlistNewsSection } from './InsightsSection';
+import { WatchlistSection, WatchlistNewsSection } from './InsightsSection';
 import MarketIndexSection, { CoinSummarySection } from './MarketIndexSection';
 import SignalSection from './SignalSection';
 import TopNewsSection from './TopNewsSection';
-import EarlySignalSection from './EarlySignalSection';
 import EventCalendar from './EventCalendar';
 import MarketInvestorSection from './MarketInvestorSection';
 import DexHotSection from './DexHotSection';
@@ -21,7 +18,7 @@ export default function HomeDashboard({
   indices = [], krStocks = [], usStocks = [], coins = [], etfs = [],
   krwRate = 1466, onItemClick,
 }) {
-  const { data: allNews = [], isLoading: newsLoading } = useAllNewsQuery();
+  const { data: allNews = [] } = useAllNewsQuery();
   const { watchlist, toggle, isWatched } = useWatchlist();
   const [surgeMarket, setSurgeMarket] = useState('all');
 
@@ -47,30 +44,6 @@ export default function HomeDashboard({
       catch { return false; }
     });
   }, [allNews]);
-
-  // ─── SECTION 1: 급등 스포트라이트 계산 ─────────────────────
-  const surgeItems = useMemo(() => {
-    let list = allItems;
-    if (surgeMarket === 'KR')   list = krItems;
-    else if (surgeMarket === 'US')   list = usItems;
-    else if (surgeMarket === 'COIN') list = coinItems;
-
-    const hot = list.filter(i => getPct(i) >= 2).sort((a, b) => getPct(b) - getPct(a));
-    return (hot.length >= 3 ? hot : [...list].sort((a, b) => getPct(b) - getPct(a))).slice(0, 5);
-  }, [allItems, krItems, usItems, coinItems, surgeMarket]);
-
-  // 급등 종목 존재 여부 (3% 이상)
-  const hasHotItems = useMemo(() => allItems.some(i => getPct(i) >= 3), [allItems]);
-
-  // 급등 카드용 뉴스 컨텍스트 맵 (symbol → 관련 뉴스 1건, 7일 이내만)
-  const surgeNewsMap = useMemo(() => {
-    if (!recentNews.length || !surgeItems.length) return {};
-    return surgeItems.reduce((acc, item) => {
-      const news = findRelatedNews(item, recentNews);
-      if (news) acc[item.symbol] = news;
-      return acc;
-    }, {});
-  }, [surgeItems, recentNews]);
 
   // ─── SECTION 3: 각 시장별 HOT TOP5 (급등/급락) ─────────────
   const krHot = useMemo(
@@ -98,26 +71,6 @@ export default function HomeDashboard({
     () => [...coinItems].sort((a, b) => getPct(a) - getPct(b)).slice(0, 5),
     [coinItems]
   );
-
-  // ─── SECTION 4: 인사이트 (뉴스 × 무버 매칭) ────────────────
-  const topMovers = useMemo(() => {
-    return [...allItems].sort((a, b) => Math.abs(getPct(b)) - Math.abs(getPct(a))).slice(0, 20);
-  }, [allItems]);
-
-  const insights = useMemo(() => {
-    if (!topMovers.length) return [];
-    // 1순위: 뉴스 매칭된 종목 (최대 6개)
-    const withNews = topMovers
-      .map(mover => ({ mover, news: findRelatedNews(mover, recentNews) }))
-      .filter(({ news }) => news !== null)
-      .slice(0, 6);
-    if (withNews.length >= 3) return withNews;
-    // 뉴스 매칭 부족 → 상위 무버 표시 (뉴스 없이도 움직임 자체가 인사이트)
-    return topMovers.slice(0, 6).map(mover => ({
-      mover,
-      news: findRelatedNews(mover, recentNews),
-    }));
-  }, [topMovers, recentNews]);
 
   // ─── 관심종목 필터링 ────────────────────────────────────────
   const watchedItems = useMemo(
@@ -161,13 +114,16 @@ export default function HomeDashboard({
         </div>
       </div>
 
-      {/* ─── 1. 시장 현황 — "오늘 시장 어때?" (5초) ─────── */}
+      {/* ─── 1. 시장 현황 ─────────────────────────────────── */}
       <MarketIndexSection
         indices={indices}
         krwRate={krwRate}
       />
 
-      {/* ─── 2. 내 관심종목 — "내 종목은?" (1분) ─────────── */}
+      {/* ─── 2. 핵심 뉴스 — 지수 바로 뒤 ───────────────── */}
+      <TopNewsSection allNews={allNews} />
+
+      {/* ─── 3. 내 관심종목 ───────────────────────────────── */}
       <WatchlistSection
         watchedItems={watchedItems}
         toggle={toggle}
@@ -179,7 +135,7 @@ export default function HomeDashboard({
         onItemClick={onItemClick}
       />
 
-      {/* ─── 3. 핵심 시그널 — "뭘 봐야 해?" (30초) ──────── */}
+      {/* ─── 4. 핵심 시그널 ───────────────────────────────── */}
       {hasData && (
         <SignalSection
           allItems={allItems}
@@ -189,20 +145,7 @@ export default function HomeDashboard({
         />
       )}
 
-      {/* ─── 3.5 오늘의 핵심 뉴스 — 시그널의 "왜?" 맥락 ──── */}
-      <TopNewsSection allNews={allNews} />
-
-      {/* ─── 3.7 선행 신호 — 뉴스 나왔지만 주가 미반응 ──── */}
-      {hasData && (
-        <EarlySignalSection
-          allItems={allItems}
-          recentNews={recentNews}
-          krwRate={krwRate}
-          onItemClick={onItemClick}
-        />
-      )}
-
-      {/* ─── 4. 급등/급락 TOP5 ────────────────────────────── */}
+      {/* ─── 5. 급등/급락 TOP5 ────────────────────────────── */}
       <HotListSection
         hasData={hasData}
         krHot={krHot}
@@ -215,32 +158,21 @@ export default function HomeDashboard({
         onItemClick={onItemClick}
       />
 
-      {/* ─── 5. 인사이트 (뉴스 × 무버) ───────────────────── */}
-      <InsightsSection
-        newsLoading={newsLoading}
-        hasData={hasData}
-        insights={insights}
-        onItemClick={onItemClick}
-      />
-
-      {/* ─── 7. 시장 투자자 동향 ────────────────────────────── */}
+      {/* ─── 6. 시장 투자자 동향 ────────────────────────────── */}
       <MarketInvestorSection />
 
-      {/* ─── DEX 핫 프로토콜 ─────────────────────────────── */}
-      <DexHotSection />
-
-      {/* ─── 코인 거래소 공지 ───────────────────────────── */}
-      <CoinListingSection />
-
-      {/* ─── 경제 이벤트 캘린더 ──────────────────────────── */}
-      <EventCalendar />
-
-      {/* ─── 섹터 로테이션 + 코인 요약 ───────────────────── */}
+      {/* ─── 7. 섹터 로테이션 ─────────────────────────────── */}
       {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
         <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />
       )}
 
+      {/* ─── 8. 경제 이벤트 캘린더 ──────────────────────── */}
+      <EventCalendar />
+
+      {/* ─── 9. DEX 핫 프로토콜 / 코인 공지 / 코인 요약 ── */}
+      <DexHotSection />
       <CoinSummarySection coins={coins} krwRate={krwRate} />
+      <CoinListingSection />
     </div>
   );
 }

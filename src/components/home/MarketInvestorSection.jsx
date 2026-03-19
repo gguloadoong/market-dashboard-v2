@@ -142,8 +142,15 @@ export default function MarketInvestorSection() {
   // 로딩 중
   if (isLoading) return <Skeleton />;
 
-  // 에러 또는 데이터 없음 → 섹션 숨김 (홈이 깔끔해야 함)
-  if (isError || !data) return null;
+  // 에러 → fallback UI 표시
+  if (isError) return (
+    <div className="bg-white rounded-2xl border border-[#F2F4F6] px-4 py-5 text-center">
+      <p className="text-[13px] text-[#8B95A1]">데이터를 일시적으로 불러올 수 없습니다</p>
+    </div>
+  );
+
+  // 데이터 없음 → 섹션 숨김
+  if (!data) return null;
 
   // 활성 탭 데이터
   const marketData = data[activeTab];

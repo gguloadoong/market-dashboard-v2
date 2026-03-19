@@ -1,6 +1,6 @@
-// 핵심 시그널 섹션 — "왜 지금 이 종목이 움직이는가"
+// 핵심 시그널 섹션 — "지금 주목할 종목"
 import { useMemo } from 'react';
-import { getPct, fmt, findRelatedNews, computeSignalScore } from './utils';
+import { getPct, fmt, findRelatedNews, computeSignalScore, getContextLabel } from './utils';
 
 function SignalCard({ mover, news, krwRate, onItemClick }) {
   const pct    = getPct(mover);
@@ -22,12 +22,27 @@ function SignalCard({ mover, news, krwRate, onItemClick }) {
       ? 'linear-gradient(135deg, #F4F8FF 0%, #F0F4FF 100%)'
       : 'linear-gradient(135deg, #FAFBFC 0%, #F8F9FA 100%)';
 
-  const { score, signal, signalBg, signalColor } = computeSignalScore(mover, !!news);
+  const { score, signal, signalBg, signalColor, volScore } = computeSignalScore(mover, !!news);
+
+  // 뉴스 없는 카드 WHY 텍스트: 거래량 → 52주 → 기술적 이상 감지 순
+  function getNoNewsReason() {
+    // 거래량 점수 높으면 거래량 급증 표시
+    const vol    = mover.volume ?? mover.regularMarketVolume ?? 0;
+    const avgVol = mover.avgVolume ?? mover.averageDailyVolume10Day ?? 0;
+    if (vol > 0 && avgVol > 0) {
+      const ratio = vol / avgVol;
+      if (ratio >= 2) return `거래량 ${Math.round(ratio)}배 급증`;
+    }
+    // getContextLabel()에서 52주 관련이면 표시
+    const ctx = getContextLabel(mover);
+    if (ctx && ctx.label.includes('52주')) return ctx.label;
+    // 기본 fallback
+    return '기술적 이상 감지';
+  }
 
   const signalReason = news
     ? news.title.length > 60 ? news.title.slice(0, 58) + '…' : news.title
-    : pct >= 5 ? `${Math.abs(pct).toFixed(1)}% ${isUp ? '급등' : '급락'} — 수급·모멘텀 확인 필요`
-    : `${Math.abs(pct).toFixed(1)}% ${isUp ? '상승' : '하락'} 중 — 관련 뉴스 탐색 중`;
+    : getNoNewsReason();
 
   const mktBadge = isCoin ? { label: 'COIN', bg: '#FFF4E6', color: '#FF9500' }
     : mover._market === 'KR' || mover.market === 'kr'
@@ -67,8 +82,8 @@ function SignalCard({ mover, news, krwRate, onItemClick }) {
       {/* 핵심 이유 */}
       <div className="flex items-start gap-2">
         <span className="text-[11px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
-          style={{ background: news ? '#191F28' : '#8B95A1', color: 'white' }}>
-          {news ? 'WHY' : '...'}
+          style={{ background: '#191F28', color: 'white' }}>
+          WHY
         </span>
         <p className="text-[12px] text-[#4E5968] leading-snug line-clamp-2">{signalReason}</p>
       </div>
@@ -116,7 +131,7 @@ export default function SignalSection({ allItems, recentNews, krwRate, onItemCli
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-[#191F28] rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-[#2AC769] animate-pulse" />
-          <span className="text-[11px] font-bold text-white">지금 이유 있는 움직임</span>
+          <span className="text-[11px] font-bold text-white">지금 주목할 종목</span>
         </div>
         <span className="text-[11px] text-[#B0B8C1]">{signals.length}개 시그널</span>
       </div>

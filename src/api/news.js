@@ -346,6 +346,16 @@ const KR_STOCK_NEWS_QUERIES = [
     url: 'https://news.google.com/rss/search?q=%ED%98%84%EB%8C%80%EC%B0%A8+%EA%B8%B0%EC%95%84+%ED%95%9C%ED%99%94%EC%97%90%EC%96%B4%EB%A1%9C+%EC%A1%B0%EC%84%A0+NAVER+%EC%B9%B4%EC%B9%B4%EC%98%A4&hl=ko&gl=KR&ceid=KR:ko',
     source: '구글뉴스',
   },
+  {
+    // 게임주 (크래프톤, 넥슨, 펄어비스, 위메이드)
+    url: 'https://news.google.com/rss/search?q=%EA%B2%8C%EC%9E%84%EC%A3%BC+%ED%81%AC%EB%9E%98%ED%94%84%ED%86%A4+%EB%84%A5%EC%8A%A8+%ED%8E%84%EC%96%B4%EB%B9%84%EC%8A%A4+%EC%9C%84%EB%A9%94%EC%9D%B4%EB%93%9C&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
+  {
+    // 엔터주 (하이브, SM, YG, JYP)
+    url: 'https://news.google.com/rss/search?q=%EC%97%94%ED%84%B0+%ED%95%98%EC%9D%B4%EB%B8%8C+SM+YG+JYP&hl=ko&gl=KR&ceid=KR:ko',
+    source: '구글뉴스',
+  },
 ];
 
 // [국장] 한국 금융 직접 RSS 피드 — 한경, 매경, 연합뉴스 경제, 블록미디어
