@@ -1,7 +1,7 @@
-// 주목할만한 움직임 — 복합 스코어 기반 수평 카드
-// 변동폭 + 거래량 순위 + 뉴스 매칭 복합 점수
+// 주목할만한 움직임 — 복합 스코어 기반 히어로 수평 카드
+// 변동폭 + 거래량 순위 + 뉴스 매칭 복합 점수 + WHY 뉴스 연결
 import { useMemo, useState } from 'react';
-import { getPct, fmt, getAvatarBg } from './utils';
+import { getPct, fmt, getAvatarBg, findRelatedNews } from './utils';
 import { buildStockKeywords, matchesKeywords } from '../../utils/newsAlias';
 
 const MKT_BADGE = {
@@ -27,7 +27,7 @@ function buildReasonTags(item, newsCount, volumeRank) {
   return tags.slice(0, 2);
 }
 
-function NotableCard({ item, newsCount, volumeRank, krwRate, onClick }) {
+function NotableCard({ item, newsCount, volumeRank, newsTitle, newsSource, krwRate, onClick }) {
   const pct    = getPct(item);
   const isUp   = pct > 0;
   const isDown = pct < 0;
@@ -56,16 +56,21 @@ function NotableCard({ item, newsCount, volumeRank, krwRate, onClick }) {
     const max = Math.max(...spark);
     const range = max - min || 1;
     sparkPath = spark.map((v, i) => {
-      const x = (i / (spark.length - 1)) * 80;
+      const x = (i / (spark.length - 1)) * 90;
       const y = 24 - ((v - min) / range) * 20;
       return `${i === 0 ? 'M' : 'L'}${x},${y}`;
     }).join(' ');
   }
 
+  // WHY 뉴스 이유 텍스트
+  const whyText = newsTitle
+    ? (newsTitle.length > 50 ? newsTitle.slice(0, 48) + '…' : newsTitle)
+    : null;
+
   return (
     <div
       onClick={() => onClick?.(item)}
-      className="flex-shrink-0 w-[170px] bg-white rounded-xl border border-[#F2F4F6] shadow-sm p-3 cursor-pointer hover:shadow-md hover:border-[#E5E8EB] transition-all"
+      className="flex-shrink-0 w-[200px] bg-white rounded-xl border border-[#F2F4F6] shadow-sm p-3 cursor-pointer hover:shadow-md hover:border-[#E5E8EB] transition-all"
     >
       {/* 상단: 로고 + 종목명 */}
       <div className="flex items-center gap-2 mb-2">
@@ -97,9 +102,22 @@ function NotableCard({ item, newsCount, volumeRank, krwRate, onClick }) {
 
       {/* 스파크라인 */}
       {spark && (
-        <svg viewBox="0 0 80 24" className="w-full h-[24px] mb-2">
+        <svg viewBox="0 0 90 24" className="w-full h-[24px] mb-2">
           <path d={sparkPath} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
+      )}
+
+      {/* WHY 뉴스 이유 — SignalSection 통합 */}
+      {whyText && (
+        <div className="flex items-start gap-1.5 mb-1.5">
+          <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-[#191F28] text-white flex-shrink-0 mt-0.5">WHY</span>
+          <p className="text-[10px] text-[#4E5968] leading-snug line-clamp-2">{whyText}</p>
+        </div>
+      )}
+
+      {/* 뉴스 출처 */}
+      {newsSource && (
+        <div className="text-[9px] text-[#B0B8C1] mb-1.5 truncate">{newsSource}</div>
       )}
 
       {/* 이유 태그 */}
@@ -132,9 +150,6 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
       items.forEach((it, i) => volumeRanks.set(it.symbol, i + 1));
     }
 
-    // 뉴스 매칭 카운트
-    const newsText = recentNews.map(n => `${n.title || ''} ${n.description || ''}`).join(' ');
-
     return allItems
       .map(item => {
         const pct = Math.abs(getPct(item));
@@ -149,13 +164,23 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
           ? recentNews.filter(n => matchesKeywords(`${n.title || ''} ${n.description || ''}`, keywords)).length
           : 0;
 
+        // WHY 뉴스 매칭 (SignalSection 통합)
+        const relatedNews = findRelatedNews(item, recentNews);
+
         // 복합 점수: 변동폭(0~5) + 거래량 순위(0~3) + 뉴스(0~3)
         const pctScore = pct >= 10 ? 5 : pct >= 5 ? 4 : pct >= 3 ? 3 : pct >= 1.5 ? 2 : pct >= 0.5 ? 1 : 0;
         const volScore = volRank <= 5 ? 3 : volRank <= 10 ? 2 : volRank <= 20 ? 1 : 0;
         const newsScore = Math.min(newsCount, 3);
         const totalScore = pctScore + volScore + newsScore;
 
-        return { ...item, _totalScore: totalScore, _newsCount: newsCount, _volRank: volRank };
+        return {
+          ...item,
+          _totalScore: totalScore,
+          _newsCount: newsCount,
+          _volRank: volRank,
+          _newsTitle: relatedNews?.title || null,
+          _newsSource: relatedNews?.source || null,
+        };
       })
       .filter(i => i._totalScore >= 3)
       .sort((a, b) => b._totalScore - a._totalScore)
@@ -168,31 +193,52 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
     const fallback = [...allItems]
       .sort((a, b) => Math.abs(getPct(b)) - Math.abs(getPct(a)))
       .slice(0, 2)
-      .map(i => ({ ...i, _totalScore: 0, _newsCount: 0, _volRank: 999 }));
+      .map(i => {
+        const relatedNews = findRelatedNews(i, recentNews);
+        return {
+          ...i,
+          _totalScore: 0, _newsCount: 0, _volRank: 999,
+          _newsTitle: relatedNews?.title || null,
+          _newsSource: relatedNews?.source || null,
+        };
+      });
     return fallback;
-  }, [notables, allItems]);
+  }, [notables, allItems, recentNews]);
 
   if (!displayed.length) return null;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-[13px] font-bold text-[#191F28]">주목할만한 움직임</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold text-[#191F28]">주목할 종목</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[#2AC769] animate-pulse" />
+        </div>
         <span className="text-[11px] text-[#B0B8C1]">변동폭 + 거래량 + 뉴스</span>
       </div>
-      <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
-        <div className="flex gap-3 pb-2" style={{ minWidth: 'max-content' }}>
-          {displayed.map(item => (
-            <NotableCard
-              key={item.id || item.symbol}
-              item={item}
-              newsCount={item._newsCount}
-              volumeRank={item._volRank}
-              krwRate={krwRate}
-              onClick={onItemClick}
-            />
-          ))}
+      {/* 수평 스크롤 + 양쪽 페이드 힌트 */}
+      <div className="relative">
+        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+          <div className="flex gap-3 pb-2" style={{ minWidth: 'max-content' }}>
+            {displayed.map(item => (
+              <NotableCard
+                key={item.id || item.symbol}
+                item={item}
+                newsCount={item._newsCount}
+                volumeRank={item._volRank}
+                newsTitle={item._newsTitle}
+                newsSource={item._newsSource}
+                krwRate={krwRate}
+                onClick={onItemClick}
+              />
+            ))}
+          </div>
         </div>
+        {/* 우측 페이드 힌트 — 더 스크롤할 수 있음을 암시 */}
+        {displayed.length > 2 && (
+          <div className="absolute right-0 top-0 bottom-2 w-8 pointer-events-none"
+            style={{ background: 'linear-gradient(to left, rgba(255,255,255,0.9), transparent)' }} />
+        )}
       </div>
     </div>
   );

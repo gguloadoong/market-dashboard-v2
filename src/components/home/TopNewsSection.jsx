@@ -1,6 +1,8 @@
-// 투자 시그널 뉴스 — 시그널 태그 + 종목 매칭 점수 기반 큐레이션
+// 시장을 움직이는 뉴스 — 종목 연결 카드형 뉴스 피드
+// 뉴스와 관련 종목을 뱃지로 연결, 종목 등락률 표시
 import { useMemo } from 'react';
 import { extractNewsSignals } from '../../utils/newsSignal';
+import { buildStockKeywords, matchesKeywords } from '../../utils/newsAlias';
 
 const CAT_BADGE = {
   coin: { bg: '#FFF4E6', color: '#FF9500', label: 'COIN' },
@@ -30,8 +32,55 @@ function cleanDesc(raw) {
     .replace(/\s+/g, ' ').trim();
 }
 
-export default function TopNewsSection({ allNews = [], onNewsClick }) {
-  // 24시간 이내 뉴스 중 시그널 점수 기준 상위 5건
+// 뉴스와 매칭되는 종목 찾기 (allItems에서)
+function findMatchedStocks(newsTitle, allItems, max = 3) {
+  if (!newsTitle || !allItems.length) return [];
+  const text = newsTitle.toLowerCase();
+  const matched = [];
+  const seen = new Set();
+
+  for (const item of allItems) {
+    if (matched.length >= max) break;
+    const key = item.symbol || item.id;
+    if (seen.has(key)) continue;
+
+    const keywords = buildStockKeywords(
+      item.symbol, item.name,
+      item._market === 'KR' ? 'KR' : item._market === 'COIN' ? 'COIN' : 'US'
+    );
+    if (keywords.length > 0 && matchesKeywords(newsTitle, keywords)) {
+      seen.add(key);
+      const pct = item._market === 'COIN' ? (item.change24h ?? 0) : (item.changePct ?? 0);
+      matched.push({
+        symbol: item.symbol || item.id,
+        name: item.name,
+        market: item._market,
+        pct,
+      });
+    }
+  }
+  return matched;
+}
+
+function StockBadge({ stock }) {
+  const isUp = stock.pct > 0;
+  const isDown = stock.pct < 0;
+  const pctColor = isUp ? '#F04452' : isDown ? '#1764ED' : '#8B95A1';
+  const bgColor = isUp ? '#FFF0F1' : isDown ? '#F0F4FF' : '#F2F4F6';
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+      style={{ background: bgColor, color: pctColor }}
+    >
+      <span className="text-[#4E5968] font-medium">{stock.name?.slice(0, 6)}</span>
+      <span>{isUp ? '+' : ''}{stock.pct.toFixed(1)}%</span>
+    </span>
+  );
+}
+
+export default function TopNewsSection({ allNews = [], onNewsClick, allItems = [] }) {
+  // 24시간 이내 뉴스 중 시그널 점수 + 종목 매칭 기준 상위 5건
   const topNews = useMemo(() => {
     const cutoff = 24 * 60 * 60 * 1000;
     const recent = allNews.filter(n => {
@@ -45,20 +94,23 @@ export default function TopNewsSection({ allNews = [], onNewsClick }) {
         const signals = extractNewsSignals(n.title);
         const stockCount = countStockTags(n.title);
         const isRecent = n.pubDate && (Date.now() - new Date(n.pubDate).getTime()) < 3600000;
-        // 점수: 시그널 태그 2점 + 종목 태그 1점 + 1시간 이내 가산 1점
-        const score = signals.length * 2 + stockCount + (isRecent ? 1 : 0);
-        return { ...n, _signals: signals, _score: score };
+        // 종목 실제 움직임 점수 (연결된 종목의 변동폭 합산)
+        const matchedStocks = findMatchedStocks(n.title, allItems);
+        const movementScore = matchedStocks.reduce((sum, s) => sum + Math.abs(s.pct), 0);
+        // 점수: 시그널 태그 2점 + 종목 태그 1점 + 1시간 이내 1점 + 종목 움직임 가산
+        const score = signals.length * 2 + stockCount + (isRecent ? 1 : 0) + Math.min(movementScore * 0.5, 3);
+        return { ...n, _signals: signals, _score: score, _matchedStocks: matchedStocks };
       })
       .sort((a, b) => b._score - a._score || new Date(b.pubDate) - new Date(a.pubDate))
       .slice(0, 5);
-  }, [allNews]);
+  }, [allNews, allItems]);
 
   if (!topNews.length) return null;
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
-        <span className="text-[13px] font-bold text-[#191F28]">투자 시그널 뉴스</span>
+        <span className="text-[13px] font-bold text-[#191F28]">시장을 움직이는 뉴스</span>
         <span className="text-[11px] text-[#B0B8C1]">24시간 이내</span>
       </div>
 
@@ -109,6 +161,14 @@ export default function TopNewsSection({ allNews = [], onNewsClick }) {
                   ? <p className="text-[11px] text-[#8B95A1] leading-snug mt-1 line-clamp-1">{desc}</p>
                   : null;
               })()}
+              {/* 종목 연결 뱃지 — 관련 종목 + 등락률 */}
+              {item._matchedStocks?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {item._matchedStocks.map(stock => (
+                    <StockBadge key={stock.symbol} stock={stock} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );

@@ -7,7 +7,6 @@ import MarketPulseWidget from './widgets/MarketPulseWidget';
 import WatchlistWidget from './widgets/WatchlistWidget';
 import TopMoversWidget from './widgets/TopMoversWidget';
 import NewsFeedWidget from './widgets/NewsFeedWidget';
-import SignalWidget from './widgets/SignalWidget';
 import NotableMoversSection from './NotableMoversSection';
 import MarketInvestorSection from './MarketInvestorSection';
 import EventTicker from './EventTicker';
@@ -81,19 +80,7 @@ export default function HomeDashboard({
       {/* ─── WIDGET 1: Market Pulse ───────────────────────── */}
       <MarketPulseWidget indices={indices} krwRate={krwRate} />
 
-      {/* ─── 경제 이벤트 티커 ─────────────────────────────── */}
-      <EventTicker />
-
-      {/* ─── WIDGET 2: 관심종목 (빈 상태 시 인기 종목 추천) ── */}
-      <WatchlistWidget
-        watchedItems={watchedItems}
-        popularItems={popularItems}
-        toggle={toggle}
-        onItemClick={onItemClick}
-        krwRate={krwRate}
-      />
-
-      {/* ─── 주목할만한 움직임 (복합 스코어 카드) ───────────── */}
+      {/* ─── 주목할 종목 (히어로 영역) ───────────────────── */}
       {hasData && (
         <NotableMoversSection
           allItems={allItems}
@@ -103,15 +90,20 @@ export default function HomeDashboard({
         />
       )}
 
-      {/* ─── Signal (이유 있는 움직임) ────────────────────── */}
-      {hasData && (
-        <SignalWidget
-          allItems={allItems}
-          recentNews={recentNews}
-          krwRate={krwRate}
-          onItemClick={onItemClick}
-        />
-      )}
+      {/* ─── 경제 이벤트 티커 ─────────────────────────────── */}
+      <EventTicker />
+
+      {/* ─── 관심종목 (빈 상태 시 인기 종목 추천) ──────────── */}
+      <WatchlistWidget
+        watchedItems={watchedItems}
+        popularItems={popularItems}
+        toggle={toggle}
+        onItemClick={onItemClick}
+        krwRate={krwRate}
+      />
+
+      {/* ─── 시장을 움직이는 뉴스 (종목 연결 카드) ──────────── */}
+      <NewsFeedWidget allNews={allNews} onNewsClick={onNewsClick} allItems={allItems} />
 
       {/* ─── 시장 투자자 동향 ─────────────────────────────── */}
       <MarketInvestorSection />
@@ -124,9 +116,6 @@ export default function HomeDashboard({
         krwRate={krwRate}
         onItemClick={onItemClick}
       />
-
-      {/* ─── 투자 시그널 뉴스 ─────────────────────────────── */}
-      <NewsFeedWidget allNews={allNews} onNewsClick={onNewsClick} />
 
       {/* ─── 코인 거래소 공지 ─────────────────────────────── */}
       <CoinListingSection />
