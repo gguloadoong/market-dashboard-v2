@@ -88,6 +88,43 @@ export default async function handler(req) {
     }
   } catch {}
 
+  // 3) Stooq fallback — Yahoo 차단 시 (CORS 허용, 서버→서버 안정적)
+  try {
+    const STOOQ_MAP = {
+      '^SPX': 'SPX', '^NDQ': 'NDX', '^DJI': 'DJI',
+      'USDX.X': 'DXY', '^KOSPI': 'KOSPI', '^KOSDAQ': 'KOSDAQ',
+    };
+    const stooqSyms = '^spx,^ndq,^dji,usdx.x,^kospi,^kosdaq';
+    const stooqUrl = `https://stooq.com/q/l/?s=${stooqSyms}&f=sd2t2ohlcvnp&h&e=json`;
+    const sr = await fetch(stooqUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(7000),
+    });
+    if (sr.ok) {
+      const sd = await sr.json();
+      const stooqResults = (sd.symbols || [])
+        .map(s => {
+          const id = STOOQ_MAP[s.Symbol?.toUpperCase()];
+          if (!id) return null;
+          const close = parseFloat(s.Close);
+          if (!close || s.Close === 'N/D') return null;
+          const prev = parseFloat(s.Prev_Close) || close;
+          return {
+            id,
+            value:     parseFloat(close.toFixed(2)),
+            change:    parseFloat((close - prev).toFixed(2)),
+            changePct: parseFloat(((close - prev) / prev * 100).toFixed(2)),
+          };
+        })
+        .filter(Boolean);
+      if (stooqResults.length >= 3) {
+        return new Response(JSON.stringify({ results: stooqResults }), {
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, s-maxage=60', 'Access-Control-Allow-Origin': '*' },
+        });
+      }
+    }
+  } catch {}
+
   return new Response(JSON.stringify({ results: [] }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

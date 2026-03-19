@@ -153,6 +153,37 @@ export async function fetchCoinCandles(coinId, days = 90) {
   return cleanCandles(candles);
 }
 
+// ─── Stooq KR 히스토리 (한투/Yahoo .KS 실패 시 fallback) ─────
+// KOSDAQ: {code}.kq, KOSPI: {code}.ko — CSV 반환 (CORS 허용)
+async function fetchStooqKrCandles(symbol) {
+  for (const suffix of ['.kq', '.ko']) {
+    try {
+      const url = `https://stooq.com/q/d/l/?s=${symbol.toLowerCase()}${suffix}&i=d`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(7000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      // HTML 응답(에러 페이지) 또는 데이터 부족 → skip
+      if (text.includes('<') || text.length < 50) continue;
+      const lines = text.trim().split('\n').slice(1); // 헤더 제거
+      const candles = lines.map(line => {
+        const [date, open, high, low, close, volume] = line.split(',');
+        const c = parseFloat(close);
+        if (!c || !date || date === 'Date') return null;
+        return {
+          time:   date.trim(),
+          open:   parseFloat(open) || c,
+          high:   parseFloat(high) || c,
+          low:    parseFloat(low)  || c,
+          close:  c,
+          volume: parseInt(volume) || 0,
+        };
+      }).filter(Boolean).reverse(); // 오래된→최신 순
+      if (candles.length > 5) return cleanCandles(candles);
+    } catch {}
+  }
+  throw new Error('Stooq KR 차트 취득 실패');
+}
+
 // ─── 통합 캔들 취득 ──────────────────────────────────────────
 export async function fetchCandles(item, periodKey = '5분') {
   const config = PERIOD_CONFIG[periodKey] ?? PERIOD_CONFIG['일'];
@@ -181,10 +212,13 @@ export async function fetchCandles(item, periodKey = '5분') {
       const periodCode = periodMap[interval] ?? 'D';
       try {
         return await fetchHantooCandles(item.symbol, periodCode);
-      } catch {
-        // 한투 실패 시 Yahoo fallback
-      }
+      } catch {}
+      // 한투 실패 → Stooq KR fallback (.kq/.ko CSV)
+      try {
+        return await fetchStooqKrCandles(item.symbol);
+      } catch {}
     }
+    // 분봉 또는 Stooq 실패 → Yahoo .KS fallback
     const sym = `${item.symbol}.KS`;
     return fetchStockCandles(sym, range, interval);
   }

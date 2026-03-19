@@ -57,7 +57,37 @@ export default async function handler(req) {
     }
   } catch {}
 
-  // 2) Yahoo v8 개별 chart fallback — v7에서 누락된 소형 ETF 항상 실행
+  // 2) Stooq fallback — Yahoo v7 차단 시 주류 ETF 커버 (SPY, QQQ, IWM, GLD, TLT 등)
+  const foundAfterYahoo = new Set(results.map(r => r.symbol));
+  const missingForStooq = symbols.filter(s => !foundAfterYahoo.has(s));
+  if (missingForStooq.length > 0) {
+    try {
+      const stooqSyms = missingForStooq.map(s => `${s.toLowerCase()}.us`).join(',');
+      const stooqUrl  = `https://stooq.com/q/l/?s=${stooqSyms}&f=sd2t2ohlcvnp&h&e=json`;
+      const sr = await fetch(stooqUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible)' },
+        signal: AbortSignal.timeout(6000),
+      });
+      if (sr.ok) {
+        const sd = await sr.json();
+        for (const s of (sd.symbols || [])) {
+          const close = parseFloat(s.Close);
+          if (!close || s.Close === 'N/D') continue;
+          const prev = parseFloat(s.Prev_Close) || close;
+          const sym  = s.Symbol.split('.')[0].toUpperCase();
+          results.push({
+            symbol:    sym,
+            price:     parseFloat(close.toFixed(2)),
+            change:    parseFloat((close - prev).toFixed(2)),
+            changePct: parseFloat(((close - prev) / prev * 100).toFixed(2)),
+            volume:    parseInt(s.Volume) || 0,
+          });
+        }
+      }
+    } catch {}
+  }
+
+  // 3) Yahoo v8 개별 chart fallback — v7/Stooq에서 누락된 소형 ETF
   const found = new Set(results.map(r => r.symbol));
   const missing = symbols.filter(s => !found.has(s));
 

@@ -105,12 +105,18 @@ export default function HomeDashboard({
   }, [allItems]);
 
   const insights = useMemo(() => {
-    if (!topMovers.length || !recentNews.length) return [];
-    // 뉴스 매칭된 종목만 (null 카드 없음)
-    return topMovers
+    if (!topMovers.length) return [];
+    // 1순위: 뉴스 매칭된 종목 (최대 6개)
+    const withNews = topMovers
       .map(mover => ({ mover, news: findRelatedNews(mover, recentNews) }))
       .filter(({ news }) => news !== null)
       .slice(0, 6);
+    if (withNews.length >= 3) return withNews;
+    // 뉴스 매칭 부족 → 상위 무버 표시 (뉴스 없이도 움직임 자체가 인사이트)
+    return topMovers.slice(0, 6).map(mover => ({
+      mover,
+      news: findRelatedNews(mover, recentNews),
+    }));
   }, [topMovers, recentNews]);
 
   // ─── 관심종목 필터링 ────────────────────────────────────────
