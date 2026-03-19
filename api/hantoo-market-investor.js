@@ -26,9 +26,11 @@ function toWon(pbmnStr) {
 
 // 한투 API로 특정 지수 투자자 동향 조회
 // iscd: '0001'(코스피) | '1001'(코스닥)
+// FID_COND_MRKT_DIV_CODE: KOSPI=J (유가증권시장), KOSDAQ=Q (코스닥시장)
 async function fetchMarketFromHantoo(token, iscd, today) {
+  const mrktDivCode = iscd === '1001' ? 'Q' : 'J';
   const url = new URL(`${HANTOO_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor`);
-  url.searchParams.set('FID_COND_MRKT_DIV_CODE', 'J'); // J = KOSPI/KOSDAQ 지수 투자자 동향 (U는 개별 종목용)
+  url.searchParams.set('FID_COND_MRKT_DIV_CODE', mrktDivCode);
   url.searchParams.set('FID_INPUT_ISCD',    iscd);
   url.searchParams.set('FID_INPUT_DATE_1',  today);
   url.searchParams.set('FID_INPUT_DATE_2',  today);
