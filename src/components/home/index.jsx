@@ -18,7 +18,7 @@ export default function HomeDashboard({
 }) {
   const { data: allNews = [] } = useAllNewsQuery();
   const { watchlist, toggle, isWatched } = useWatchlist();
-  const [collapsed, setCollapsed] = useState(true);
+  const [sectorExpanded, setSectorExpanded] = useState(false);
 
   // 마켓 태그
   const krItems   = useMemo(() => [
@@ -93,7 +93,7 @@ export default function HomeDashboard({
       {/* ─── 경제 이벤트 티커 ─────────────────────────────── */}
       <EventTicker />
 
-      {/* ─── 관심종목 (빈 상태 시 인기 종목 추천) ──────────── */}
+      {/* ─── 관심종목 (컴팩트 — 4개 넘으면 스크롤) ──────── */}
       <WatchlistWidget
         watchedItems={watchedItems}
         popularItems={popularItems}
@@ -102,13 +102,7 @@ export default function HomeDashboard({
         krwRate={krwRate}
       />
 
-      {/* ─── 시장을 움직이는 뉴스 (종목 연결 카드) ──────────── */}
-      <NewsFeedWidget allNews={allNews} onNewsClick={onNewsClick} allItems={allItems} />
-
-      {/* ─── 시장 투자자 동향 ─────────────────────────────── */}
-      <MarketInvestorSection />
-
-      {/* ─── 급등/급락 6박스 ──────────────────────────────── */}
+      {/* ─── 급등/급락 6박스 (첫 화면에 걸치도록 승격) ──── */}
       <TopMoversWidget
         hasData={hasData}
         krHot={krHot} usHot={usHot} coinHot={coinHot}
@@ -117,24 +111,43 @@ export default function HomeDashboard({
         onItemClick={onItemClick}
       />
 
+      {/* ─── 시장을 움직이는 뉴스 (종목 연결 카드) ──────────── */}
+      <NewsFeedWidget allNews={allNews} onNewsClick={onNewsClick} allItems={allItems} />
+
+      {/* ─── 시장 투자자 동향 ─────────────────────────────── */}
+      <MarketInvestorSection />
+
       {/* ─── 코인 거래소 공지 ─────────────────────────────── */}
       <CoinListingSection />
 
-      {/* ─── 하단 접힘: 섹터 로테이션 ─────────────────────── */}
+      {/* ─── 섹터 로테이션 (미리보기 + 펼치기) ────────────── */}
       {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
-        <div>
-          <button
-            onClick={() => setCollapsed(p => !p)}
-            className="w-full flex items-center justify-center gap-2 py-2 text-[12px] text-[#8B95A1] hover:text-[#4E5968] transition-colors"
-          >
-            <div className="flex-1 h-px bg-[#F2F4F6]" />
-            <span>{collapsed ? '▼ 더보기 (섹터 로테이션)' : '▲ 접기'}</span>
-            <div className="flex-1 h-px bg-[#F2F4F6]" />
-          </button>
-          {!collapsed && (
-            <div className="mt-2">
-              <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />
+        <div className="relative">
+          {/* 미리보기: 항상 헤더 + 상위 3개 HOT 섹터 표시 */}
+          <div className={sectorExpanded ? '' : 'max-h-[160px] overflow-hidden'}>
+            <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />
+          </div>
+          {/* 접힌 상태일 때 하단 페이드 + 펼치기 버튼 */}
+          {!sectorExpanded && (
+            <div className="absolute bottom-0 left-0 right-0">
+              <div className="h-12 bg-gradient-to-t from-white to-transparent" />
+              <button
+                onClick={() => setSectorExpanded(true)}
+                className="w-full flex items-center justify-center gap-1 py-2 bg-white text-[12px] font-medium text-[#3182F6] hover:text-[#1764ED] transition-colors"
+              >
+                <span>섹터 로테이션 전체보기</span>
+                <span className="text-[10px]">▼</span>
+              </button>
             </div>
+          )}
+          {sectorExpanded && (
+            <button
+              onClick={() => setSectorExpanded(false)}
+              className="w-full flex items-center justify-center gap-1 py-2 text-[12px] text-[#8B95A1] hover:text-[#4E5968] transition-colors"
+            >
+              <span>접기</span>
+              <span className="text-[10px]">▲</span>
+            </button>
           )}
         </div>
       )}
