@@ -183,7 +183,10 @@ export default function HomeDashboard({
         />
       )}
 
-      {/* ─── 3.5 선행 신호 — 뉴스 나왔지만 주가 미반응 ──── */}
+      {/* ─── 3.5 오늘의 핵심 뉴스 — 시그널의 "왜?" 맥락 ──── */}
+      <TopNewsSection allNews={allNews} />
+
+      {/* ─── 3.7 선행 신호 — 뉴스 나왔지만 주가 미반응 ──── */}
       {hasData && (
         <EarlySignalSection
           allItems={allItems}
@@ -206,10 +209,7 @@ export default function HomeDashboard({
         onItemClick={onItemClick}
       />
 
-      {/* ─── 5. 오늘의 핵심 뉴스 ─────────────────────────── */}
-      <TopNewsSection allNews={allNews} />
-
-      {/* ─── 6. 인사이트 (뉴스 × 무버) ───────────────────── */}
+      {/* ─── 5. 인사이트 (뉴스 × 무버) ───────────────────── */}
       <InsightsSection
         newsLoading={newsLoading}
         hasData={hasData}

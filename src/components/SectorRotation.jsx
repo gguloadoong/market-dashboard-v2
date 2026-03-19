@@ -4,6 +4,26 @@ import { useState, useMemo } from 'react';
 
 const SECTOR_FLAG = { kr: '🇰🇷', us: '🇺🇸', coin: '🪙' };
 
+const SECTOR_KO = {
+  // 미국 섹터 (Yahoo/Alpaca 기준)
+  'Technology': '기술주', 'Information Technology': '기술주',
+  'Healthcare': '헬스케어', 'Health Care': '헬스케어',
+  'Financials': '금융', 'Financial Services': '금융',
+  'Consumer Discretionary': '소비재', 'Consumer Cyclical': '소비재',
+  'Industrials': '산업재',
+  'Communication Services': '통신', 'Communication': '통신',
+  'Energy': '에너지',
+  'Materials': '소재', 'Basic Materials': '소재',
+  'Utilities': '유틸리티',
+  'Real Estate': '부동산',
+  'Consumer Staples': '필수소비재', 'Consumer Defensive': '필수소비재',
+  // 코인 섹터
+  'DeFi': 'DeFi', 'Layer 1': 'L1 체인', 'Layer 2': 'L2 체인',
+  'AI': 'AI 코인', 'GameFi': '게임파이', 'Meme': '밈코인',
+  'Exchange': '거래소 토큰', 'Stablecoin': '스테이블코인',
+  'NFT': 'NFT', 'Privacy': '프라이버시',
+};
+
 // 섹터 행 공통 컴포넌트
 function SectorRow({ name, avg, market, maxAbs, showFlag }) {
   const isUp  = avg >= 0;
@@ -14,7 +34,7 @@ function SectorRow({ name, avg, market, maxAbs, showFlag }) {
     <div className="flex items-center gap-2 min-w-0">
       <div className="w-[80px] flex-shrink-0 flex items-center gap-1 min-w-0">
         {showFlag && <span className="text-[9px] flex-shrink-0">{SECTOR_FLAG[market] ?? ''}</span>}
-        <span className="text-[11px] font-medium text-[#191F28] truncate">{name}</span>
+        <span className="text-[11px] font-medium text-[#191F28] truncate">{SECTOR_KO[name] || name}</span>
       </div>
       <div className="flex-1 h-3.5 rounded-sm overflow-hidden bg-[#F8F9FA]">
         <div

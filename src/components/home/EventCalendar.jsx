@@ -47,21 +47,50 @@ const EVENTS_2026 = [
   { date: '2026-07-30', type: 'GDP',  label: 'GDP 1차 발표 (Q2 2026)', importance: 'medium' },
 
   // 금통위 (한국은행 기준금리 결정)
-  { date: '2026-01-16', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high' },
-  { date: '2026-02-25', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high' },
-  { date: '2026-04-16', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high' },
-  { date: '2026-05-28', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high' },
-  { date: '2026-07-16', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high' },
-  { date: '2026-08-27', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high' },
+  { date: '2026-01-16', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high', desc: '기준금리 동결·인상·인하 결정' },
+  { date: '2026-02-25', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high', desc: '기준금리 동결·인상·인하 결정' },
+  { date: '2026-04-16', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high', desc: '기준금리 동결·인상·인하 결정' },
+  { date: '2026-05-28', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high', desc: '기준금리 동결·인상·인하 결정' },
+  { date: '2026-07-16', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high', desc: '기준금리 동결·인상·인하 결정' },
+  { date: '2026-08-27', type: '금통위', label: '한국은행 기준금리 결정', importance: 'high', desc: '기준금리 동결·인상·인하 결정' },
+
+  // 미국 옵션 만기일 (월간 3번째 금요일 — OpEx)
+  { date: '2026-02-20', type: 'OPEX', label: '미국 옵션 만기 (월간)', importance: 'high', desc: '월간 OpEx — 변동성 주의' },
+  { date: '2026-03-20', type: 'OPEX', label: '미국 옵션 만기 (분기)', importance: 'critical', desc: '4중 마녀의 날 — 주식·지수·ETF·선물 동시 만기' },
+  { date: '2026-04-17', type: 'OPEX', label: '미국 옵션 만기 (월간)', importance: 'high', desc: '월간 OpEx — 변동성 주의' },
+  { date: '2026-05-15', type: 'OPEX', label: '미국 옵션 만기 (월간)', importance: 'high', desc: '월간 OpEx — 변동성 주의' },
+  { date: '2026-06-19', type: 'OPEX', label: '미국 옵션 만기 (분기)', importance: 'critical', desc: '4중 마녀의 날 — 주식·지수·ETF·선물 동시 만기' },
+  { date: '2026-07-17', type: 'OPEX', label: '미국 옵션 만기 (월간)', importance: 'high', desc: '월간 OpEx — 변동성 주의' },
+
+  // 코스피200 선물 만기 (분기 2번째 목요일)
+  { date: '2026-03-12', type: 'KR선물', label: '코스피200 선물 만기', importance: 'high', desc: '3월 만기 — 외국인 프로그램 매매 집중' },
+  { date: '2026-06-11', type: 'KR선물', label: '코스피200 선물 만기', importance: 'high', desc: '6월 만기 — 외국인 프로그램 매매 집중' },
+
+  // CME 비트코인 선물 만기 (분기말 마지막 금요일)
+  { date: '2026-03-27', type: 'BTC선물', label: 'CME 비트코인 선물 만기', importance: 'high', desc: '분기말 CME 만기 — 코인 변동성 집중' },
+  { date: '2026-06-26', type: 'BTC선물', label: 'CME 비트코인 선물 만기', importance: 'high', desc: '분기말 CME 만기 — 코인 변동성 집중' },
+
+  // S&P500 분기 리밸런싱
+  { date: '2026-03-20', type: '지수리밸', label: 'S&P500 분기 리밸런싱', importance: 'medium', desc: '3월 분기말 구성 종목 변경 효력 발생' },
+  { date: '2026-06-19', type: '지수리밸', label: 'S&P500 분기 리밸런싱', importance: 'medium', desc: '6월 분기말 구성 종목 변경 효력 발생' },
+
+  // 미국 국채 입찰 (10년물 — 시장 금리 반응)
+  { date: '2026-03-11', type: '국채', label: '미국 10년물 국채 입찰', importance: 'medium', desc: '수요 부진 시 금리 급등 → 주식 압력' },
+  { date: '2026-04-08', type: '국채', label: '미국 10년물 국채 입찰', importance: 'medium', desc: '수요 부진 시 금리 급등 → 주식 압력' },
 ];
 
 const TYPE_CONFIG = {
-  FOMC:  { color: '#F04452', bg: '#FFF0F0', emoji: '🏦' },
-  CPI:   { color: '#3182F6', bg: '#EDF4FF', emoji: '📊' },
-  NFP:   { color: '#FF9500', bg: '#FFF4E6', emoji: '👷' },
-  PCE:   { color: '#8B5CF6', bg: '#F5F0FF', emoji: '💳' },
-  GDP:   { color: '#2AC769', bg: '#F0FFF6', emoji: '📈' },
-  금통위: { color: '#F04452', bg: '#FFF0F0', emoji: '🏛' },
+  FOMC:   { color: '#F04452', bg: '#FFF0F0', emoji: '🏦' },
+  CPI:    { color: '#3182F6', bg: '#EDF4FF', emoji: '📊' },
+  NFP:    { color: '#FF9500', bg: '#FFF4E6', emoji: '👷' },
+  PCE:    { color: '#8B5CF6', bg: '#F5F0FF', emoji: '💳' },
+  GDP:    { color: '#2AC769', bg: '#F0FFF6', emoji: '📈' },
+  금통위:  { color: '#F04452', bg: '#FFF0F0', emoji: '🏛' },
+  OPEX:   { color: '#FF9500', bg: '#FFF4E6', emoji: '⚡' },
+  KR선물:  { color: '#F04452', bg: '#FFF0F0', emoji: '🇰🇷' },
+  BTC선물: { color: '#FF9500', bg: '#FFF4E6', emoji: '🪙' },
+  지수리밸: { color: '#2AC769', bg: '#F0FFF6', emoji: '⚖️' },
+  국채:    { color: '#6B7684', bg: '#F2F4F6', emoji: '📄' },
 };
 
 function getUpcomingEvents(daysAhead = 14) {

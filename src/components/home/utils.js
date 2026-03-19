@@ -76,6 +76,7 @@ export function getAvatarBg(symbol) {
 // 데이터 없으면 null 반환 (graceful degradation)
 export function getContextLabel(item) {
   const pct = getPct(item);
+  const absPct = Math.abs(pct);
 
   // 52주 고점/저점 (Yahoo 필드명 우선, fallback 포함)
   const price = item.price ?? 0;
@@ -83,32 +84,46 @@ export function getContextLabel(item) {
   const low52  = item.week52Low  ?? item.fiftyTwoWeekLow  ?? null;
   if (high52 && price > 0) {
     const fromHigh = (high52 - price) / high52 * 100;
-    if (fromHigh <= 5) return { label: '52주 고점 근처', color: '#F04452', bg: '#FFF0F0' };
+    if (fromHigh <= 3) return { label: '52주 신고가 근처', color: '#F04452', bg: '#FFF0F0' };
+    if (fromHigh <= 7) return { label: '52주 고점 근처', color: '#F04452', bg: '#FFF5F5' };
   }
   if (low52 && price > 0) {
     const fromLow = (price - low52) / low52 * 100;
-    if (fromLow <= 5) return { label: '52주 저점 근처', color: '#1764ED', bg: '#EDF4FF' };
+    if (fromLow <= 3) return { label: '52주 신저가 근처', color: '#1764ED', bg: '#EDF4FF' };
+    if (fromLow <= 7) return { label: '52주 저점 근처', color: '#1764ED', bg: '#F0F4FF' };
   }
 
   // 거래량 급증 (avgVolume 있을 때만)
   const vol    = item.volume    ?? item.regularMarketVolume ?? null;
   const avgVol = item.avgVolume ?? item.averageDailyVolume10Day ?? null;
-  if (vol && avgVol && vol >= avgVol * 3) {
-    return { label: '거래량 급증', color: '#FF9500', bg: '#FFF4E6' };
+  if (vol && avgVol && avgVol > 0) {
+    const ratio = vol / avgVol;
+    if (ratio >= 5)  return { label: `거래량 ${Math.round(ratio)}배 급증`, color: '#8B5CF6', bg: '#F5F3FF' };
+    if (ratio >= 3)  return { label: '거래량 급증', color: '#FF9500', bg: '#FFF4E6' };
+    if (ratio >= 1.5) return { label: '거래량 증가', color: '#FF9500', bg: '#FFF9F0' };
   }
 
-  // 등락률 기반 (항상 사용 가능)
-  if (Math.abs(pct) >= 7) {
-    return pct > 0
-      ? { label: '강한 급등', color: '#F04452', bg: '#FFF0F0' }
-      : { label: '강한 급락', color: '#1764ED', bg: '#EDF4FF' };
-  }
-  if (Math.abs(pct) >= 3) {
-    return pct > 0
-      ? { label: '상승 모멘텀', color: '#F04452', bg: '#FFF0F0' }
-      : { label: '하락 압력', color: '#1764ED', bg: '#EDF4FF' };
-  }
+  // 등락률 기반 (항상 사용 가능) — 더 세분화
+  if (absPct >= 15) return pct > 0
+    ? { label: '폭등', color: '#FFFFFF', bg: '#F04452' }
+    : { label: '폭락', color: '#FFFFFF', bg: '#1764ED' };
+  if (absPct >= 10) return pct > 0
+    ? { label: '급등', color: '#F04452', bg: '#FFF0F0' }
+    : { label: '급락', color: '#1764ED', bg: '#EDF4FF' };
+  if (absPct >= 7) return pct > 0
+    ? { label: '강한 상승', color: '#F04452', bg: '#FFF3F3' }
+    : { label: '강한 하락', color: '#1764ED', bg: '#F0F5FF' };
+  if (absPct >= 5) return pct > 0
+    ? { label: '상승 가속', color: '#E53E3E', bg: '#FFF5F5' }
+    : { label: '하락 가속', color: '#2B6CB0', bg: '#EBF4FF' };
+  if (absPct >= 3) return pct > 0
+    ? { label: '상승 모멘텀', color: '#C05621', bg: '#FFFAF0' }
+    : { label: '하락 압력', color: '#2C5282', bg: '#EBF8FF' };
+  if (absPct >= 1.5) return pct > 0
+    ? { label: '소폭 상승', color: '#2AC769', bg: '#F0FFF4' }
+    : { label: '소폭 하락', color: '#8B95A1', bg: '#F2F4F6' };
 
+  // 0.1% 미만은 레이블 없음
   return null;
 }
 
@@ -119,3 +134,43 @@ export const SURGE_FILTERS = [
   { id: 'US',   label: '🇺🇸 미장' },
   { id: 'COIN', label: '🪙 코인' },
 ];
+
+// ─── 종합 시그널 점수 (0-100) ────────────────────────────────
+// RSI 없어도 계산 가능 — 등락률·거래량·52주 대비 종합
+export function computeSignalScore(item, hasNews = false) {
+  const pct = Math.abs(getPct(item));
+
+  // 1) 등락률 기여 (0~50점): 1%당 6점, 최대 50점
+  const pctScore = Math.min(50, pct * 6);
+
+  // 2) 거래량 기여 (0~30점)
+  const vol    = item.volume ?? item.regularMarketVolume ?? 0;
+  const avgVol = item.avgVolume ?? item.averageDailyVolume10Day ?? 0;
+  const volRatio = (vol > 0 && avgVol > 0) ? vol / avgVol : 0;
+  const volScore = Math.min(30, volRatio > 0 ? (volRatio - 1) * 10 : 0);
+
+  // 3) 뉴스 기여 (0~20점)
+  const newsScore = hasNews ? 20 : 0;
+
+  const raw = pctScore + volScore + newsScore;
+  const score = Math.round(Math.min(100, Math.max(0, raw)));
+
+  // 시그널 분류
+  let signal, signalBg, signalColor;
+  if (score >= 65) {
+    const isUp = getPct(item) > 0;
+    signal = isUp ? '매수' : '매도';
+    signalBg = isUp ? '#FFF0F0' : '#EDF4FF';
+    signalColor = isUp ? '#F04452' : '#1764ED';
+  } else if (score >= 40) {
+    signal = '관망';
+    signalBg = '#FFF4E6';
+    signalColor = '#FF9500';
+  } else {
+    signal = '중립';
+    signalBg = '#F2F4F6';
+    signalColor = '#8B95A1';
+  }
+
+  return { score, signal, signalBg, signalColor };
+}

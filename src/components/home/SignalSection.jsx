@@ -1,9 +1,7 @@
 // 핵심 시그널 섹션 — "왜 지금 이 종목이 움직이는가"
-// 가장 상단에 배치 — 매수 결정 직전 5분을 위한 핵심 정보
 import { useMemo } from 'react';
-import { getPct, fmt, findRelatedNews } from './utils';
+import { getPct, fmt, findRelatedNews, computeSignalScore } from './utils';
 
-// 시그널 카드 1개 — 종목 + 등락률 + 뉴스 이유
 function SignalCard({ mover, news, krwRate, onItemClick }) {
   const pct    = getPct(mover);
   const isUp   = pct > 0;
@@ -24,10 +22,12 @@ function SignalCard({ mover, news, krwRate, onItemClick }) {
       ? 'linear-gradient(135deg, #F4F8FF 0%, #F0F4FF 100%)'
       : 'linear-gradient(135deg, #FAFBFC 0%, #F8F9FA 100%)';
 
-  // 시그널 강도 (이유 근거)
+  const { score, signal, signalBg, signalColor } = computeSignalScore(mover, !!news);
+
   const signalReason = news
     ? news.title.length > 60 ? news.title.slice(0, 58) + '…' : news.title
-    : `${Math.abs(pct).toFixed(1)}% ${isUp ? '상승' : '하락'} 중 — 이유 분석 중`;
+    : pct >= 5 ? `${Math.abs(pct).toFixed(1)}% ${isUp ? '급등' : '급락'} — 수급·모멘텀 확인 필요`
+    : `${Math.abs(pct).toFixed(1)}% ${isUp ? '상승' : '하락'} 중 — 관련 뉴스 탐색 중`;
 
   const mktBadge = isCoin ? { label: 'COIN', bg: '#FFF4E6', color: '#FF9500' }
     : mover._market === 'KR' || mover.market === 'kr'
@@ -43,17 +43,18 @@ function SignalCard({ mover, news, krwRate, onItemClick }) {
       {/* 상단: 종목명 + 시장 배지 + 등락률 */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-            style={{ background: mktBadge.bg, color: mktBadge.color }}
-          >
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: mktBadge.bg, color: mktBadge.color }}>
             {mktBadge.label}
           </span>
-          <span className="text-[15px] font-bold text-[#191F28] truncate">
-            {mover.name}
-          </span>
+          <span className="text-[15px] font-bold text-[#191F28] truncate">{mover.name}</span>
         </div>
-        <div className="flex items-baseline gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* 시그널 점수 배지 */}
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background: signalBg, color: signalColor }}>
+            {signal} {score}
+          </span>
           <span className="text-[20px] font-bold tabular-nums font-mono" style={{ color: pctColor }}>
             {pctArrow}{Math.abs(pct).toFixed(2)}%
           </span>
@@ -61,21 +62,17 @@ function SignalCard({ mover, news, krwRate, onItemClick }) {
       </div>
 
       {/* 현재가 */}
-      <div className="text-[13px] text-[#6B7684] font-mono tabular-nums mb-2">
-        {price}
-      </div>
+      <div className="text-[13px] text-[#6B7684] font-mono tabular-nums mb-2">{price}</div>
 
       {/* 핵심 이유 */}
       <div className="flex items-start gap-2">
-        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-[#191F28] text-white flex-shrink-0 mt-0.5">
-          WHY
+        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
+          style={{ background: news ? '#191F28' : '#8B95A1', color: 'white' }}>
+          {news ? 'WHY' : '...'}
         </span>
-        <p className="text-[12px] text-[#4E5968] leading-snug line-clamp-2">
-          {signalReason}
-        </p>
+        <p className="text-[12px] text-[#4E5968] leading-snug line-clamp-2">{signalReason}</p>
       </div>
 
-      {/* 뉴스 시간 */}
       {news?.timeAgo && (
         <div className="mt-1.5 text-[10px] text-[#B0B8C1]">
           {news.source ? `${news.source} · ${news.timeAgo}` : news.timeAgo}
@@ -86,23 +83,20 @@ function SignalCard({ mover, news, krwRate, onItemClick }) {
 }
 
 export default function SignalSection({ allItems, recentNews, krwRate, onItemClick }) {
-  // 뉴스 있는 상위 무버 최대 3개 선택
   const signals = useMemo(() => {
     if (!allItems.length) return [];
-    import('../../utils/newsAlias').then(() => {}); // 사전 캐시
 
     // 2% 이상 움직임 종목 — 절대값 내림차순
     const movers = [...allItems]
       .filter(i => Math.abs(getPct(i)) >= 2)
       .sort((a, b) => Math.abs(getPct(b)) - Math.abs(getPct(a)))
-      .slice(0, 20);
+      .slice(0, 30);
 
     if (!movers.length) return [];
 
-    // 뉴스 매칭 — newsAlias 기반 단어경계 매칭 사용 (거짓 양성 방지)
     const results = [];
     for (const mover of movers) {
-      if (results.length >= 3) break;
+      if (results.length >= 5) break;
       const newsMatch = findRelatedNews(mover, recentNews);
       results.push({ mover, news: newsMatch || null });
     }
@@ -119,16 +113,20 @@ export default function SignalSection({ allItems, recentNews, krwRate, onItemCli
 
   return (
     <div className="space-y-2">
-      {/* 섹션 헤더 */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-[#191F28] rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-[#2AC769] animate-pulse" />
           <span className="text-[11px] font-bold text-white">지금 이유 있는 움직임</span>
         </div>
+        <span className="text-[11px] text-[#B0B8C1]">{signals.length}개 시그널</span>
       </div>
 
-      {/* 시그널 카드 그리드 — 최대 3개 */}
-      <div className={`grid gap-2 ${signals.length === 1 ? 'grid-cols-1' : signals.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'}`}>
+      <div className={`grid gap-2 ${
+        signals.length === 1 ? 'grid-cols-1' :
+        signals.length === 2 ? 'grid-cols-1 sm:grid-cols-2' :
+        signals.length <= 4 ? 'grid-cols-1 sm:grid-cols-2' :
+        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+      }`}>
         {signals.map(({ mover, news }) => (
           <SignalCard
             key={mover.id || mover.symbol}

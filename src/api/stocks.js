@@ -392,6 +392,15 @@ const ALL_INDICES = [
 ];
 
 export async function fetchIndices() {
+  // 0순위: Vercel Edge 프록시 (서버사이드 Yahoo 직접 호출, CORS 없음)
+  try {
+    const res = await fetch('/api/market-indices', { signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const { results } = await res.json();
+      if (results && results.length >= 4) return results;
+    }
+  } catch {}
+
   // KOSPI: Stooq 1순위 → Yahoo fallback
   const kospiPromise = (async () => {
     try {
