@@ -1,16 +1,37 @@
-// 코인 실시간 데이터: Upbit(KRW) + CoinGecko(USD·시총·스파크라인)
-// 코인 커버리지: CoinGecko 시총 상위 250개 + 업비트 상장 전체 (KRW 마켓)
-// 스테이블코인·wrapped 토큰은 급등 캐치 목적과 무관 → fetchCoins()에서 제거
+// 코인 실시간 데이터 — 다중 소스 최적화
+// 가격: Upbit(KRW) + Binance(USD) — 키 불필요, 빠르고 안정
+// 메타데이터/이미지: CoinPaprika — 키 불필요, rate limit 관대
+// 스파크라인: CoinGecko — 유일한 소스, 5분 간격
+// 커버리지: 시총 상위 250개 + 업비트 상장 전체
 import { getCoinSector } from '../data/coinSectors';
 
 // 필터링 대상: 가격 변동이 없거나 원본 자산의 래핑본인 토큰
 const EXCLUDED_SYMBOLS = new Set([
-  // 스테이블코인 (USD 고정)
   'USDT','USDC','DAI','BUSD','TUSD','PYUSD','USDS','USDE','FDUSD','FRAX',
   'LUSD','USDP','GUSD','SUSD','ALUSD','CRVUSD','GHO','CUSD','EURI','USDD',
-  // wrapped / staked 토큰 (원본과 거의 동일)
   'WBTC','WETH','STETH','WSTETH','CBETH','RETH','WEETH','EZETH','RSETH',
 ]);
+
+// ─── localStorage 캐시 유틸 ─────────────────────────────────
+const META_CACHE_KEY = 'coin_meta_cache';
+const META_CACHE_TTL = 6 * 60 * 60 * 1000; // 6시간
+
+function saveMetaCache(coins) {
+  try {
+    const slim = coins.map(c => ({ id: c.id, symbol: c.symbol, name: c.name, image: c.image, marketCap: c.marketCap }));
+    localStorage.setItem(META_CACHE_KEY, JSON.stringify({ data: slim, ts: Date.now() }));
+  } catch {}
+}
+
+function loadMetaCache() {
+  try {
+    const raw = localStorage.getItem(META_CACHE_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts < META_CACHE_TTL && data?.length) return data;
+  } catch {}
+  return null;
+}
 
 // ─── Upbit 전체 KRW 마켓 목록 (동적 캐시, 30분 TTL) ──────────
 let upbitMarketCache   = null;
@@ -36,18 +57,14 @@ export async function fetchUpbitAllSymbols() {
 }
 
 // ─── Upbit 실시간 호가 (동적 마켓 목록, 100개씩 청크) ──────────
-// 반환값: { [심볼]: { priceKrw, change24h, ... } }
 export async function fetchUpbit() {
   const symbols = await fetchUpbitAllSymbols().catch(() => [
-    // Upbit 마켓 조회 실패 시 fallback (자주 거래되는 30개)
     'BTC','ETH','SOL','XRP','ADA','DOGE','AVAX','SHIB','DOT','LINK',
     'UNI','NEAR','APT','ARB','SUI','OP','PEPE','XLM','TON','ATOM',
     'FIL','ICP','HBAR','ETC','SAND','MANA','INJ','SEI','LTC','BNB',
   ]);
 
   const markets = symbols.map(s => `KRW-${s}`);
-
-  // Upbit ticker는 한 번에 100개씩 청크 (안정성)
   const CHUNK = 100;
   const chunks = [];
   for (let i = 0; i < markets.length; i += CHUNK) {
@@ -66,7 +83,6 @@ export async function fetchUpbit() {
   );
   const data = results.flat();
 
-  // 심볼(대문자) 기준으로 인덱싱
   const map = {};
   for (const d of data) {
     const sym = d.market.replace('KRW-', '');
@@ -83,8 +99,50 @@ export async function fetchUpbit() {
   return map;
 }
 
-// ─── CoinGecko 시총 상위 250개 (USD·시총·스파크라인) ────────────
-// 60초 간격 권장 (공개 API ~30req/min)
+// ─── CoinPaprika — 코인 목록 + USD 가격 + 시총 (키 불필요) ──────
+// rate limit 관대 (~10 req/s), 이미지 URL 패턴: static.coinpaprika.com/coin/{id}/logo.png
+let paprikaCache = [];
+
+export async function fetchCoinPaprika() {
+  const res = await fetch(
+    'https://api.coinpaprika.com/v1/tickers?limit=250',
+    { signal: AbortSignal.timeout(12000) }
+  );
+  if (!res.ok) throw new Error(`CoinPaprika ${res.status}`);
+  const data = await res.json();
+  paprikaCache = data;
+  return data;
+}
+
+// ─── Binance — 전체 USDT 페어 24h 가격 (키 불필요, 매우 빠름) ──
+let binanceCache = {};
+
+export async function fetchBinancePrices() {
+  const res = await fetch(
+    'https://api.binance.com/api/v3/ticker/24hr',
+    { signal: AbortSignal.timeout(8000) }
+  );
+  if (!res.ok) throw new Error(`Binance ${res.status}`);
+  const data = await res.json();
+
+  const map = {};
+  for (const t of data) {
+    if (!t.symbol.endsWith('USDT')) continue;
+    const sym = t.symbol.replace('USDT', '');
+    map[sym] = {
+      priceUsd: parseFloat(t.lastPrice),
+      change24h: parseFloat(t.priceChangePercent),
+      volume24hUsd: parseFloat(t.quoteVolume),
+    };
+  }
+  binanceCache = map;
+  return map;
+}
+
+// ─── CoinGecko — 스파크라인 전용 (5분 간격) ────────────────────
+let cgSparklineCache = {};
+let cgFullCache = [];
+
 export async function fetchCoinGecko() {
   const url = [
     'https://api.coingecko.com/api/v3/coins/markets',
@@ -97,22 +155,34 @@ export async function fetchCoinGecko() {
   ].join('');
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  cgFullCache = data;
+
+  // 스파크라인 캐시 (심볼 기준)
+  for (const coin of data) {
+    const sym = coin.symbol.toUpperCase();
+    const sparkRaw = coin.sparkline_in_7d?.price ?? [];
+    if (sparkRaw.length > 20) {
+      cgSparklineCache[sym] = sparkRaw.filter((_, i) => i % Math.ceil(sparkRaw.length / 20) === 0).slice(0, 20);
+    } else if (sparkRaw.length) {
+      cgSparklineCache[sym] = sparkRaw;
+    }
+  }
+  return data;
 }
 
-// CoinGecko 캐시 — 마지막 성공한 데이터 보존
-let cgCache = [];
+// 스파크라인만 반환 (이전 fetchCoins 결과에 병합용)
+export function getSparklineCache() {
+  return cgSparklineCache;
+}
 
-// ─── 환율: Binance(1순위) → Upbit+CoinGecko(2순위) → localStorage(3순위) → 하드코딩 ─
+// ─── 환율 ──────────────────────────────────────────────────────
 const RATE_CACHE_KEY = 'market_krw_rate';
 const RATE_FALLBACK  = 1466;
 
 function saveRateCache(rate) {
-  try {
-    localStorage.setItem(RATE_CACHE_KEY, JSON.stringify({ rate, ts: Date.now() }));
-  } catch {}
+  try { localStorage.setItem(RATE_CACHE_KEY, JSON.stringify({ rate, ts: Date.now() })); } catch {}
 }
-
 function loadRateCache() {
   try {
     const cached = localStorage.getItem(RATE_CACHE_KEY);
@@ -155,10 +225,8 @@ export async function fetchExchangeRate() {
     }
   } catch {}
 
-  // 3순위: localStorage 캐시 (24시간 이내)
   const cachedRate = loadRateCache();
   if (cachedRate) return cachedRate;
-
   return RATE_FALLBACK;
 }
 
@@ -168,8 +236,8 @@ export async function fetchCoinsUpbitOnly(prevCoins = [], krwRate = 1466) {
   if (!Object.keys(upbitMap).length) return prevCoins;
 
   return prevCoins.map(coin => {
-    const upbit = upbitMap[coin.symbol]; // 심볼 기준 매칭
-    if (!upbit) return coin; // Upbit 미상장 → CoinGecko 데이터 유지
+    const upbit = upbitMap[coin.symbol];
+    if (!upbit) return coin;
     return {
       ...coin,
       priceKrw:    upbit.priceKrw,
@@ -181,53 +249,140 @@ export async function fetchCoinsUpbitOnly(prevCoins = [], krwRate = 1466) {
   });
 }
 
-// ─── 통합 코인 데이터 (CoinGecko top 250 + Upbit KRW 가격 병합) ──
-// CoinGecko 결과를 기준으로, Upbit에 상장된 코인은 KRW 실시간 가격으로 덮어씀
+// ─── 통합 코인 데이터 (다중 소스 병합) ─────────────────────────
+// 1순위: CoinPaprika (코인 목록 + USD 가격 + 시총)
+// 2순위: CoinGecko (fallback + 스파크라인)
+// + Upbit (KRW 가격 덮어쓰기)
+// + Binance (USD 가격 보강)
 export async function fetchCoins(krwRate = 1466) {
-  const [upbitMap, cgListRaw] = await Promise.all([
+  // 3개 소스 병렬 호출
+  const [upbitMap, paprikaRaw, binanceMap] = await Promise.all([
     fetchUpbit().catch(() => ({})),
-    fetchCoinGecko().catch(() => null),
+    fetchCoinPaprika().catch(() => null),
+    fetchBinancePrices().catch(() => ({})),
   ]);
 
-  const cgList = cgListRaw ?? cgCache;
-  if (!cgList.length) throw new Error('CoinGecko 실패 (캐시 없음)');
-  if (cgListRaw) cgCache = cgListRaw;
+  // CoinPaprika 성공 시 → 1순위 사용
+  if (paprikaRaw?.length) {
+    const coins = buildFromPaprika(paprikaRaw, upbitMap, binanceMap, krwRate);
+    if (coins.length) {
+      saveMetaCache(coins);
+      return coins;
+    }
+  }
 
+  // CoinPaprika 실패 → CoinGecko fallback
+  const cgListRaw = await fetchCoinGecko().catch(() => null);
+  const cgList = cgListRaw ?? cgFullCache;
+  if (cgList?.length) {
+    const coins = buildFromCoinGecko(cgList, upbitMap, krwRate);
+    if (coins.length) {
+      saveMetaCache(coins);
+      return coins;
+    }
+  }
+
+  // 모두 실패 → localStorage 메타 캐시 + Upbit/Binance 가격
+  const metaCache = loadMetaCache();
+  if (metaCache?.length) {
+    return metaCache.map(c => {
+      const sym = c.symbol;
+      const upbit = upbitMap[sym] ?? {};
+      const binance = binanceMap[sym] ?? {};
+      const priceKrw = upbit.priceKrw ?? (binance.priceUsd ?? 0) * krwRate;
+      return {
+        ...c,
+        priceUsd:    binance.priceUsd ?? priceKrw / krwRate,
+        priceKrw,
+        change24h:   upbit.change24h ?? binance.change24h ?? 0,
+        volume24h:   (upbit.volume24hKrw ?? 0) / krwRate || binance.volume24hUsd ?? 0,
+        sparkline:   cgSparklineCache[sym] ?? [],
+        sector:      getCoinSector(sym),
+        market:      'coin',
+        priceSource: upbit.priceKrw ? 'upbit' : binance.priceUsd ? 'binance' : 'cache',
+      };
+    });
+  }
+
+  throw new Error('모든 코인 소스 실패');
+}
+
+// ─── CoinPaprika 데이터로 코인 리스트 빌드 ─────────────────────
+function buildFromPaprika(paprikaList, upbitMap, binanceMap, krwRate) {
+  return paprikaList
+    .filter(c => c.rank > 0 && !EXCLUDED_SYMBOLS.has(c.symbol))
+    .map(coin => {
+      const sym = coin.symbol;
+      const usd = coin.quotes?.USD ?? {};
+      const upbit = upbitMap[sym] ?? {};
+      const binance = binanceMap[sym] ?? {};
+
+      // USD 가격: CoinPaprika → Binance
+      const priceUsd = usd.price || binance.priceUsd || 0;
+      const priceKrw = upbit.priceKrw ?? priceUsd * krwRate;
+      const change24h = upbit.change24h ?? usd.percent_change_24h ?? binance.change24h ?? 0;
+      const hasUpbit = !!upbit.priceKrw;
+
+      return {
+        id:        coin.id,
+        symbol:    sym,
+        name:      coin.name,
+        priceUsd,
+        priceKrw,
+        change24h,
+        volume24h: (upbit.volume24hKrw ?? 0) / krwRate || usd.volume_24h || binance.volume24hUsd || 0,
+        marketCap: usd.market_cap || 0,
+        high24h:   upbit.high24hKrw ? upbit.high24hKrw / krwRate : null,
+        low24h:    upbit.low24hKrw  ? upbit.low24hKrw  / krwRate : null,
+        high52w:   upbit.high52wKrw ? upbit.high52wKrw / krwRate : null,
+        low52w:    upbit.low52wKrw  ? upbit.low52wKrw  / krwRate : null,
+        sparkline: cgSparklineCache[sym] ?? [],
+        // CoinPaprika 이미지 패턴
+        image:     `https://static.coinpaprika.com/coin/${coin.id}/logo.png`,
+        sector:    getCoinSector(sym),
+        market:    'coin',
+        priceSource: hasUpbit ? 'upbit' : 'paprika',
+      };
+    });
+}
+
+// ─── CoinGecko 데이터로 코인 리스트 빌드 (fallback) ─────────────
+function buildFromCoinGecko(cgList, upbitMap, krwRate) {
   return cgList
     .filter(coin => !EXCLUDED_SYMBOLS.has(coin.symbol.toUpperCase()))
     .map(coin => {
-    // CoinGecko 심볼 → 대문자로 Upbit 매핑 (UPBIT_TO_CG 하드코딩 불필요)
-    const sym    = coin.symbol.toUpperCase();
-    const upbit  = upbitMap[sym] ?? {};
-    const priceKrw = upbit.priceKrw ?? coin.current_price * krwRate;
-    const priceUsd = coin.current_price;
-    const change24h = upbit.change24h ?? coin.price_change_percentage_24h ?? 0;
-    const sparkRaw  = coin.sparkline_in_7d?.price ?? [];
-    const sparkline = sparkRaw.length > 20
-      ? sparkRaw.filter((_, i) => i % Math.ceil(sparkRaw.length / 20) === 0).slice(0, 20)
-      : sparkRaw;
-    const hasUpbit = !!upbit.priceKrw;
+      const sym = coin.symbol.toUpperCase();
+      const upbit = upbitMap[sym] ?? {};
+      const priceKrw = upbit.priceKrw ?? coin.current_price * krwRate;
+      const priceUsd = coin.current_price;
+      const change24h = upbit.change24h ?? coin.price_change_percentage_24h ?? 0;
+      const sparkRaw = coin.sparkline_in_7d?.price ?? [];
+      const sparkline = sparkRaw.length > 20
+        ? sparkRaw.filter((_, i) => i % Math.ceil(sparkRaw.length / 20) === 0).slice(0, 20)
+        : sparkRaw;
+      const hasUpbit = !!upbit.priceKrw;
 
-    return {
-      id:       coin.id,
-      symbol:   sym,
-      name:     coin.name,
-      priceUsd,
-      priceKrw,
-      change24h,
-      volume24h: (upbit.volume24hKrw ?? 0) / krwRate || coin.total_volume,
-      marketCap: coin.market_cap,
-      high24h: upbit.high24hKrw ? upbit.high24hKrw / krwRate : coin.high_24h,
-      low24h:  upbit.low24hKrw  ? upbit.low24hKrw  / krwRate : coin.low_24h,
-      high52w: upbit.high52wKrw ? upbit.high52wKrw / krwRate : null,
-      low52w:  upbit.low52wKrw  ? upbit.low52wKrw  / krwRate : null,
-      sparkline,
-      image: coin.image,
-      // 섹터 분류 (SectorRotation 통합용)
-      sector: getCoinSector(sym),
-      market: 'coin', // SectorRotation에서 코인 구분용
-      // 가격 출처: 프론트 배지 표시용
-      priceSource: hasUpbit ? 'upbit' : 'coingecko',
-    };
-  });
+      // 스파크라인 캐시 업데이트
+      if (sparkline.length) cgSparklineCache[sym] = sparkline;
+
+      return {
+        id:        coin.id,
+        symbol:    sym,
+        name:      coin.name,
+        priceUsd,
+        priceKrw,
+        change24h,
+        volume24h: (upbit.volume24hKrw ?? 0) / krwRate || coin.total_volume,
+        marketCap: coin.market_cap,
+        high24h:   upbit.high24hKrw ? upbit.high24hKrw / krwRate : coin.high_24h,
+        low24h:    upbit.low24hKrw  ? upbit.low24hKrw  / krwRate : coin.low_24h,
+        high52w:   upbit.high52wKrw ? upbit.high52wKrw / krwRate : null,
+        low52w:    upbit.low52wKrw  ? upbit.low52wKrw  / krwRate : null,
+        sparkline,
+        image:     coin.image,
+        sector:    getCoinSector(sym),
+        market:    'coin',
+        priceSource: hasUpbit ? 'upbit' : 'coingecko',
+      };
+    });
 }
