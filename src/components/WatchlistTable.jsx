@@ -55,16 +55,23 @@ function fmtChangeAmt(item, krwRate) {
   return `${sign}${amt.toFixed(2)}`;
 }
 
-// ─── 로고 URL 후보 목록 (우선순위 순) ───────────────────────
+// ─── 로고 URL 후보 목록 (우선순위 순, 실패 시 다음 URL 시도) ──
 function getLogoUrls(item) {
-  if (item.image) return [item.image]; // 코인: CoinGecko 이미지
+  const sym = item.symbol || '';
+  if (item.id) {
+    // 코인: CoinGecko → CoinCap → cryptocurrency-icons
+    const urls = [];
+    if (item.image) urls.push(item.image);
+    urls.push(`https://assets.coincap.io/assets/icons/${sym.toLowerCase()}@2x.png`);
+    urls.push(`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${sym.toLowerCase()}.png`);
+    return urls;
+  }
   if (item.market === 'us') return [
-    `https://assets.parqet.com/logos/symbol/${item.symbol}?format=png`,
-    `https://static.toss.im/png-icons/securities/icn-sec-fill-${item.symbol}.png`,
+    `https://assets.parqet.com/logos/symbol/${sym}?format=png`,
+    `https://logo.clearbit.com/${sym.toLowerCase()}.com`,
   ];
   if (item.market === 'kr') return [
-    `https://static.toss.im/png-icons/securities/icn-sec-fill-${item.symbol}.png`,
-    `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${item.symbol}.png`,
+    `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${sym}.png`,
   ];
   return [];
 }

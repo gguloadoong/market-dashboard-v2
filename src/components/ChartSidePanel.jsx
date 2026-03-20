@@ -26,15 +26,26 @@ import { fetchInvestorDataSafe, fetchInvestorTrendSafe, formatNetAmt } from '../
 import { useStockNews, useStockDirectNews } from '../hooks/useNewsQuery';
 import { findRelatedItems } from '../data/relatedAssets';
 
-// ─── 로고 URL ────────────────────────────────────────────────
-function getLogoUrl(item) {
-  if (item.image) return item.image;
-  if (item.market === 'us')
-    return `https://assets.parqet.com/logos/symbol/${item.symbol}?format=svg`;
-  if (item.market === 'kr')
-    return `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${item.symbol}.png`;
-  return null;
+// ─── 로고 URL (3단 fallback) ──────────────────────────────────
+function getLogoUrls(item) {
+  const sym = item.symbol || '';
+  if (item.id || item.market === 'coin') {
+    const urls = [];
+    if (item.image) urls.push(item.image);
+    urls.push(`https://assets.coincap.io/assets/icons/${sym.toLowerCase()}@2x.png`);
+    urls.push(`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${sym.toLowerCase()}.png`);
+    return urls;
+  }
+  if (item.market === 'us') return [
+    `https://assets.parqet.com/logos/symbol/${sym}?format=svg`,
+    `https://logo.clearbit.com/${sym.toLowerCase()}.com`,
+  ];
+  if (item.market === 'kr') return [
+    `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${sym}.png`,
+  ];
+  return [];
 }
+function getLogoUrl(item) { return getLogoUrls(item)[0] || null; }
 
 const PALETTE = ['#3182F6','#F04452','#FF9500','#2AC769','#8B5CF6','#EC4899','#14B8A6','#F59E0B'];
 function colorFor(s = '') {
@@ -44,11 +55,11 @@ function colorFor(s = '') {
 }
 
 function PanelLogo({ item }) {
-  const [err, setErr] = useState(false);
-  const url = getLogoUrl(item);
-  if (url && !err) {
+  const urls = getLogoUrls(item);
+  const [logoIdx, setLogoIdx] = useState(0);
+  if (logoIdx < urls.length) {
     return (
-      <img src={url} alt={item.symbol} onError={() => setErr(true)}
+      <img src={urls[logoIdx]} alt={item.symbol} onError={() => setLogoIdx(i => i + 1)}
         className="w-10 h-10 rounded-xl object-contain bg-white border border-[#F2F4F6] flex-shrink-0 p-1"
       />
     );

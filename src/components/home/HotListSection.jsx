@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { getPct, fmt, PALETTE, getAvatarBg } from './utils';
+import { getPct, fmt, getAvatarBg, getLogoUrls } from './utils';
 
 // ─── SECTION 3: HOT 리스트 행 (3열 공통) ─────────────────────
 const HotRow = memo(function HotRow({ item, rank, krwRate, onClick }) {
@@ -8,10 +8,7 @@ const HotRow = memo(function HotRow({ item, rank, krwRate, onClick }) {
   const isDown = pct < 0;
   const color  = isUp ? '#F04452' : isDown ? '#1764ED' : '#8B95A1';
 
-  const logoUrls = item.image ? [item.image]
-    : item._market === 'US'   ? [`https://assets.parqet.com/logos/symbol/${item.symbol}?format=png`]
-    : item._market === 'KR'   ? [`https://file.alphasquare.co.kr/media/images/stock_logo/kr/${item.symbol}.png`]
-    : [];
+  const logoUrls = getLogoUrls(item);
   const [logoIdx, setLogoIdx] = useState(0);
   const bg = getAvatarBg(item.symbol);
 

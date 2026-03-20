@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import Sparkline from '../Sparkline';
-import { getPct, fmt, MARKET_BADGE, PALETTE, getAvatarBg, SURGE_FILTERS } from './utils';
+import { getPct, fmt, MARKET_BADGE, getAvatarBg, getLogoUrls, SURGE_FILTERS } from './utils';
 
 // ─── SECTION 1: 급등 스포트라이트 카드 ───────────────────────
 const SurgeCard = memo(function SurgeCard({ item, krwRate, onClick, relatedNews }) {
@@ -10,10 +10,7 @@ const SurgeCard = memo(function SurgeCard({ item, krwRate, onClick, relatedNews 
   const color = isUp ? '#F04452' : isDown ? '#1764ED' : '#8B95A1';
   const badge = MARKET_BADGE[item._market] || { bg: '#F2F4F6', color: '#8B95A1' };
 
-  const logoUrls = item.image ? [item.image]
-    : item._market === 'US'   ? [`https://assets.parqet.com/logos/symbol/${item.symbol}?format=png`]
-    : item._market === 'KR'   ? [`https://file.alphasquare.co.kr/media/images/stock_logo/kr/${item.symbol}.png`]
-    : [];
+  const logoUrls = getLogoUrls(item);
   const [logoIdx, setLogoIdx] = useState(0);
   const bg = getAvatarBg(item.symbol);
 

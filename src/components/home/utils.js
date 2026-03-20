@@ -72,6 +72,36 @@ export function getAvatarBg(symbol) {
   return PALETTE[(symbol || '').split('').reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0) % PALETTE.length] || '#8B95A1';
 }
 
+// ─── 종목/코인 로고 URL fallback 체인 ─────────────────────────
+// 반환: [url1, url2, ...] — 순서대로 시도, 모두 실패 시 이니셜 아바타
+export function getLogoUrls(item) {
+  const sym = item.symbol || '';
+  const market = item._market || (item.market === 'coin' ? 'COIN' : item.market === 'kr' ? 'KR' : item.market === 'us' ? 'US' : '');
+
+  if (market === 'COIN' || item.id) {
+    // 코인: CoinGecko → CoinCap → cryptocurrency-icons
+    const urls = [];
+    if (item.image) urls.push(item.image);
+    urls.push(`https://assets.coincap.io/assets/icons/${sym.toLowerCase()}@2x.png`);
+    urls.push(`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${sym.toLowerCase()}.png`);
+    return urls;
+  }
+  if (market === 'US') {
+    return [
+      `https://assets.parqet.com/logos/symbol/${sym}?format=png`,
+      `https://logo.clearbit.com/${sym.toLowerCase()}.com`,
+    ];
+  }
+  if (market === 'KR') {
+    return [
+      `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${sym}.png`,
+    ];
+  }
+  // ETF 등 기타
+  if (item.image) return [item.image];
+  return [];
+}
+
 // ─── 급등 필터 탭 버튼 ──────────────────────────────────────
 export const SURGE_FILTERS = [
   { id: 'all',  label: '전체' },

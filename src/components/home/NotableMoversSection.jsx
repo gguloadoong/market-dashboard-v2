@@ -1,7 +1,7 @@
 // 주목할만한 움직임 — 복합 스코어 기반 히어로 수평 카드
 // 변동폭 + 거래량 순위 + 뉴스 매칭 복합 점수 + WHY 뉴스 연결
 import { useMemo, useState } from 'react';
-import { getPct, fmt, getAvatarBg, findRelatedNews } from './utils';
+import { getPct, fmt, getAvatarBg, getLogoUrls, findRelatedNews } from './utils';
 import { buildStockKeywords, matchesKeywords } from '../../utils/newsAlias';
 
 const MKT_BADGE = {
@@ -35,10 +35,7 @@ function NotableCard({ item, newsCount, volumeRank, newsTitle, newsSource, krwRa
   const badge  = MKT_BADGE[item._market] || MKT_BADGE.KR;
   const tags   = buildReasonTags(item, newsCount, volumeRank);
 
-  const logoUrls = item.image ? [item.image]
-    : item._market === 'US'   ? [`https://assets.parqet.com/logos/symbol/${item.symbol}?format=png`]
-    : item._market === 'KR'   ? [`https://file.alphasquare.co.kr/media/images/stock_logo/kr/${item.symbol}.png`]
-    : [];
+  const logoUrls = getLogoUrls(item);
   const [logoIdx, setLogoIdx] = useState(0);
   const bg = getAvatarBg(item.symbol);
 
