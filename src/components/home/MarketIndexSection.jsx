@@ -12,7 +12,12 @@ const IndexStripItem = memo(function IndexStripItem({ idx }) {
     <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#F2F4F6] hover:border-[#D1D6DB] hover:bg-[#F7F8FA] cursor-default transition-colors">
       <span className="text-[12px]">{flag}</span>
       <span className="text-[11px] text-[#8B95A1] font-medium">{idx.name}</span>
-      <span className="text-[12px] font-bold tabular-nums font-mono" style={{ color }}>
+      {idx.price > 0 && (
+        <span className="text-[12px] font-bold text-[#191F28] tabular-nums font-mono">
+          {idx.price >= 1000 ? idx.price.toLocaleString('ko-KR', { maximumFractionDigits: 0 }) : idx.price.toFixed(2)}
+        </span>
+      )}
+      <span className="text-[11px] font-bold tabular-nums font-mono" style={{ color }}>
         {isUp ? '▲' : isDown ? '▼' : '—'}{Math.abs(idx.changePct ?? 0).toFixed(2)}%
       </span>
     </div>

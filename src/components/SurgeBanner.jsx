@@ -3,13 +3,19 @@
 // 급등/급락 있을 때: 어두운 배경 강조
 // 없을 때: 중립 배경
 import { memo, useMemo } from 'react';
+import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 
 // React.memo: coins WS 틱마다 재렌더 방지 — 급등 순위 실제 변경 시에만 업데이트
 const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick }) {
   // 급등 종목 선별 (>=3%), 없으면 상위 5개
   const { items, hasHot } = useMemo(() => {
+    // 휴장 시장 제외 — 열린 시장 + 코인(24h)만
+    const krOpen = getKoreanMarketStatus().status === 'open';
+    const usOpen = getUsMarketStatus().status === 'open';
     const all = [
-      ...stocks.map(s => ({
+      ...stocks
+        .filter(s => s.market === 'kr' ? krOpen : s.market === 'us' ? usOpen : true)
+        .map(s => ({
         name:   s.name || s.symbol,
         symbol: s.symbol,
         pct:    s.changePct ?? 0,

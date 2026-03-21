@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
 import { getPct, fmt, getAvatarBg, getLogoUrls } from './utils';
+import { getKoreanMarketStatus, getUsMarketStatus } from '../../utils/marketHours';
 
 // ─── SECTION 3: HOT 리스트 행 (3열 공통) ─────────────────────
 const HotRow = memo(function HotRow({ item, rank, krwRate, onClick }) {
@@ -81,21 +82,37 @@ function SkeletonHotRow({ count = 5 }) {
 }
 
 export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop, usDrop, coinDrop, krwRate, onItemClick }) {
+  const krOpen = getKoreanMarketStatus().status === 'open';
+  const usOpen = getUsMarketStatus().status === 'open';
+  const krLabel = getKoreanMarketStatus().label;
+  const usLabel = getUsMarketStatus().label;
+
+  // 휴장 시 표시할 오버레이
+  const ClosedOverlay = ({ label }) => (
+    <div className="px-4 py-8 text-center">
+      <span className="text-[13px] text-[#B0B8C1]">🌙 {label}</span>
+      <p className="text-[11px] text-[#C9CDD2] mt-1">전일 종가 기준</p>
+    </div>
+  );
+
   return (
     <>
       {/* ─── SECTION 3: 3열 HOT 리스트 ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* 국내 급등 */}
-        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+        <div className={`bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm ${!krOpen ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px]">🇰🇷</span>
               <span className="text-[13px] font-bold text-[#191F28]">국내 급등</span>
+              {!krOpen && <span className="text-[9px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded">{krLabel}</span>}
             </div>
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FFF0F0] text-[#F04452]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!hasData
+            {!krOpen
+              ? <ClosedOverlay label={krLabel} />
+              : !hasData
               ? <SkeletonHotRow count={5} />
               : krHot.length > 0
                 ? krHot.map((item, i) => (
@@ -113,16 +130,19 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
         </div>
 
         {/* 미장 급등 */}
-        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+        <div className={`bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm ${!usOpen ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px]">🇺🇸</span>
               <span className="text-[13px] font-bold text-[#191F28]">미장 급등</span>
+              {!usOpen && <span className="text-[9px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded">{usLabel}</span>}
             </div>
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#3182F6]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!hasData
+            {!usOpen
+              ? <ClosedOverlay label={usLabel} />
+              : !hasData
               ? <SkeletonHotRow count={5} />
               : usHot.length > 0
                 ? usHot.map((item, i) => (
@@ -170,16 +190,19 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
       {/* ─── SECTION 3b: 3열 DROP 리스트 ───── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* 국내 급락 */}
-        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+        <div className={`bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm ${!krOpen ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px]">🇰🇷</span>
               <span className="text-[13px] font-bold text-[#191F28]">국내 급락</span>
+              {!krOpen && <span className="text-[9px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded">{krLabel}</span>}
             </div>
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!hasData
+            {!krOpen
+              ? <ClosedOverlay label={krLabel} />
+              : !hasData
               ? <SkeletonHotRow count={5} />
               : krDrop.map((item, i) => (
                   <HotRow
@@ -195,16 +218,19 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
         </div>
 
         {/* 미장 급락 */}
-        <div className="bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm">
+        <div className={`bg-white rounded-2xl overflow-hidden border border-[#F2F4F6] shadow-sm ${!usOpen ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#F2F4F6]">
             <div className="flex items-center gap-1.5">
               <span className="text-[13px]">🇺🇸</span>
               <span className="text-[13px] font-bold text-[#191F28]">미장 급락</span>
+              {!usOpen && <span className="text-[9px] text-[#B0B8C1] bg-[#F2F4F6] px-1.5 py-0.5 rounded">{usLabel}</span>}
             </div>
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!hasData
+            {!usOpen
+              ? <ClosedOverlay label={usLabel} />
+              : !hasData
               ? <SkeletonHotRow count={5} />
               : usDrop.map((item, i) => (
                   <HotRow

@@ -106,10 +106,15 @@ async function fetchYahooChart(symbol) {
   const meta   = result.meta;
   const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
   // chartPreviousClose는 차트 시작 기준점으로 전일 종가가 아님 — 사용 금지
-  // previousClose 없으면 closes[-2] (실제 직전 거래일 종가) 사용
-  const prev   = meta.previousClose
-    ?? (closes.length >= 2 ? closes[closes.length - 2] : null)
-    ?? meta.regularMarketPrice;
+  // previousClose가 현재가와 같거나 없으면 closes에서 현재가와 다른 가장 최근 값 사용
+  const curPrice = meta.regularMarketPrice;
+  let prev = meta.previousClose;
+  if (!prev || prev === curPrice) {
+    for (let i = closes.length - 2; i >= 0; i--) {
+      if (closes[i] && closes[i] !== curPrice) { prev = closes[i]; break; }
+    }
+  }
+  if (!prev) prev = curPrice;
   return {
     symbol:    meta.symbol?.split('.')[0],
     price:     meta.regularMarketPrice,

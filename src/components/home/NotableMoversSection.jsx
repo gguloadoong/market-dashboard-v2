@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { getPct, fmt, getAvatarBg, getLogoUrls, findRelatedNews } from './utils';
 import { buildStockKeywords, matchesKeywords } from '../../utils/newsAlias';
+import { getKoreanMarketStatus, getUsMarketStatus } from '../../utils/marketHours';
 
 const MKT_BADGE = {
   KR:   { label: '국내', bg: '#FFF0F0', color: '#F04452' },
@@ -135,10 +136,21 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
   const notables = useMemo(() => {
     if (!allItems.length) return [];
 
+    // 휴장 시장 필터링 — 열려있는 시장 + 코인(24h)만 포함
+    const krOpen = getKoreanMarketStatus().status === 'open';
+    const usOpen = getUsMarketStatus().status === 'open';
+    const activeItems = allItems.filter(item => {
+      if (item._market === 'COIN') return true;
+      if (item._market === 'KR') return krOpen;
+      if (item._market === 'US') return usOpen;
+      return true;
+    });
+    if (!activeItems.length) return [];
+
     // 마켓별 거래량 순위 계산
     const volumeRanks = new Map();
     const byMarket = { KR: [], US: [], COIN: [] };
-    for (const item of allItems) {
+    for (const item of activeItems) {
       const vol = item._market === 'COIN' ? (item.volume24h ?? 0) : (item.volume ?? 0);
       (byMarket[item._market] || []).push({ symbol: item.symbol || item.id, vol });
     }
@@ -147,7 +159,7 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
       items.forEach((it, i) => volumeRanks.set(it.symbol, i + 1));
     }
 
-    return allItems
+    return activeItems
       .map(item => {
         const pct = Math.abs(getPct(item));
         const volRank = volumeRanks.get(item.symbol || item.id) || 999;

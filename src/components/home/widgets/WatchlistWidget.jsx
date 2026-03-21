@@ -133,15 +133,15 @@ export default function WatchlistWidget({ watchedItems, popularItems = [], toggl
         <span className="text-[13px] font-bold text-[#191F28]">관심종목</span>
         <span className="text-[11px] text-[#B0B8C1]">{watchedItems.length}개</span>
       </div>
-      <div className="py-1 max-h-[180px] overflow-y-auto">
+      <div className="py-1 max-h-[100px] overflow-y-auto">
         {watchedItems.map(item => (
           <WatchRow key={item.id || item.symbol} item={item} krwRate={krwRate} onItemClick={onItemClick} onToggle={toggle} />
         ))}
       </div>
-      {/* 스크롤 힌트 — 4개 이상일 때 */}
-      {watchedItems.length > 4 && (
+      {/* 스크롤 힌트 — 3개 이상일 때 */}
+      {watchedItems.length > 2 && (
         <div className="text-center py-1.5 text-[10px] text-[#B0B8C1] border-t border-[#F2F4F6]">
-          ↕ 스크롤하여 {watchedItems.length}개 종목 보기
+          ↕ {watchedItems.length}개 종목 · 워치리스트 탭에서 상세 보기
         </div>
       )}
     </div>

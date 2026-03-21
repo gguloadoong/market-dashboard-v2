@@ -17,9 +17,14 @@ async function fetchYahooV8(symbol) {
   const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
   const price  = meta.regularMarketPrice;
   // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
-  const prev   = meta.previousClose
-    ?? (closes.length >= 2 ? closes[closes.length - 2] : null)
-    ?? price;
+  // previousClose가 현재가와 같거나 없으면 closes에서 현재가와 다른 가장 최근 값 사용
+  let prev = meta.previousClose;
+  if (!prev || prev === price) {
+    for (let i = closes.length - 2; i >= 0; i--) {
+      if (closes[i] && closes[i] !== price) { prev = closes[i]; break; }
+    }
+  }
+  if (!prev) prev = price;
   const change    = parseFloat((price - prev).toFixed(2));
   const changePct = prev > 0 ? parseFloat(((price - prev) / prev * 100).toFixed(2)) : 0;
   return {
