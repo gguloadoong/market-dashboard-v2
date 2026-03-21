@@ -67,10 +67,9 @@ export function useCoins(krwRateRef) {
     return () => { clearInterval(quickId); clearInterval(fullId); clearInterval(sparklineId); };
   }, [refreshCoinsQuick, refreshCoins, refreshSparklines]);
 
-  // 최초 로드 시 스파크라인도 가져오기
+  // 최초 로드 시 스파크라인 즉시 가져오기
   useEffect(() => {
-    const timer = setTimeout(refreshSparklines, 3000); // 초기 로드 3초 후
-    return () => clearTimeout(timer);
+    refreshSparklines();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Upbit WebSocket
@@ -100,10 +99,17 @@ export function useCoins(krwRateRef) {
       wsTickBufRef.current[tick.symbol] = tick;
       if (!wsFlushTimer.current) wsFlushTimer.current = setTimeout(flushTicks, 200);
     };
-    subscribeCoinPrices(COINS_INITIAL.map(c => c.symbol), wsHandler);
-    fetchUpbitAllSymbols()
-      .then(symbols => { if (!cancelled) subscribeCoinPrices(symbols, wsHandler); })
-      .catch(() => {});
+    // 전체 심볼 목록으로 한 번만 구독 (이중 구독 방지)
+    const initWs = async () => {
+      try {
+        const symbols = await fetchUpbitAllSymbols();
+        if (!cancelled) subscribeCoinPrices(symbols, wsHandler);
+      } catch {
+        // Upbit 목록 실패 시 초기 심볼로 fallback
+        if (!cancelled) subscribeCoinPrices(COINS_INITIAL.map(c => c.symbol), wsHandler);
+      }
+    };
+    initWs();
     return () => {
       cancelled = true;
       clearTimeout(wsFlushTimer.current);

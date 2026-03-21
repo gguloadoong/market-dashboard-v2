@@ -116,7 +116,7 @@ export default function HomeDashboard({
       if (mktCount[item._market] >= 2) continue;
       result.push(item);
       mktCount[item._market]++;
-      if (result.length >= 5) break;
+      if (result.length >= 3) break;
     }
     return result;
   }, [watchedItems.length, allItems]);
@@ -150,14 +150,19 @@ export default function HomeDashboard({
       {/* ─── 경제 이벤트 티커 ─────────────────────────────── */}
       <EventTicker />
 
-      {/* ─── 관심종목 (컴팩트 — 4개 넘으면 스크롤) ──────── */}
-      <WatchlistWidget
-        watchedItems={watchedItems}
-        popularItems={popularItems}
-        toggle={toggle}
-        onItemClick={onItemClick}
-        krwRate={krwRate}
-      />
+      {/* ─── 관심종목 + 섹터 흐름 (2열 나란히, 모바일은 세로) ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <WatchlistWidget
+          watchedItems={watchedItems}
+          popularItems={popularItems}
+          toggle={toggle}
+          onItemClick={onItemClick}
+          krwRate={krwRate}
+        />
+        {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
+          <SectorMiniWidget krStocks={krStocks} usStocks={usStocks} coins={coins} />
+        )}
+      </div>
 
       {/* ─── 급등/급락 6박스 (첫 화면에 걸치도록 승격) ──── */}
       <TopMoversWidget
@@ -176,11 +181,6 @@ export default function HomeDashboard({
 
       {/* ─── 코인 거래소 공지 ─────────────────────────────── */}
       <CoinListingSection />
-
-      {/* ─── 섹터 로테이션 미니 (HOT 3 + COLD 3 칩 → 섹터 탭 유도) ── */}
-      {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
-        <SectorMiniWidget krStocks={krStocks} usStocks={usStocks} coins={coins} />
-      )}
     </div>
   );
 }

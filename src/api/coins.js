@@ -110,10 +110,21 @@ export async function fetchCoinPaprika() {
   return await res.json();
 }
 
-// ─── Binance — 전체 USDT 페어 24h 가격 (키 불필요, 매우 빠름) ──
+// ─── Binance — USDT 페어 24h 가격 (키 불필요) ──────────────────
+// 주요 코인만 명시적으로 요청 (전체 1500+ 쌍 → 상위 코인만)
+const BINANCE_SYMBOLS = [
+  'BTC','ETH','SOL','XRP','ADA','DOGE','AVAX','SHIB','DOT','LINK',
+  'UNI','NEAR','APT','ARB','SUI','OP','PEPE','XLM','TON','ATOM',
+  'FIL','ICP','HBAR','ETC','SAND','MANA','INJ','SEI','LTC','BNB',
+  'MATIC','TRX','BCH','AAVE','MKR','RENDER','FET','TAO','WLD','JUP',
+  'ONDO','PENDLE','STX','TIA','PYTH','BONK','WIF','FLOKI','GALA','IMX',
+];
+
 export async function fetchBinancePrices() {
+  // 개별 심볼로 요청 (전체 ticker 대신 ~50개만)
+  const symbols = BINANCE_SYMBOLS.map(s => `"${s}USDT"`).join(',');
   const res = await fetch(
-    'https://api.binance.com/api/v3/ticker/24hr',
+    `https://api.binance.com/api/v3/ticker/24hr?symbols=[${symbols}]`,
     { signal: AbortSignal.timeout(8000) }
   );
   if (!res.ok) throw new Error(`Binance ${res.status}`);
@@ -264,9 +275,8 @@ export async function fetchCoins(krwRate = 1466) {
     }
   }
 
-  // CoinPaprika 실패 → CoinGecko fallback
-  const cgListRaw = await fetchCoinGecko().catch(() => null);
-  const cgList = cgListRaw ?? cgFullCache;
+  // CoinPaprika 실패 → CoinGecko fallback (이미 캐시가 있으면 사용)
+  const cgList = cgFullCache?.length ? cgFullCache : await fetchCoinGecko().catch(() => null);
   if (cgList?.length) {
     const coins = buildFromCoinGecko(cgList, upbitMap, krwRate);
     if (coins.length) {
