@@ -9,6 +9,7 @@ import ChartSidePanel from './components/ChartSidePanel';
 import NewsSidePanel from './components/NewsSidePanel';
 import HomeDashboard from './components/home';
 import GlobalSearch from './components/GlobalSearch';
+import SectorRotation from './components/SectorRotation';
 
 import { ETF_DATA } from './data/mock';
 import { fetchKoreanStocksBatch, fetchEtfPricesBatch } from './api/stocks';
@@ -153,7 +154,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
       <div className="sticky top-0 z-20">
-        <SurgeBanner stocks={allStocks} coins={coins} onClick={setSelectedItem} />
+        <SurgeBanner stocks={allStocks} coins={coins} indices={indices} onClick={setSelectedItem} />
       </div>
 
       {notifBanner && (
@@ -184,6 +185,8 @@ export default function App() {
               coins={coins} etfs={mergedEtfs} krwRate={krwRate}
               onItemClick={setSelectedItem} onNewsClick={setSelectedNews}
             />
+          ) : activeTab === 'sector' ? (
+            <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />
           ) : activeTab === 'news' ? (
             <div className="lg:hidden h-[calc(100vh-112px)]">
               <BreakingNewsPanel coins={coins} onItemClick={setSelectedItem} onNewsClick={setSelectedNews} />

@@ -1,9 +1,10 @@
-// 코인 거래소 공지 섹션 — Upbit 공지사항 API로 신규상장/상장폐지/이벤트 공지 표시
-import { useQuery } from '@tanstack/react-query';
+// 코인 거래소 공지 섹션 — 뉴스 기반 상장/상폐 감지
+// Upbit 공지 API 폐지(404) → 뉴스 피드에서 거래소 관련 키워드 필터링
+import { useMemo } from 'react';
+import { useAllNewsQuery } from '../../hooks/useNewsQuery';
 
-// ─── 공지 유형 분류 ──────────────────────────────────────
-// Upbit 공지 제목 패턴 기반으로 유형 결정
-const LISTING_TYPES = [
+// ─── 거래소 공지 유형 분류 ───────────────────────────────
+const LISTING_PATTERNS = [
   {
     type: 'new',
     label: '신규상장',
@@ -11,17 +12,7 @@ const LISTING_TYPES = [
     bg: '#F0FFF4',
     color: '#2AC769',
     borderColor: '#BBF7D0',
-    // 신규 상장 패턴
-    patterns: [
-      '디지털 자산 추가',
-      '원화 마켓 추가',
-      'BTC 마켓 추가',
-      'USDT 마켓 추가',
-      '마켓 디지털 자산 추가',
-      '신규 상장',
-      '거래 지원 안내',
-      '거래 지원 시작',
-    ],
+    keywords: ['상장', '거래 지원', '마켓 추가', '신규 코인', '코인 추가', '거래 시작', 'listing'],
   },
   {
     type: 'delist',
@@ -30,13 +21,7 @@ const LISTING_TYPES = [
     bg: '#FFF5F5',
     color: '#F04452',
     borderColor: '#FECACA',
-    patterns: [
-      '거래 지원 종료',
-      '상장폐지',
-      '유의 종목',
-      '투자유의',
-      '거래 정지',
-    ],
+    keywords: ['상장폐지', '거래 종료', '거래 정지', '유의 종목', '투자유의', 'delist'],
   },
   {
     type: 'event',
@@ -45,24 +30,19 @@ const LISTING_TYPES = [
     bg: '#FFFBEB',
     color: '#F59E0B',
     borderColor: '#FDE68A',
-    patterns: ['이벤트', '에어드랍', '스테이킹', '프로모션'],
+    keywords: ['에어드랍', '에어드롭', '스테이킹', '하드포크', 'airdrop', '네트워크 업그레이드'],
   },
 ];
 
-// 공지 유형 매칭
-function classifyNotice(title) {
-  for (const t of LISTING_TYPES) {
-    if (t.patterns.some(p => title.includes(p))) return t;
+// 거래소 이름 필터 — 이 거래소 키워드가 포함된 뉴스만 매칭
+const EXCHANGE_KW = ['업비트', '빗썸', '코인원', '코빗', '바이낸스', 'upbit', 'bithumb', 'binance', 'coinbase'];
+
+function classifyNews(title) {
+  const lower = title.toLowerCase();
+  for (const p of LISTING_PATTERNS) {
+    if (p.keywords.some(k => lower.includes(k))) return p;
   }
-  // 기타 → 일반
-  return {
-    type: 'general',
-    label: '공지',
-    icon: '📌',
-    bg: '#F8F9FA',
-    color: '#6B7684',
-    borderColor: '#E5E8EB',
-  };
+  return null;
 }
 
 // ─── 시간 포맷 ───────────────────────────────────────────
@@ -77,137 +57,89 @@ function timeAgo(dateStr) {
     if (hrs < 24) return `${hrs}시간 전`;
     const days = Math.floor(hrs / 24);
     return `${days}일 전`;
-  } catch {
-    return '';
-  }
-}
-
-// ─── Upbit 공지 API 호출 ─────────────────────────────────
-// /api/upbit-notices 프록시 경유 (CORS 처리)
-async function fetchCoinListings() {
-  const res = await fetch('/api/upbit-notices', {
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`공지 API 실패: ${res.status}`);
-
-  const json = await res.json();
-  // Upbit 응답 구조: { data: [...] } 또는 배열 직접 반환
-  const items = Array.isArray(json) ? json : (json.data || []);
-
-  // 신규상장·상장폐지·이벤트 필터 + 최대 5건
-  return items
-    .slice(0, 20)
-    .map(n => ({
-      id: n.id,
-      title: n.title || n.subject || '',
-      url: n.url || n.link || `https://upbit.com/service_center/notice?id=${n.id}`,
-      createdAt: n.created_at || n.created || '',
-      ...classifyNotice(n.title || n.subject || ''),
-    }))
-    .filter(n => n.type !== 'general')   // 일반 공지 제외
-    .slice(0, 5);
+  } catch { return ''; }
 }
 
 // ─── 공지 아이템 행 ─────────────────────────────────────
 function NoticeRow({ item }) {
   return (
     <a
-      href={item.url}
+      href={item.link}
       target="_blank"
       rel="noopener noreferrer"
       className="flex items-start gap-2.5 px-4 py-2.5 border-b border-[#F8F9FA] last:border-0 hover:bg-[#FAFBFC] transition-colors cursor-pointer"
     >
-      {/* 유형 뱃지 */}
       <span
         className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5"
         style={{ background: item.bg, color: item.color, border: `1px solid ${item.borderColor}` }}
       >
         {item.icon} {item.label}
       </span>
-
-      {/* 공지 제목 */}
       <div className="flex-1 min-w-0">
         <span className="text-[13px] font-medium text-[#191F28] line-clamp-2 leading-snug">
           {item.title}
         </span>
+        {item.source && (
+          <span className="text-[10px] text-[#B0B8C1] mt-0.5 block">{item.source}</span>
+        )}
       </div>
-
-      {/* 시간 */}
       <span className="flex-shrink-0 text-[11px] text-[#B0B8C1] mt-0.5 whitespace-nowrap">
-        {timeAgo(item.createdAt)}
+        {timeAgo(item.pubDate)}
       </span>
     </a>
   );
 }
 
-// ─── 스켈레톤 로딩 ───────────────────────────────────────
-function ListingSkeleton() {
-  return (
-    <div className="space-y-0">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#F8F9FA]">
-          <div className="w-14 h-4 bg-[#F2F4F6] rounded animate-pulse flex-shrink-0" />
-          <div className="flex-1 h-4 bg-[#F2F4F6] rounded animate-pulse" />
-          <div className="w-12 h-3 bg-[#F2F4F6] rounded animate-pulse flex-shrink-0" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── 메인 컴포넌트 ────────────────────────────────────────
 export default function CoinListingSection() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['coin-listings'],
-    queryFn: fetchCoinListings,
-    staleTime: 300_000,          // 5분 캐시
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
+  const { data: allNews = [], isLoading } = useAllNewsQuery();
 
-  // API 실패 시 섹션 전체 숨김
-  if (isError) return null;
+  // 뉴스에서 거래소 상장/상폐/이벤트 관련 기사 필터
+  const notices = useMemo(() => {
+    if (!allNews.length) return [];
+    const lower = t => (t || '').toLowerCase();
+    return allNews
+      .filter(n => {
+        const text = lower(n.title);
+        // 거래소 키워드 포함 필수
+        if (!EXCHANGE_KW.some(k => text.includes(k))) return false;
+        // 상장/상폐/이벤트 유형 매칭
+        return classifyNews(n.title || '') !== null;
+      })
+      .slice(0, 5)
+      .map(n => {
+        const type = classifyNews(n.title || '');
+        return { ...n, ...type, title: n.title || '' };
+      });
+  }, [allNews]);
 
-  // 데이터 로드 완료 후 표시할 공지 없으면 숨김
-  if (!isLoading && (!data || data.length === 0)) return null;
+  // 데이터 없으면 숨김
+  if (!isLoading && notices.length === 0) return null;
 
   return (
     <div className="bg-white rounded-2xl border border-[#F2F4F6] shadow-sm overflow-hidden">
-      {/* 헤더 */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#F2F4F6]">
         <div className="flex items-center gap-2">
           <span className="text-[16px]">📢</span>
-          <span className="text-[15px] font-bold text-[#191F28]">코인 거래소 공지</span>
+          <span className="text-[15px] font-bold text-[#191F28]">거래소 상장·이벤트</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-[#B0B8C1]">업비트 기준</span>
-          {/* 실시간 표시 인디케이터 */}
-          <span className="w-1.5 h-1.5 rounded-full bg-[#2AC769] animate-pulse" />
-        </div>
+        <span className="text-[11px] text-[#B0B8C1]">뉴스 기반 감지</span>
       </div>
 
-      {/* 공지 목록 */}
       <div>
         {isLoading ? (
-          <ListingSkeleton />
+          <div className="space-y-0">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#F8F9FA]">
+                <div className="w-14 h-4 bg-[#F2F4F6] rounded animate-pulse flex-shrink-0" />
+                <div className="flex-1 h-4 bg-[#F2F4F6] rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
         ) : (
-          data?.map(item => <NoticeRow key={item.id} item={item} />)
+          notices.map((item, i) => <NoticeRow key={i} item={item} />)
         )}
       </div>
-
-      {/* 하단 링크 */}
-      {!isLoading && data && data.length > 0 && (
-        <div className="px-4 py-2 border-t border-[#F8F9FA]">
-          <a
-            href="https://upbit.com/service_center/notice"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[12px] text-[#3182F6] font-medium hover:underline"
-          >
-            업비트 공지 전체 보기 →
-          </a>
-        </div>
-      )}
     </div>
   );
 }

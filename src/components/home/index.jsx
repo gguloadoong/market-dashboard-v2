@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react';
-import SectorRotation from '../SectorRotation';
+import { useMemo } from 'react';
 import { useAllNewsQuery } from '../../hooks/useNewsQuery';
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { getPct } from './utils';
@@ -12,13 +11,71 @@ import MarketInvestorSection from './MarketInvestorSection';
 import EventTicker from './EventTicker';
 import CoinListingSection from './CoinListingSection';
 
+// ─── 섹터 미니 위젯 (HOT 3 + COLD 3 칩 → 섹터 탭 유도) ──
+function SectorMiniWidget({ krStocks, usStocks, coins }) {
+  const sectors = useMemo(() => {
+    const coinsWithPct = coins.filter(c => c.sector).map(c => ({ ...c, changePct: c.change24h ?? 0 }));
+    const items = [...krStocks, ...usStocks, ...coinsWithPct];
+    const map = {};
+    for (const s of items) {
+      if (!s.sector) continue;
+      if (!map[s.sector]) map[s.sector] = { sum: 0, count: 0 };
+      map[s.sector].sum += s.changePct ?? 0;
+      map[s.sector].count += 1;
+    }
+    return Object.entries(map)
+      .map(([name, { sum, count }]) => ({ name, avg: parseFloat((sum / count).toFixed(2)) }))
+      .sort((a, b) => b.avg - a.avg);
+  }, [krStocks, usStocks, coins]);
+
+  if (!sectors.length) return null;
+
+  const hot  = sectors.filter(s => s.avg > 0).slice(0, 3);
+  const cold = [...sectors.filter(s => s.avg <= 0)].reverse().slice(0, 3);
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#F2F4F6] shadow-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold text-[#191F28]">섹터 자금 흐름</span>
+          <span className="text-[10px] text-[#B0B8C1]">HOT · COLD</span>
+        </div>
+        <span className="text-[11px] text-[#3182F6] font-medium">섹터 탭에서 상세 →</span>
+      </div>
+      <div className="flex gap-4">
+        {/* HOT */}
+        <div className="flex-1">
+          <span className="text-[10px] font-bold text-[#F04452] uppercase mb-1.5 block">HOT</span>
+          <div className="flex flex-wrap gap-1.5">
+            {hot.length > 0 ? hot.map(s => (
+              <span key={s.name} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-[#FFF0F1] text-[#F04452]">
+                {s.name} +{s.avg.toFixed(1)}%
+              </span>
+            )) : <span className="text-[10px] text-[#B0B8C1]">없음</span>}
+          </div>
+        </div>
+        {/* COLD */}
+        <div className="flex-1">
+          <span className="text-[10px] font-bold text-[#1764ED] uppercase mb-1.5 block">COLD</span>
+          <div className="flex flex-wrap gap-1.5">
+            {cold.length > 0 ? cold.map(s => (
+              <span key={s.name} className="text-[11px] font-medium px-2 py-1 rounded-lg bg-[#EDF4FF] text-[#1764ED]">
+                {s.name} {s.avg.toFixed(1)}%
+              </span>
+            )) : <span className="text-[10px] text-[#B0B8C1]">없음</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomeDashboard({
   indices = [], krStocks = [], usStocks = [], coins = [], etfs = [],
   krwRate = 1466, onItemClick, onNewsClick,
 }) {
   const { data: allNews = [] } = useAllNewsQuery();
   const { watchlist, toggle, isWatched } = useWatchlist();
-  const [sectorExpanded, setSectorExpanded] = useState(false);
 
   // 마켓 태그
   const krItems   = useMemo(() => [
@@ -120,36 +177,9 @@ export default function HomeDashboard({
       {/* ─── 코인 거래소 공지 ─────────────────────────────── */}
       <CoinListingSection />
 
-      {/* ─── 섹터 로테이션 (미리보기 + 펼치기) ────────────── */}
+      {/* ─── 섹터 로테이션 미니 (HOT 3 + COLD 3 칩 → 섹터 탭 유도) ── */}
       {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
-        <div className="relative">
-          {/* 미리보기: 항상 헤더 + 상위 3개 HOT 섹터 표시 */}
-          <div className={sectorExpanded ? '' : 'max-h-[160px] overflow-hidden'}>
-            <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />
-          </div>
-          {/* 접힌 상태일 때 하단 페이드 + 펼치기 버튼 */}
-          {!sectorExpanded && (
-            <div className="absolute bottom-0 left-0 right-0">
-              <div className="h-12 bg-gradient-to-t from-white to-transparent" />
-              <button
-                onClick={() => setSectorExpanded(true)}
-                className="w-full flex items-center justify-center gap-1 py-2 bg-white text-[12px] font-medium text-[#3182F6] hover:text-[#1764ED] transition-colors"
-              >
-                <span>섹터 로테이션 전체보기</span>
-                <span className="text-[10px]">▼</span>
-              </button>
-            </div>
-          )}
-          {sectorExpanded && (
-            <button
-              onClick={() => setSectorExpanded(false)}
-              className="w-full flex items-center justify-center gap-1 py-2 text-[12px] text-[#8B95A1] hover:text-[#4E5968] transition-colors"
-            >
-              <span>접기</span>
-              <span className="text-[10px]">▲</span>
-            </button>
-          )}
-        </div>
+        <SectorMiniWidget krStocks={krStocks} usStocks={usStocks} coins={coins} />
       )}
     </div>
   );

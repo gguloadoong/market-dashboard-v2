@@ -1,14 +1,13 @@
 // 급등/급락 ticker 배너 — 상단 sticky
-// 급등(>=3%) + 급락(<=-3%) 종목 표시, 없으면 상위 5개 (절댓값 기준)
-// 급등/급락 있을 때: 어두운 배경 강조
-// 없을 때: 중립 배경
+// 급등(>=3%) + 급락(<=-3%) 종목 표시
+// 급등/급락 없을 때: 시장 지수 요약 표시 (실질적 정보 제공)
 import { memo, useMemo } from 'react';
 import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 
 // React.memo: coins WS 틱마다 재렌더 방지 — 급등 순위 실제 변경 시에만 업데이트
-const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick }) {
-  // 급등 종목 선별 (>=3%), 없으면 상위 5개
-  const { items, hasHot } = useMemo(() => {
+const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices = [], onClick }) {
+  // 급등 종목 선별 (>=3%), 없으면 지수 요약 표시
+  const { items, hasHot, isIndexMode } = useMemo(() => {
     // 휴장 시장 제외 — 열린 시장 + 코인(24h)만
     const krOpen = getKoreanMarketStatus().status === 'open';
     const usOpen = getUsMarketStatus().status === 'open';
@@ -40,15 +39,30 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
 
     let base;
     if (hasHot) {
-      // 급등 최대 10개 + 급락 최대 10개 (총 최대 20개)
       base = [...surges.slice(0, 10), ...drops.slice(0, 10)];
+    } else if (indices.length > 0) {
+      // 급등/급락 없을 때: 지수 요약 모드
+      const idxItems = indices
+        .filter(idx => idx.value > 0)
+        .map(idx => ({
+          name: idx.name, symbol: idx.id,
+          pct: idx.changePct ?? 0, market: 'index', _raw: null,
+          _value: idx.value,
+        }));
+      // 지수 + 변동률 상위 종목 3개 혼합
+      const topMovers = [...all]
+        .filter(i => Math.abs(i.pct) >= 1)
+        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+        .slice(0, 3);
+      base = [...idxItems, ...topMovers];
+      if (!base.length) base = [...all].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 5);
+      return { items: [...base, ...base], hasHot: false, isIndexMode: true };
     } else {
-      // 급등/급락 없으면 절댓값 상위 5개
       base = [...all].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 5);
     }
     // 무한 스크롤 효과를 위해 2배 복제
-    return { items: [...base, ...base], hasHot };
-  }, [stocks, coins]);
+    return { items: [...base, ...base], hasHot, isIndexMode: false };
+  }, [stocks, coins, indices]);
 
   if (!items.length) return null;
 
@@ -76,7 +90,7 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
           className="text-[10px] font-bold tracking-widest uppercase"
           style={{ color: hasHot ? 'rgba(255,107,119,0.9)' : 'rgba(255,255,255,0.35)' }}
         >
-          {hasHot ? '🔥 급등·급락' : '시세'}
+          {hasHot ? '🔥 급등·급락' : isIndexMode ? '📊 시장' : '시세'}
         </span>
       </div>
 
@@ -97,6 +111,12 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], onClick
             </span>
             {/* 이름 */}
             <span style={{ color: 'rgba(255,255,255,0.4)' }}>{item.name}</span>
+            {/* 지수 모드: 지수 값 표시 */}
+            {item._value > 0 && (
+              <span className="font-mono tabular-nums" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                {item._value >= 1000 ? item._value.toLocaleString('ko-KR', { maximumFractionDigits: 0 }) : item._value.toFixed(2)}
+              </span>
+            )}
             {/* 등락률 배지 */}
             <span
               className="font-bold tabular-nums px-1.5 py-0.5 rounded-full text-[10px]"

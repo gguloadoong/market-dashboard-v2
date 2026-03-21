@@ -9,6 +9,7 @@ const TABS = [
   { id: 'us',   label: '🇺🇸 미장' },
   { id: 'coin', label: '🪙 코인' },
   { id: 'etf',  label: '📊 ETF' },
+  { id: 'sector', label: '🔄 섹터' },
   // 모바일 전용 뉴스 탭 — 데스크탑에서는 우측 고정 패널이 담당
   { id: 'news', label: '📰 뉴스', mobileOnly: true },
 ];

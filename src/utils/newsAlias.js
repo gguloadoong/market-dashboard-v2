@@ -102,7 +102,7 @@ export const KR_ALIASES = {
 export const US_ALIASES = {
   'NVDA':  ['엔비디아', 'nvidia'],
   'AAPL':  ['애플', 'apple'],
-  'MSFT':  ['마이크로소프트', 'microsoft', 'ms'],
+  'MSFT':  ['마이크로소프트', 'microsoft'],
   'GOOGL': ['구글', '알파벳', 'google', 'alphabet'],
   'GOOG':  ['구글', '알파벳', 'google', 'alphabet'],
   'META':  ['메타', '페이스북', 'facebook'],
@@ -208,12 +208,28 @@ export function buildStockKeywords(symbol, name, market) {
   return [...keys].filter(k => k.length >= 2 && !/^\d{6}$/.test(k));
 }
 
+// ─── 짧은 영문 키워드 — 다른 단어의 부분 문자열이 되기 쉬운 것들 ──
+// 이 목록에 포함된 키워드는 길이와 무관하게 항상 단어 경계 매칭 적용
+const BOUNDARY_FORCE = new Set([
+  'arm', 'meta', 'coin', 'near', 'ton', 'uni', 'link', 'sand',
+  'atom', 'op', 'sol', 'apt', 'sui', 'inj',
+]);
+
 // ─── 스마트 텍스트 매칭 ────────────────────────────────────
-// 짧은 키워드(≤2자)는 단어 경계 매칭, 긴 것은 includes
+// 짧은 키워드(≤4자 영문) + 거짓양성 위험 키워드는 단어 경계 매칭
+// 한글 키워드(3자+)와 긴 영문(5자+)은 includes 사용
 export function matchesKeywords(text, keywords) {
   const lowerText = text.toLowerCase();
   return keywords.some(kw => {
-    if (isShortKeyword(kw)) {
+    // 단어 경계 매칭 필요 여부 판단:
+    // 1) isShortKeyword (영문 ≤2자, 한글 ≤2자)
+    // 2) 영문 3~4자 (arm, meta, coin 등 거짓양성 위험)
+    // 3) BOUNDARY_FORCE 목록에 포함
+    const needBoundary = isShortKeyword(kw)
+      || BOUNDARY_FORCE.has(kw)
+      || (/^[a-z0-9]{3,4}$/i.test(kw));
+
+    if (needBoundary) {
       // 단어 경계: 앞뒤가 공백/문장부호/시작/끝이어야 함
       // 한글 조사(가,이,을,의...)가 붙은 경우도 허용 (예: 기아가)
       try {
