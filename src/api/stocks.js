@@ -107,11 +107,13 @@ async function fetchYahooChart(symbol) {
   const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
   // chartPreviousClose는 차트 시작 기준점으로 전일 종가가 아님 — 사용 금지
   // previousClose가 현재가와 같거나 없으면 closes에서 현재가와 다른 가장 최근 값 사용
+  // 부동소수점 비교: 0.01 이내 차이는 동일 가격으로 간주
   const curPrice = meta.regularMarketPrice;
+  const almostEq = (a, b) => Math.abs(a - b) < 0.01;
   let prev = meta.previousClose;
-  if (!prev || prev === curPrice) {
+  if (!prev || almostEq(prev, curPrice)) {
     for (let i = closes.length - 2; i >= 0; i--) {
-      if (closes[i] && closes[i] !== curPrice) { prev = closes[i]; break; }
+      if (closes[i] && !almostEq(closes[i], curPrice)) { prev = closes[i]; break; }
     }
   }
   if (!prev) prev = curPrice;
