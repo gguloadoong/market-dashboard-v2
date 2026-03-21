@@ -26,9 +26,16 @@ async function fetchYahooIndex(id, symbol) {
   const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
   const price  = meta.regularMarketPrice;
   // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
-  const prev   = meta.previousClose
-    ?? (closes.length >= 2 ? closes[closes.length - 2] : null)
-    ?? price;
+  // previousClose가 null이거나 현재가와 동일하면 closes 배열에서 이전 종가 탐색
+  // 부동소수점 비교: 0.01 이내 차이는 동일 가격으로 간주
+  const almostEqual = (a, b) => Math.abs(a - b) < 0.01;
+  let prev = meta.previousClose;
+  if (!prev || almostEqual(prev, price)) {
+    for (let i = closes.length - 2; i >= 0; i--) {
+      if (closes[i] && !almostEqual(closes[i], price)) { prev = closes[i]; break; }
+    }
+  }
+  if (!prev) prev = price;
   return {
     id,
     value:     parseFloat(price.toFixed(2)),
@@ -44,10 +51,11 @@ async function fetchStooqKospi() {
   });
   if (!res.ok) throw new Error(`Stooq KOSPI ${res.status}`);
   const data = await res.json();
-  const s = (data.symbols || []).find(x => x.Close && x.Close !== 'N/D');
+  // Stooq JSON 필드명: 소문자 (close, previous, volume 등)
+  const s = (data.symbols || []).find(x => (x.close || x.Close) && (x.close || x.Close) !== 'N/D');
   if (!s) throw new Error('Stooq KOSPI N/D');
-  const close    = parseFloat(s.Close);
-  const prevClose = parseFloat(s.Prev_Close) || 0;
+  const close    = parseFloat(s.close ?? s.Close);
+  const prevClose = parseFloat(s.previous ?? s.Prev_Close) || 0;
   return {
     id:        'KOSPI',
     value:     parseFloat(close.toFixed(2)),

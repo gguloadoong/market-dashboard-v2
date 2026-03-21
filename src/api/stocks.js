@@ -27,20 +27,21 @@ async function fetchStooq(symbols) {
   const res  = await fetch(url, { signal: AbortSignal.timeout(5000) });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const data = await res.json();
+  // Stooq JSON 필드명: 소문자 (close, previous, volume, symbol 등)
   return (data.symbols || [])
-    .filter(s => s.Close && s.Close !== 'N/D' && parseFloat(s.Close) > 0)
+    .filter(s => (s.close ?? s.Close) && (s.close ?? s.Close) !== 'N/D' && parseFloat(s.close ?? s.Close) > 0)
     .map(s => {
-      const close     = parseFloat(s.Close);
-      // Prev_Close(p 필드) 전일 종가 — 없으면 change=0 (Open 근사는 오류 원인)
-      const prevClose = parseFloat(s.Prev_Close) || 0;
+      const close     = parseFloat(s.close ?? s.Close);
+      // previous(p 필드) 전일 종가 — 없으면 change=0
+      const prevClose = parseFloat(s.previous ?? s.Prev_Close) || 0;
       return {
-        symbol:    s.Symbol.split('.')[0].toUpperCase(),
+        symbol:    (s.symbol ?? s.Symbol).split('.')[0].toUpperCase(),
         price:     close,
         change:    prevClose > 0 ? parseFloat((close - prevClose).toFixed(2)) : 0,
         changePct: prevClose > 0
           ? parseFloat(((close - prevClose) / prevClose * 100).toFixed(2))
           : 0,
-        volume:    parseInt(s.Volume) || 0,
+        volume:    parseInt(s.volume ?? s.Volume) || 0,
         _source:   'stooq',
       };
     });
@@ -348,15 +349,22 @@ async function fetchYahooRace(symbol, id) {
         done = true;
         const meta   = result.meta;
         const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
+        const price  = meta.regularMarketPrice;
         // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
-        const prev = meta.previousClose
-          ?? (closes.length >= 2 ? closes[closes.length - 2] : null)
-          ?? meta.regularMarketPrice;
+        // previousClose가 null이거나 현재가와 동일하면 closes에서 이전 종가 탐색
+        const almostEq = (a, b) => Math.abs(a - b) < 0.01;
+        let prev = meta.previousClose;
+        if (!prev || almostEq(prev, price)) {
+          for (let i = closes.length - 2; i >= 0; i--) {
+            if (closes[i] && !almostEq(closes[i], price)) { prev = closes[i]; break; }
+          }
+        }
+        if (!prev) prev = price;
         resolve({
           id,
-          value:     parseFloat(meta.regularMarketPrice.toFixed(2)),
-          change:    parseFloat((meta.regularMarketPrice - prev).toFixed(2)),
-          changePct: parseFloat(((meta.regularMarketPrice - prev) / prev * 100).toFixed(2)),
+          value:     parseFloat(price.toFixed(2)),
+          change:    parseFloat((price - prev).toFixed(2)),
+          changePct: parseFloat(((price - prev) / prev * 100).toFixed(2)),
         });
       }).catch(() => {
         failed++;
@@ -378,11 +386,12 @@ async function fetchStooqKospi() {
   });
   if (!res.ok) throw new Error(`Stooq KOSPI ${res.status}`);
   const data = await res.json();
-  const s = (data.symbols || []).find(x => x.Close && x.Close !== 'N/D');
+  // Stooq JSON 필드명: 소문자 (close, previous 등)
+  const s = (data.symbols || []).find(x => (x.close ?? x.Close) && (x.close ?? x.Close) !== 'N/D');
   if (!s) throw new Error('Stooq KOSPI: N/D');
-  const close     = parseFloat(s.Close);
-  // Prev_Close(p 필드) 전일 종가 기준 — 없으면 change=0 (Open 근사 제거)
-  const prevClose = parseFloat(s.Prev_Close) || 0;
+  const close     = parseFloat(s.close ?? s.Close);
+  // previous(p 필드) 전일 종가 기준 — 없으면 change=0
+  const prevClose = parseFloat(s.previous ?? s.Prev_Close) || 0;
   return {
     id:        'KOSPI',
     value:     parseFloat(close.toFixed(2)),

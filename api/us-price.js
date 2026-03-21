@@ -52,16 +52,19 @@ async function fetchStooqSingle(symbol) {
   });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const data = await res.json();
+  // Stooq JSON 필드명: 소문자 (close, previous, volume 등)
   const s = (data.symbols || [])[0];
-  if (!s || !s.Close || s.Close === 'N/D') throw new Error('N/D');
-  const close     = parseFloat(s.Close);
-  const prevClose = parseFloat(s.Prev_Close) || close;
+  if (!s) throw new Error('N/D');
+  const closeVal = s.close ?? s.Close;
+  if (!closeVal || closeVal === 'N/D') throw new Error('N/D');
+  const close     = parseFloat(closeVal);
+  const prevClose = parseFloat(s.previous ?? s.Prev_Close) || close;
   return {
     symbol,
     price:     parseFloat(close.toFixed(2)),
     change:    prevClose > 0 ? parseFloat((close - prevClose).toFixed(2)) : 0,
     changePct: prevClose > 0 ? parseFloat(((close - prevClose) / prevClose * 100).toFixed(2)) : 0,
-    volume:    parseInt(s.Volume) || 0,
+    volume:    parseInt(s.volume ?? s.Volume) || 0,
     marketCap: 0,
     high52w:   null,
     low52w:    null,
