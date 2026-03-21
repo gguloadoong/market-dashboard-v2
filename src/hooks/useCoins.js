@@ -13,18 +13,16 @@ export function useCoins(krwRateRef) {
   const [coinError, setCoinError] = useState(false);
   const wsTickBufRef  = useRef({});
   const wsFlushTimer  = useRef(null);
+  const coinsRef      = useRef(coins);
+  coinsRef.current    = coins;
 
   // 빠른 갱신 (10초, Upbit만)
   const refreshCoinsQuick = useCallback(async () => {
     try {
-      setCoins(prev => {
-        if (!prev.length) return prev;
-        fetchCoinsUpbitOnly(prev, krwRateRef.current)
-          .then(data => { if (data.length) { setCoins(data); checkAndAlertBatch(data, 'coin'); } })
-          .catch(() => {});
-        return prev;
-      });
-    } catch {}
+      if (!coinsRef.current.length) return;
+      const data = await fetchCoinsUpbitOnly(coinsRef.current, krwRateRef.current);
+      if (data.length) { setCoins(data); checkAndAlertBatch(data, 'coin'); }
+    } catch (err) { console.warn('[useCoins] quick refresh 실패:', err.message); }
   }, [krwRateRef]);
 
   // 전체 갱신 (60초, CoinPaprika/Binance + Upbit)
@@ -38,7 +36,7 @@ export function useCoins(krwRateRef) {
         }));
         setCoinError(false);
       }
-    } catch { setCoinError(true); }
+    } catch (err) { console.warn('[useCoins] full refresh 실패:', err.message); setCoinError(true); }
   }, [krwRateRef]);
 
   // 스파크라인 갱신 (5분, CoinGecko 전용)

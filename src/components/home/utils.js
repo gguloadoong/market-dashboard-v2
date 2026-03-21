@@ -69,7 +69,7 @@ export const TYPE_BADGE = {
 // ─── 로고 아바타 (로고 실패 시 컬러 이니셜) ──────────────────
 export const PALETTE = ['#3182F6','#F04452','#FF9500','#2AC769','#8B5CF6','#EC4899','#14B8A6','#F59E0B'];
 export function getAvatarBg(symbol) {
-  return PALETTE[(symbol || '').split('').reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0) % PALETTE.length] || '#8B95A1';
+  return PALETTE[Math.abs((symbol || '').split('').reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % PALETTE.length] || '#8B95A1';
 }
 
 // ─── 종목/코인 로고 URL fallback 체인 ─────────────────────────

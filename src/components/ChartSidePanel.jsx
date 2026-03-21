@@ -26,33 +26,8 @@ import { fetchInvestorDataSafe, fetchInvestorTrendSafe, formatNetAmt } from '../
 import { useStockNews, useStockDirectNews } from '../hooks/useNewsQuery';
 import { findRelatedItems } from '../data/relatedAssets';
 
-// ─── 로고 URL (3단 fallback) ──────────────────────────────────
-function getLogoUrls(item) {
-  const sym = item.symbol || '';
-  if (item.id || item.market === 'coin') {
-    const urls = [];
-    if (item.image) urls.push(item.image);
-    urls.push(`https://assets.coincap.io/assets/icons/${sym.toLowerCase()}@2x.png`);
-    urls.push(`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${sym.toLowerCase()}.png`);
-    return urls;
-  }
-  if (item.market === 'us') return [
-    `https://assets.parqet.com/logos/symbol/${sym}?format=svg`,
-    `https://logo.clearbit.com/${sym.toLowerCase()}.com`,
-  ];
-  if (item.market === 'kr') return [
-    `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${sym}.png`,
-  ];
-  return [];
-}
-function getLogoUrl(item) { return getLogoUrls(item)[0] || null; }
-
-const PALETTE = ['#3182F6','#F04452','#FF9500','#2AC769','#8B5CF6','#EC4899','#14B8A6','#F59E0B'];
-function colorFor(s = '') {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
+// ─── 로고 URL + 아바타 색상 (home/utils.js 통합본 사용) ──────
+import { getLogoUrls, getAvatarBg as colorFor } from './home/utils';
 
 function PanelLogo({ item }) {
   const urls = getLogoUrls(item);

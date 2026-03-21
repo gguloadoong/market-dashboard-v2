@@ -55,37 +55,8 @@ function fmtChangeAmt(item, krwRate) {
   return `${sign}${amt.toFixed(2)}`;
 }
 
-// ─── 로고 URL 후보 목록 (우선순위 순, 실패 시 다음 URL 시도) ──
-function getLogoUrls(item) {
-  const sym = item.symbol || '';
-  if (item.id) {
-    // 코인: CoinGecko → CoinCap → cryptocurrency-icons
-    const urls = [];
-    if (item.image) urls.push(item.image);
-    urls.push(`https://assets.coincap.io/assets/icons/${sym.toLowerCase()}@2x.png`);
-    urls.push(`https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${sym.toLowerCase()}.png`);
-    return urls;
-  }
-  if (item.market === 'us') return [
-    `https://assets.parqet.com/logos/symbol/${sym}?format=png`,
-    `https://logo.clearbit.com/${sym.toLowerCase()}.com`,
-  ];
-  if (item.market === 'kr') return [
-    `https://file.alphasquare.co.kr/media/images/stock_logo/kr/${sym}.png`,
-  ];
-  return [];
-}
-
-// 심볼별 배경 색상 (로고 실패 시)
-const PALETTE = [
-  '#3182F6','#F04452','#FF9500','#2AC769','#8B5CF6',
-  '#EC4899','#14B8A6','#F59E0B','#6366F1','#EF4444',
-];
-function colorFor(symbol = '') {
-  let h = 0;
-  for (let i = 0; i < symbol.length; i++) h = symbol.charCodeAt(i) + ((h << 5) - h);
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
+// ─── 로고 URL + 아바타 색상 (home/utils.js 통합본 사용) ──────
+import { getLogoUrls, getAvatarBg as colorFor } from './home/utils';
 
 // ─── 로고 아바타 (멀티-폴백) ─────────────────────────────────
 const LogoAvatar = React.memo(function LogoAvatar({ item, size = 32 }) {

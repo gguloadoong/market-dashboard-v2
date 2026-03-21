@@ -101,22 +101,16 @@ export async function fetchUpbit() {
 
 // ─── CoinPaprika — 코인 목록 + USD 가격 + 시총 (키 불필요) ──────
 // rate limit 관대 (~10 req/s), 이미지 URL 패턴: static.coinpaprika.com/coin/{id}/logo.png
-let paprikaCache = [];
-
 export async function fetchCoinPaprika() {
   const res = await fetch(
     'https://api.coinpaprika.com/v1/tickers?limit=250',
     { signal: AbortSignal.timeout(12000) }
   );
   if (!res.ok) throw new Error(`CoinPaprika ${res.status}`);
-  const data = await res.json();
-  paprikaCache = data;
-  return data;
+  return await res.json();
 }
 
 // ─── Binance — 전체 USDT 페어 24h 가격 (키 불필요, 매우 빠름) ──
-let binanceCache = {};
-
 export async function fetchBinancePrices() {
   const res = await fetch(
     'https://api.binance.com/api/v3/ticker/24hr',
@@ -135,7 +129,6 @@ export async function fetchBinancePrices() {
       volume24hUsd: parseFloat(t.quoteVolume),
     };
   }
-  binanceCache = map;
   return map;
 }
 
