@@ -123,7 +123,8 @@ export default async function handler(req) {
         status: 403, headers: { 'Content-Type': 'application/json' },
       });
     }
-  } catch {
+  } catch (e) {
+    console.warn('[news-summary] Invalid URL:', url, e.message);
     return new Response(JSON.stringify({ error: 'Invalid url' }), {
       status: 400, headers: { 'Content-Type': 'application/json' },
     });

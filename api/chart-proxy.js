@@ -3,6 +3,11 @@
 // interval 파라미터 추가로 분봉/시봉/일봉/주봉/월봉 지원
 export const config = { runtime: 'edge' };
 
+// SSRF 방어: range/interval 화이트리스트 (모듈 스코프 — 매 요청마다 재생성 방지)
+const ALLOWED_RANGES = ['1d','5d','1mo','3mo','6mo','1y','2y','5y','10y','ytd','max'];
+const ALLOWED_INTERVALS = ['1m','2m','5m','15m','30m','60m','90m','1h','1d','5d','1wk','1mo','3mo'];
+const SYMBOL_RE = /^[A-Za-z0-9.\-^=]+$/;
+
 export default async function handler(req) {
   const { searchParams } = new URL(req.url);
   const symbol   = searchParams.get('symbol');
@@ -15,10 +20,6 @@ export default async function handler(req) {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-
-  // SSRF 방어: range/interval 화이트리스트
-  const ALLOWED_RANGES = ['1d','5d','1mo','3mo','6mo','1y','2y','5y','10y','ytd','max'];
-  const ALLOWED_INTERVALS = ['1m','2m','5m','15m','30m','60m','90m','1h','1d','5d','1wk','1mo','3mo'];
   if (!ALLOWED_RANGES.includes(range)) {
     return new Response(JSON.stringify({ error: 'Invalid range' }), {
       status: 400, headers: { 'Content-Type': 'application/json' },
@@ -31,7 +32,7 @@ export default async function handler(req) {
   }
 
   // symbol 인젝션 방어: 허용 문자만
-  if (!/^[A-Za-z0-9\.\-\^=]+$/.test(symbol)) {
+  if (!SYMBOL_RE.test(symbol)) {
     return new Response(JSON.stringify({ error: 'Invalid symbol' }), {
       status: 400, headers: { 'Content-Type': 'application/json' },
     });
