@@ -1,6 +1,7 @@
 // 뉴스 상세 슬라이드 패널 — AI 요약 + 관련 종목 + 관련 뉴스 + 원문 링크
 import { useMemo, useEffect, useState } from 'react';
 import { buildStockKeywords, matchesKeywords } from '../utils/newsAlias';
+import { RELATED_ASSETS } from '../data/relatedAssets';
 import { useAllNewsQuery } from '../hooks/useNewsQuery';
 
 const CAT_COLOR = {
@@ -119,7 +120,7 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
       .slice(0, 5);
   }, [news, allNews]);
 
-  // 관련 종목 매칭
+  // 관련 종목 매칭 — 키워드 직접 매칭 + relatedAssets 연관 종목 확장
   const relatedItems = useMemo(() => {
     if (!news) return [];
     const text = `${news.title || ''} ${news.description || ''} ${news.summary || ''}`;
@@ -128,11 +129,40 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
       ...usStocks.map(s => ({ ...s, _market: 'US' })),
       ...coins.map(c => ({ ...c, _market: 'COIN' })),
     ];
-    return all.filter(item => {
+    const allMap = Object.fromEntries(all.map(item => [item.symbol, item]));
+
+    // 1단계: 키워드 직접 매칭
+    const directMatches = all.filter(item => {
       const keywords = buildStockKeywords(item.symbol, item.name,
         item._market === 'KR' ? 'KR' : item._market === 'COIN' ? 'COIN' : 'US');
       return keywords.length > 0 && matchesKeywords(text, keywords);
-    }).slice(0, 8);
+    });
+
+    // 2단계: 직접 매칭된 종목의 연관 종목 확장 (relatedAssets)
+    const seen = new Set(directMatches.map(d => d.symbol));
+    const expanded = [];
+    for (const matched of directMatches) {
+      const info = RELATED_ASSETS[matched.symbol];
+      if (!info?.related) continue;
+      for (const rel of info.related) {
+        if (seen.has(rel.symbol)) continue;
+        seen.add(rel.symbol);
+        // 실제 데이터가 있으면 그 데이터 사용, 없으면 stub 생성
+        const existing = allMap[rel.symbol];
+        if (existing) {
+          expanded.push(existing);
+        } else {
+          expanded.push({
+            symbol: rel.symbol,
+            name: rel.reason,
+            _market: rel.market,
+            _relationType: rel.type,
+          });
+        }
+      }
+    }
+
+    return [...directMatches, ...expanded].slice(0, 8);
   }, [news, krStocks, usStocks, coins]);
 
   if (!news) return null;

@@ -87,11 +87,11 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
   const krLabel = getKoreanMarketStatus().label;
   const usLabel = getUsMarketStatus().label;
 
-  // 휴장 시 표시할 오버레이
-  const ClosedOverlay = ({ label }) => (
-    <div className="px-4 py-8 text-center">
-      <span className="text-[13px] text-[#B0B8C1]">🌙 {label}</span>
-      <p className="text-[11px] text-[#C9CDD2] mt-1">전일 종가 기준</p>
+  // 휴장 시 종목 리스트 위에 라벨 표시 (종목은 딤 처리로 유지)
+  const ClosedLabel = ({ label }) => (
+    <div className="px-4 pt-2 pb-1 flex items-center gap-1.5">
+      <span className="text-[10px] text-[#B0B8C1]">🌙 {label}</span>
+      <span className="text-[10px] text-[#C9CDD2]">· 전일 종가 기준</span>
     </div>
   );
 
@@ -110,9 +110,8 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#FFF0F0] text-[#F04452]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!krOpen
-              ? <ClosedOverlay label={krLabel} />
-              : !hasData
+            {!krOpen && <ClosedLabel label={krLabel} />}
+            {!hasData
               ? <SkeletonHotRow count={5} />
               : krHot.length > 0
                 ? krHot.map((item, i) => (
@@ -140,9 +139,8 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#3182F6]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!usOpen
-              ? <ClosedOverlay label={usLabel} />
-              : !hasData
+            {!usOpen && <ClosedLabel label={usLabel} />}
+            {!hasData
               ? <SkeletonHotRow count={5} />
               : usHot.length > 0
                 ? usHot.map((item, i) => (
@@ -200,9 +198,8 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!krOpen
-              ? <ClosedOverlay label={krLabel} />
-              : !hasData
+            {!krOpen && <ClosedLabel label={krLabel} />}
+            {!hasData
               ? <SkeletonHotRow count={5} />
               : krDrop.map((item, i) => (
                   <HotRow
@@ -228,9 +225,8 @@ export default function HotListSection({ hasData, krHot, usHot, coinHot, krDrop,
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#EDF4FF] text-[#1764ED]">TOP 5</span>
           </div>
           <div className="py-1">
-            {!usOpen
-              ? <ClosedOverlay label={usLabel} />
-              : !hasData
+            {!usOpen && <ClosedLabel label={usLabel} />}
+            {!hasData
               ? <SkeletonHotRow count={5} />
               : usDrop.map((item, i) => (
                   <HotRow
