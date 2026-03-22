@@ -147,18 +147,12 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
       for (const rel of info.related) {
         if (seen.has(rel.symbol)) continue;
         seen.add(rel.symbol);
-        // 실제 데이터가 있으면 그 데이터 사용, 없으면 stub 생성
-        const existing = allMap[rel.symbol];
-        if (existing) {
-          expanded.push(existing);
-        } else {
-          expanded.push({
-            symbol: rel.symbol,
-            name: rel.reason,
-            _market: rel.market,
-            _relationType: rel.type,
-          });
-        }
+        expanded.push(allMap[rel.symbol] ?? {
+          symbol: rel.symbol,
+          name: rel.reason,
+          _market: rel.market,
+          _relationType: rel.type,
+        });
       }
     }
 
