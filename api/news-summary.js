@@ -105,6 +105,30 @@ export default async function handler(req) {
     });
   }
 
+  // SSRF 방어: 허용된 프로토콜만 크롤
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return new Response(JSON.stringify({ error: 'Invalid protocol' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    // 내부 네트워크 차단 (localhost, 사설 IP, 메타데이터)
+    const host = parsed.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1'
+      || host === '0.0.0.0' || host.endsWith('.local')
+      || host === '169.254.169.254' || host === 'metadata.google.internal'
+      || /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host)) {
+      return new Response(JSON.stringify({ error: 'Internal hosts not allowed' }), {
+        status: 403, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid url' }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   if (!GEMINI_KEY) {
     return new Response(JSON.stringify({ summary: null, error: 'no gemini key' }), {
       headers: { 'Content-Type': 'application/json' },

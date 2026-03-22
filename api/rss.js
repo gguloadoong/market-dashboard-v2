@@ -58,6 +58,14 @@ export default async function handler(request) {
     });
   }
 
+  // SSRF 방어: 허용된 도메인만 프록시
+  if (!ALLOWED_DOMAINS.some(d => targetUrl.hostname === d || targetUrl.hostname.endsWith(`.${d}`))) {
+    return new Response(JSON.stringify({ error: 'Domain not allowed' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
+
   try {
     const upstream = await fetch(targetUrl.toString(), {
       headers: {
