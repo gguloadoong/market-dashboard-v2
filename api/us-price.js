@@ -18,8 +18,9 @@ async function fetchYahooV8(symbol) {
   const price  = meta.regularMarketPrice;
   // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
   // previousClose가 현재가와 같거나 없으면 closes에서 현재가와 다른 가장 최근 값 사용
-  // 부동소수점 비교: 0.01 이내 차이는 동일 가격으로 간주
-  const almostEqual = (a, b) => Math.abs(a - b) < 0.01;
+  // 부동소수점 비교: 상대 0.01% 이내 차이는 동일 가격으로 간주
+  // 절대 0.01 임계값은 penny stock($0.03)이나 지수(2500+)에서 오작동 → 상대 비교로 변경
+  const almostEqual = (a, b) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) < 0.0001;
   let prev = meta.previousClose;
   if (!prev || almostEqual(prev, price)) {
     for (let i = closes.length - 2; i >= 0; i--) {

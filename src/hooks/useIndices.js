@@ -16,7 +16,7 @@ export function useIndices() {
       if (data.length > 0) {
         setIndices(prev => prev.map(idx => ({ ...idx, ...(data.find(d => d.id === idx.id) ?? {}) })));
       }
-    } catch {}
+    } catch (e) { console.warn('[지수] 갱신 실패:', e.message); }
   }, []);
 
   const refreshExchangeRate = useCallback(async () => {
@@ -26,7 +26,7 @@ export function useIndices() {
         setKrwRate(rate);
         setWhaleKrwRate(rate);
       }
-    } catch {}
+    } catch (e) { console.warn('[환율] 갱신 실패:', e.message); }
   }, []);
 
   useEffect(() => {

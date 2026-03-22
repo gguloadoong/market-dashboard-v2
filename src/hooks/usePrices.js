@@ -24,6 +24,9 @@ export function usePrices() {
         }));
         checkAndAlertBatch(data, 'us');
         setDataErrors(prev => ({ ...prev, us: false }));
+      } else {
+        // 모든 소스가 빈 결과 반환 — 에러 상태 설정
+        setDataErrors(prev => ({ ...prev, us: true }));
       }
     } catch { setDataErrors(prev => ({ ...prev, us: true })); }
   }, []);
@@ -54,6 +57,8 @@ export function usePrices() {
         });
         checkAndAlertBatch(data, 'kr');
         setDataErrors(prev => ({ ...prev, kr: false }));
+      } else {
+        setDataErrors(prev => ({ ...prev, kr: true }));
       }
     } catch { setDataErrors(prev => ({ ...prev, kr: true })); }
   }, []);

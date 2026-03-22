@@ -76,10 +76,16 @@ export default async function handler(req) {
       if (!meta?.regularMarketPrice) throw new Error('no price');
       const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
       // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
-      const prev   = meta.previousClose
-        ?? (closes.length >= 2 ? closes[closes.length - 2] : null)
-        ?? meta.regularMarketPrice;
+      // previousClose가 현재가와 동일하면 closes에서 이전 종가 탐색 (almostEq 가드)
       const price = meta.regularMarketPrice;
+      const almostEq = (a, b) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) < 0.0001;
+      let prev = meta.previousClose;
+      if (!prev || almostEq(prev, price)) {
+        for (let i = closes.length - 2; i >= 0; i--) {
+          if (closes[i] && !almostEq(closes[i], price)) { prev = closes[i]; break; }
+        }
+      }
+      if (!prev) prev = price;
       return {
         symbol,
         price,

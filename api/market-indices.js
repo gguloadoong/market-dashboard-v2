@@ -27,8 +27,8 @@ async function fetchYahooIndex(id, symbol) {
   const price  = meta.regularMarketPrice;
   // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
   // previousClose가 null이거나 현재가와 동일하면 closes 배열에서 이전 종가 탐색
-  // 부동소수점 비교: 0.01 이내 차이는 동일 가격으로 간주
-  const almostEqual = (a, b) => Math.abs(a - b) < 0.01;
+  // 부동소수점 비교: 상대 0.01% 이내 차이는 동일 가격으로 간주
+  const almostEqual = (a, b) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) < 0.0001;
   let prev = meta.previousClose;
   if (!prev || almostEqual(prev, price)) {
     for (let i = closes.length - 2; i >= 0; i--) {

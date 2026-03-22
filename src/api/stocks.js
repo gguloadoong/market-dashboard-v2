@@ -1,5 +1,5 @@
 // 주식 데이터
-// 미국: Stooq.com (CORS OK) → Alpaca Markets (키 있을 때) → Yahoo Finance v7 프록시 fallback → v8 chart fallback
+// 미국: /api/us-price (Edge 프록시) → Stooq.com (CORS OK) → Yahoo Finance v7 프록시 fallback → v8 chart fallback
 // 한국: Naver Finance 모바일 API via allorigins → Yahoo .KS 프록시 fallback
 
 const PROXY_BASE = 'https://api.allorigins.win/get?url=';
@@ -47,50 +47,6 @@ async function fetchStooq(symbols) {
     });
 }
 
-// ─── Alpaca Markets (미국 주식, 무료 티어 실시간 데이터) ───────
-// VITE_ALPACA_KEY, VITE_ALPACA_SECRET 환경변수 필요
-// 키 미설정 시 자동으로 다음 소스(Yahoo)로 fallback
-async function fetchAlpaca(symbols) {
-  const key    = import.meta.env.VITE_ALPACA_KEY;
-  const secret = import.meta.env.VITE_ALPACA_SECRET;
-  if (!key || !secret) throw new Error('Alpaca 키 미설정');
-
-  const url = `https://data.alpaca.markets/v2/stocks/quotes/latest?symbols=${symbols.join(',')}`;
-  const res = await fetch(url, {
-    headers: {
-      'APCA-API-KEY-ID':     key,
-      'APCA-API-SECRET-KEY': secret,
-    },
-    signal: AbortSignal.timeout(6000),
-  });
-  if (!res.ok) throw new Error(`Alpaca ${res.status}`);
-  const data = await res.json();
-
-  // Yahoo v7 동시 조회 — Alpaca는 change 필드 없음 → Yahoo에서 changePct 보완
-  const [alpacaData, yahooQuotes] = await Promise.all([
-    data, // 이미 fetch 완료
-    fetchYahooQuoteBatch(symbols).catch(() => []),
-  ]);
-  const yahooMap = Object.fromEntries(
-    (yahooQuotes || []).map(r => [r.symbol, r])
-  );
-
-  return symbols.map(sym => {
-    const q = alpacaData.quotes?.[sym];
-    if (!q) return null;
-    const price = (q.ap + q.bp) / 2; // ask/bid midpoint
-    const yq = yahooMap[sym];
-    return {
-      symbol:    sym,
-      price,
-      change:    yq?.regularMarketChange       ?? 0,
-      changePct: yq?.regularMarketChangePercent ?? 0,
-      volume:    0,
-      _source:   'alpaca',
-    };
-  }).filter(Boolean);
-}
-
 // ─── Yahoo Finance v7 (배치) via allorigins ───────────────────
 async function fetchYahooQuoteBatch(symbols) {
   const url  = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`;
@@ -108,9 +64,9 @@ async function fetchYahooChart(symbol) {
   const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
   // chartPreviousClose는 차트 시작 기준점으로 전일 종가가 아님 — 사용 금지
   // previousClose가 현재가와 같거나 없으면 closes에서 현재가와 다른 가장 최근 값 사용
-  // 부동소수점 비교: 0.01 이내 차이는 동일 가격으로 간주
+  // 부동소수점 비교: 상대 0.01% 이내 차이는 동일 가격으로 간주
   const curPrice = meta.regularMarketPrice;
-  const almostEq = (a, b) => Math.abs(a - b) < 0.01;
+  const almostEq = (a, b) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) < 0.0001;
   let prev = meta.previousClose;
   if (!prev || almostEq(prev, curPrice)) {
     for (let i = closes.length - 2; i >= 0; i--) {
@@ -141,14 +97,16 @@ export async function fetchUsStocksBatch(symbols) {
     if (res.ok) {
       const data = await res.json();
       if (data.results?.length >= symbols.length * 0.7) return data.results;
+      if (data.results?.length > 0) console.warn(`[미장] Edge 프록시 부분 결과: ${data.results.length}/${symbols.length}`);
     }
-  } catch {}
+  } catch (e) { console.warn('[미장] Edge 프록시 실패:', e.message); }
 
   // 2) Stooq (직접 CORS 허용, EOD 데이터) — Prev_Close 필드 기반 전일 종가 대비 등락률
   try {
     const data = await fetchStooq(symbols);
     if (data.length >= symbols.length * 0.7) return data;
-  } catch {}
+    if (data.length > 0) console.warn(`[미장] Stooq 부분 결과: ${data.length}/${symbols.length}`);
+  } catch (e) { console.warn('[미장] Stooq 실패:', e.message); }
 
   // 3) Yahoo v7 batch via allorigins proxy — Stooq 실패 시 fallback
   try {
@@ -164,11 +122,14 @@ export async function fetchUsStocksBatch(symbols) {
       low52w:    r.fiftyTwoWeekLow,
       _source:   'yahoo',
     }));
-  } catch {}
+    if (results.length > 0) console.warn(`[미장] Yahoo v7 부분 결과: ${results.length}/${symbols.length}`);
+  } catch (e) { console.warn('[미장] Yahoo v7 실패:', e.message); }
 
   // 4) Yahoo v8 개별 chart — 전일 종가(previousClose) 기반
   const settled = await Promise.allSettled(symbols.map(fetchYahooChart));
-  return settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+  const v8Results = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+  if (v8Results.length === 0) console.warn('[미장] 모든 소스 실패 — 데이터 없음');
+  return v8Results;
 }
 
 // ─── Naver Finance (Vercel serverless 프록시) ─────────────────
@@ -250,7 +211,7 @@ export async function fetchKoreanStocksBatch(stocks) {
   try {
     const valid = await fetchNaverBatch(stocks);
     if (valid.length >= stocks.length * 0.1) return valid;
-  } catch {}
+  } catch (e) { console.warn('[국장] Naver 실패:', e.message); }
 
   // 3) Yahoo Finance .KS via proxy
   try {
@@ -266,7 +227,7 @@ export async function fetchKoreanStocksBatch(stocks) {
       high52w:   r.fiftyTwoWeekHigh,
       low52w:    r.fiftyTwoWeekLow,
     }));
-  } catch {}
+  } catch (e) { console.warn('[국장] Yahoo .KS 실패:', e.message); }
 
   return [];
 }
@@ -352,7 +313,8 @@ async function fetchYahooRace(symbol, id) {
         const price  = meta.regularMarketPrice;
         // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
         // previousClose가 null이거나 현재가와 동일하면 closes에서 이전 종가 탐색
-        const almostEq = (a, b) => Math.abs(a - b) < 0.01;
+        // 부동소수점 비교: 상대 0.01% 이내 차이는 동일 가격으로 간주
+        const almostEq = (a, b) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) < 0.0001;
         let prev = meta.previousClose;
         if (!prev || almostEq(prev, price)) {
           for (let i = closes.length - 2; i >= 0; i--) {
@@ -432,7 +394,7 @@ export async function fetchIndices() {
       const data = await res.json();
       if (data.results?.length > 0) results = data.results;
     }
-  } catch {}
+  } catch (e) { console.warn('[지수] Edge 프록시 실패:', e.message); }
 
   // 1) 누락된 지수 확인 — Edge 프록시가 부분 결과 반환 시 보충
   const have = new Set(results.map(r => r.id));
@@ -451,7 +413,7 @@ export async function fetchIndices() {
           have.add(idx.id);
         }
       }
-    } catch {}
+    } catch (e) { console.warn('[지수] 한투 지수 fallback 실패:', e.message); }
   }
 
   // 3) 여전히 누락된 지수: Stooq(KOSPI) + Yahoo allorigins(나머지) fallback
