@@ -1,9 +1,10 @@
-// 지수·환율 폴링 훅 (60초)
+// 지수·환율 폴링 훅
 import { useState, useEffect, useCallback } from 'react';
 import { INDICES_INITIAL } from '../data/mock';
 import { fetchIndices } from '../api/stocks';
 import { fetchExchangeRate } from '../api/coins';
 import { setWhaleKrwRate } from '../api/whale';
+import { POLLING } from '../constants/polling';
 
 export function useIndices() {
   const [indices, setIndices]   = useState(INDICES_INITIAL);
@@ -31,8 +32,8 @@ export function useIndices() {
   useEffect(() => {
     refreshIndices();
     refreshExchangeRate();
-    const indicesId = setInterval(refreshIndices, 60000);
-    const rateId    = setInterval(refreshExchangeRate, 30000);
+    const indicesId = setInterval(refreshIndices, POLLING.SLOW);
+    const rateId    = setInterval(refreshExchangeRate, POLLING.NORMAL);
     return () => { clearInterval(indicesId); clearInterval(rateId); };
   }, [refreshIndices, refreshExchangeRate]);
 

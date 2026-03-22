@@ -9,6 +9,7 @@ import NewsFeedWidget from './widgets/NewsFeedWidget';
 import NotableMoversSection from './NotableMoversSection';
 import MarketInvestorSection from './MarketInvestorSection';
 import EventTicker from './EventTicker';
+import EarlySignalSection from './EarlySignalSection';
 import CoinListingSection from './CoinListingSection';
 
 // ─── 섹터 미니 위젯 (HOT 3 + COLD 3 칩 → 섹터 탭 유도) ──
@@ -149,6 +150,16 @@ export default function HomeDashboard({
 
       {/* ─── 경제 이벤트 티커 ─────────────────────────────── */}
       <EventTicker />
+
+      {/* ─── 선행 신호 (뉴스 발생 + 주가 미반응 종목) ──────── */}
+      {hasData && (
+        <EarlySignalSection
+          allItems={allItems}
+          recentNews={recentNews}
+          krwRate={krwRate}
+          onItemClick={onItemClick}
+        />
+      )}
 
       {/* ─── 관심종목 + 섹터 흐름 (2열 나란히, 모바일은 세로) ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

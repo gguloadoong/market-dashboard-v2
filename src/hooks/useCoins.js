@@ -6,6 +6,7 @@ import { COINS_INITIAL } from '../data/mock';
 import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate, fetchUpbitAllSymbols, fetchCoinGecko, getSparklineCache } from '../api/coins';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from '../api/coinWs';
 import { setWhaleBtcKrwPrice } from '../api/whale';
+import { POLLING } from '../constants/polling';
 import { checkAndAlertBatch } from '../utils/priceAlert';
 
 export function useCoins(krwRateRef) {
@@ -61,9 +62,9 @@ export function useCoins(krwRateRef) {
 
   // 폴링 인터벌
   useEffect(() => {
-    const quickId     = setInterval(() => refreshCoinsQuick(), 10000);
-    const fullId      = setInterval(refreshCoins, 60000);
-    const sparklineId = setInterval(refreshSparklines, 5 * 60 * 1000); // 5분
+    const quickId     = setInterval(() => refreshCoinsQuick(), POLLING.FAST);
+    const fullId      = setInterval(refreshCoins, POLLING.SLOW);
+    const sparklineId = setInterval(refreshSparklines, POLLING.SPARKLINE);
     return () => { clearInterval(quickId); clearInterval(fullId); clearInterval(sparklineId); };
   }, [refreshCoinsQuick, refreshCoins, refreshSparklines]);
 

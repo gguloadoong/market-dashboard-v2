@@ -1,8 +1,9 @@
-// 미국·국내 주식 가격 폴링 훅 (30초)
+// 미국·국내 주식 가격 폴링 훅
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { KOREAN_STOCKS, US_STOCKS_INITIAL } from '../data/mock';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch } from '../api/stocks';
 import { checkAndAlertBatch } from '../utils/priceAlert';
+import { POLLING } from '../constants/polling';
 
 const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
 
@@ -60,8 +61,8 @@ export function usePrices() {
   useEffect(() => {
     refreshUsStocks();
     refreshKoreanStocks();
-    const usId = setInterval(refreshUsStocks, 30000);
-    const krId = setInterval(refreshKoreanStocks, 30000);
+    const usId = setInterval(refreshUsStocks, POLLING.NORMAL);
+    const krId = setInterval(refreshKoreanStocks, POLLING.NORMAL);
     return () => { clearInterval(usId); clearInterval(krId); };
   }, [refreshUsStocks, refreshKoreanStocks]);
 
