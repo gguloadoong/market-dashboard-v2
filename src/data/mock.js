@@ -381,6 +381,39 @@ export const US_STOCKS_INITIAL = [
   { symbol:'PATH',  name:'유아이패스',       nameEn:'UiPath',           market:'us', sector:'AI/자동화',  price:13.45, change:0, changePct:0, volume:9000000,  marketCap:0.008e12, high52w:22.68, low52w:10.82 },
   { symbol:'ASTS',  name:'AST스페이스모바일',nameEn:'AST SpaceMobile',  market:'us', sector:'우주통신',   price:22.40, change:0, changePct:0, volume:12000000, marketCap:0.007e12, high52w:42.42, low52w:5.53  },
   { symbol:'NVO',   name:'노보노디스크',     nameEn:'Novo Nordisk',     market:'us', sector:'제약',       price:78.40, change:0, changePct:0, volume:5800000,  marketCap:0.35e12,  high52w:138.26, low52w:65.24 },
+  // ─── S&P 500 추가: 헬스케어·의료기기 ────────────────────────────
+  { symbol:'TMO',   name:'써모피셔사이언티픽',nameEn:'Thermo Fisher',   market:'us', sector:'헬스케어',   price:448.45, change:0, changePct:0, volume:1500000,  marketCap:0.17e12,  high52w:627.44, low52w:436.77 },
+  { symbol:'BSX',   name:'보스턴사이언티픽', nameEn:'Boston Scientific',market:'us', sector:'의료기기',   price:98.45,  change:0, changePct:0, volume:6500000,  marketCap:0.14e12,  high52w:104.12, low52w:65.21  },
+  { symbol:'SYK',   name:'스트라이커',       nameEn:'Stryker',          market:'us', sector:'의료기기',   price:368.45, change:0, changePct:0, volume:1800000,  marketCap:0.14e12,  high52w:408.06, low52w:285.02 },
+  { symbol:'MRNA',  name:'모더나',           nameEn:'Moderna',          market:'us', sector:'바이오',     price:38.45,  change:0, changePct:0, volume:9500000,  marketCap:0.015e12, high52w:170.47, low52w:34.78  },
+  { symbol:'BIIB',  name:'바이오젠',         nameEn:'Biogen',           market:'us', sector:'바이오',     price:148.45, change:0, changePct:0, volume:1200000,  marketCap:0.022e12, high52w:262.30, low52w:128.54 },
+  { symbol:'IQV',   name:'IQVIA홀딩스',      nameEn:'IQVIA Holdings',   market:'us', sector:'헬스케어',   price:178.45, change:0, changePct:0, volume:1200000,  marketCap:0.033e12, high52w:255.21, low52w:163.54 },
+  // ─── S&P 500 추가: 소프트웨어·IT ────────────────────────────────
+  { symbol:'ADSK',  name:'오토데스크',       nameEn:'Autodesk',         market:'us', sector:'소프트웨어', price:278.45, change:0, changePct:0, volume:2200000,  marketCap:0.061e12, high52w:312.05, low52w:189.07 },
+  { symbol:'CDNS',  name:'케이던스',         nameEn:'Cadence Design',   market:'us', sector:'소프트웨어', price:298.45, change:0, changePct:0, volume:1500000,  marketCap:0.082e12, high52w:340.97, low52w:196.89 },
+  { symbol:'SNPS',  name:'시놉시스',         nameEn:'Synopsys',         market:'us', sector:'소프트웨어', price:458.45, change:0, changePct:0, volume:800000,   marketCap:0.070e12, high52w:598.24, low52w:363.11 },
+  { symbol:'ADP',   name:'ADP',              nameEn:'ADP',              market:'us', sector:'IT서비스',   price:298.45, change:0, changePct:0, volume:2200000,  marketCap:0.13e12,  high52w:318.26, low52w:211.53 },
+  { symbol:'PAYX',  name:'페이첵스',         nameEn:'Paychex',          market:'us', sector:'IT서비스',   price:148.45, change:0, changePct:0, volume:2500000,  marketCap:0.054e12, high52w:162.04, low52w:113.68 },
+  { symbol:'CTAS',  name:'신타스',           nameEn:'Cintas',           market:'us', sector:'산업',       price:198.45, change:0, changePct:0, volume:850000,   marketCap:0.082e12, high52w:222.31, low52w:148.13 },
+  // ─── S&P 500 추가: 금융·데이터 ──────────────────────────────────
+  { symbol:'SPGI',  name:'S&P글로벌',        nameEn:'S&P Global',       market:'us', sector:'금융',       price:478.45, change:0, changePct:0, volume:850000,   marketCap:0.16e12,  high52w:553.64, low52w:386.06 },
+  { symbol:'MCO',   name:'무디스',           nameEn:"Moody's",          market:'us', sector:'금융',       price:468.45, change:0, changePct:0, volume:650000,   marketCap:0.086e12, high52w:523.14, low52w:363.04 },
+  // ─── S&P 500 추가: 소비재·필수소비 ─────────────────────────────
+  { symbol:'PM',    name:'필립모리스',       nameEn:'Philip Morris',    market:'us', sector:'소비재',     price:148.45, change:0, changePct:0, volume:5500000,  marketCap:0.23e12,  high52w:157.87, low52w:83.07  },
+  { symbol:'MO',    name:'알트리아',         nameEn:'Altria',           market:'us', sector:'소비재',     price:52.45,  change:0, changePct:0, volume:9500000,  marketCap:0.093e12, high52w:56.99,  low52w:37.97  },
+  { symbol:'MDLZ',  name:'몬델리즈',         nameEn:'Mondelez',         market:'us', sector:'소비재',     price:62.45,  change:0, changePct:0, volume:5500000,  marketCap:0.081e12, high52w:77.58,  low52w:57.15  },
+  { symbol:'KMB',   name:'킴벌리클락',       nameEn:'Kimberly-Clark',   market:'us', sector:'소비재',     price:132.45, change:0, changePct:0, volume:2800000,  marketCap:0.045e12, high52w:143.13, low52w:116.01 },
+  { symbol:'CL',    name:'콜게이트팜올리브', nameEn:'Colgate-Palmolive',market:'us', sector:'소비재',     price:88.45,  change:0, changePct:0, volume:4500000,  marketCap:0.074e12, high52w:103.10, low52w:83.70  },
+  // ─── S&P 500 추가: 산업·물류 ────────────────────────────────────
+  { symbol:'UNP',   name:'유니언퍼시픽',     nameEn:'Union Pacific',    market:'us', sector:'물류',       price:228.45, change:0, changePct:0, volume:2800000,  marketCap:0.14e12,  high52w:268.24, low52w:202.84 },
+  { symbol:'NSC',   name:'노퍽서던',         nameEn:'Norfolk Southern', market:'us', sector:'물류',       price:218.45, change:0, changePct:0, volume:1500000,  marketCap:0.053e12, high52w:276.01, low52w:201.55 },
+  { symbol:'WM',    name:'웨이스트매니지먼트',nameEn:'Waste Management', market:'us', sector:'산업',       price:218.45, change:0, changePct:0, volume:1200000,  marketCap:0.089e12, high52w:236.67, low52w:159.64 },
+  // ─── S&P 500 추가: 소재·화학 ────────────────────────────────────
+  { symbol:'SHW',   name:'셔윈윌리엄스',     nameEn:'Sherwin-Williams', market:'us', sector:'소재',       price:348.45, change:0, changePct:0, volume:1200000,  marketCap:0.089e12, high52w:399.82, low52w:250.27 },
+  { symbol:'ECL',   name:'에코랩',           nameEn:'Ecolab',           market:'us', sector:'소재',       price:228.45, change:0, changePct:0, volume:1500000,  marketCap:0.065e12, high52w:265.97, low52w:170.11 },
+  // ─── S&P 500 추가: 부동산 리츠 ──────────────────────────────────
+  { symbol:'PLD',   name:'프롤로지스',       nameEn:'Prologis',         market:'us', sector:'리츠',       price:108.45, change:0, changePct:0, volume:4500000,  marketCap:0.100e12, high52w:140.03, low52w:96.64  },
+  { symbol:'O',     name:'리얼티인컴',       nameEn:'Realty Income',    market:'us', sector:'리츠',       price:52.45,  change:0, changePct:0, volume:6500000,  marketCap:0.046e12, high52w:64.88,  low52w:47.14  },
 ].map(s => ({ ...s, sparkline: genSparkline(s.price, 20, 0.015) }));
 
 // ─── 코인 초기값 (Upbit 2026-03-13 실제가, CoinGecko로 즉시 갱신됨) ─

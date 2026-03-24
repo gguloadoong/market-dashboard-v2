@@ -17,6 +17,7 @@ import { requestNotificationPermission, getNotificationPermission, setAlertWatch
 import { useWatchlist } from './hooks/useWatchlist';
 import { useKrxEtf } from './hooks/useKrxEtf';
 import { useKisWebSocket } from './hooks/useKisWebSocket';
+import { useKisUsWebSocket } from './hooks/useKisUsWebSocket';
 import { usePrices } from './hooks/usePrices';
 import { useCoins } from './hooks/useCoins';
 import { useIndices } from './hooks/useIndices';
@@ -61,6 +62,17 @@ export default function App() {
   }, [krSymbols]);
   useKisWebSocket(kisSymbols, useCallback((quote) => {
     setKrStocks(prev => prev.map(s => s.symbol === quote.symbol ? { ...s, ...quote } : s));
+  }, []));
+
+  // KIS WebSocket HDFSCNT0 — 미장 실시간 (watchlist 우선, 최대 40개)
+  const kisUsSymbols = useMemo(() => {
+    const defaultTop = ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','AVGO',
+                        'JPM','NFLX','AMD','V','MA','LLY','WMT','XOM','PLTR','ARM'];
+    const combined = [...new Set([...usSymbols, ...defaultTop])];
+    return combined.slice(0, 40);
+  }, [usSymbols]);
+  useKisUsWebSocket(kisUsSymbols, useCallback((quote) => {
+    setUsStocks(prev => prev.map(s => s.symbol === quote.symbol ? { ...s, ...quote } : s));
   }, []));
 
   // ETF 폴링 (60초)
