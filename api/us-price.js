@@ -1,11 +1,23 @@
 // api/us-price.js — 미국 주식 가격 배치 조회 Vercel 프록시
-// Yahoo v8 chart 병렬 1순위 (price + sparkline), Stooq 개별 2순위 (fallback)
+// Yahoo v8 chart 6개씩 청크 1순위 (price + sparkline), Stooq 개별 2순위 (fallback)
 // v7 batch → v8 per-symbol: rate limit 시 개별 실패로 granular fallback + sparkline 포함
+// query1/query2 로테이션: Yahoo IP 기반 rate-limit 분산
 export const config = { runtime: 'edge' };
+
+// Yahoo v8 청크 동시 처리 — 6개씩 순차 라운드 (429 방지)
+const YAHOO_CONCURRENCY = 6;
+const YAHOO_HOSTS = ['query1.finance.yahoo.com', 'query2.finance.yahoo.com'];
+let _hostIdx = 0;
+function nextYahooHost() {
+  const host = YAHOO_HOSTS[_hostIdx % YAHOO_HOSTS.length];
+  _hostIdx++;
+  return host;
+}
 
 // Yahoo v8 chart (단일) — price + sparkline 포함 (market-indices.js 동일 방식)
 async function fetchYahooV8Single(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d&includePrePost=false`;
+  const host = nextYahooHost();
+  const url = `https://${host}/v8/finance/chart/${symbol}?interval=1d&range=5d&includePrePost=false`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
     signal: AbortSignal.timeout(8000),
@@ -85,8 +97,13 @@ export default async function handler(req) {
     });
   }
 
-  // 1순위: Yahoo v8 chart 병렬 (price + sparkline, market-indices.js와 동일 방식)
-  const v8Settled = await Promise.allSettled(symbols.map(s => fetchYahooV8Single(s)));
+  // 1순위: Yahoo v8 chart — 6개씩 청크로 순차 처리 (429 방지)
+  const v8Settled = [];
+  for (let i = 0; i < symbols.length; i += YAHOO_CONCURRENCY) {
+    const chunk = symbols.slice(i, i + YAHOO_CONCURRENCY);
+    const chunkSettled = await Promise.allSettled(chunk.map(s => fetchYahooV8Single(s)));
+    v8Settled.push(...chunkSettled);
+  }
 
   const results       = [];
   const failedSymbols = [];
