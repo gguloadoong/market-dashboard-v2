@@ -1,49 +1,46 @@
 // api/us-price.js — 미국 주식 가격 배치 조회 Vercel 프록시
-// Yahoo v7 배치 1순위 (50개씩 병렬), Stooq 개별 2순위 (fallback)
+// Yahoo v8 chart 병렬 1순위 (price + sparkline), Stooq 개별 2순위 (fallback)
+// v7 batch → v8 per-symbol: rate limit 시 개별 실패로 granular fallback + sparkline 포함
 export const config = { runtime: 'edge' };
 
-// Yahoo v7 배치 — 50개씩 청크, 병렬
-async function fetchYahooV7Batch(symbols) {
-  const CHUNK = 50;
-  const chunks = [];
-  for (let i = 0; i < symbols.length; i += CHUNK) {
-    chunks.push(symbols.slice(i, i + CHUNK));
+// Yahoo v8 chart (단일) — price + sparkline 포함 (market-indices.js 동일 방식)
+async function fetchYahooV8Single(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d&includePrePost=false`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Yahoo v8 ${symbol} ${res.status}`);
+  const data   = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result?.meta?.regularMarketPrice) throw new Error(`no price: ${symbol}`);
+  const meta   = result.meta;
+  const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
+  const price  = meta.regularMarketPrice;
+  // chartPreviousClose는 차트 시작 기준점 — 전일 종가 아님, 사용 금지
+  // previousClose가 null이거나 현재가와 동일하면 closes 배열에서 이전 종가 탐색
+  const almostEqual = (a, b) => Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1) < 0.0001;
+  let prev = meta.previousClose;
+  if (!prev || almostEqual(prev, price)) {
+    for (let i = closes.length - 2; i >= 0; i--) {
+      if (closes[i] && !almostEqual(closes[i], price)) { prev = closes[i]; break; }
+    }
   }
-
-  const chunkResults = await Promise.all(
-    chunks.map(async (chunk) => {
-      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${chunk.join(',')}`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) throw new Error(`Yahoo v7 ${res.status}`);
-      const data = await res.json();
-      const quotes = data?.quoteResponse?.result ?? [];
-      return quotes.map(r => {
-        const price     = r.regularMarketPrice;
-        const prev      = r.previousClose || price;
-        const change    = r.regularMarketChange ?? parseFloat((price - prev).toFixed(2));
-        const changePct = r.regularMarketChangePercent ?? (prev > 0 ? parseFloat(((price - prev) / prev * 100).toFixed(2)) : 0);
-        return {
-          symbol:    r.symbol,
-          price:     parseFloat(price.toFixed(2)),
-          change:    parseFloat(change.toFixed(2)),
-          changePct: parseFloat(changePct.toFixed(2)),
-          volume:    r.regularMarketVolume ?? 0,
-          marketCap: 0,
-          high52w:   r.fiftyTwoWeekHigh ?? null,
-          low52w:    r.fiftyTwoWeekLow  ?? null,
-        };
-      }).filter(r => r.price > 0);
-    })
-  );
-
-  return chunkResults.flat();
+  if (!prev) prev = price;
+  return {
+    symbol:    meta.symbol?.split('.')[0] ?? symbol,
+    price:     parseFloat(price.toFixed(2)),
+    change:    parseFloat((price - prev).toFixed(2)),
+    changePct: parseFloat(((price - prev) / prev * 100).toFixed(2)),
+    volume:    meta.regularMarketVolume ?? 0,
+    marketCap: 0,
+    high52w:   meta.fiftyTwoWeekHigh ?? null,
+    low52w:    meta.fiftyTwoWeekLow  ?? null,
+    sparkline: closes.slice(-20),
+  };
 }
 
-// Stooq 개별 쿼리 — fallback (EOD 데이터)
-// Stooq JSON API는 대문자 필드명 반환 (Close, Prev_Close, Volume 등)
+// Stooq 개별 쿼리 — fallback (EOD 데이터, sparkline 없음)
 async function fetchStooqSingle(symbol) {
   const url = `https://stooq.com/q/l/?s=${symbol.toLowerCase()}.us&f=sd2t2ohlcvnp&h&e=json`;
   const res = await fetch(url, {
@@ -52,7 +49,6 @@ async function fetchStooqSingle(symbol) {
   });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const data = await res.json();
-  // Stooq JSON 필드명: 소문자 (close, previous, volume 등)
   const s = (data.symbols || [])[0];
   if (!s) throw new Error('N/D');
   const closeVal = s.close ?? s.Close;
@@ -68,6 +64,7 @@ async function fetchStooqSingle(symbol) {
     marketCap: 0,
     high52w:   null,
     low52w:    null,
+    sparkline: [],
   };
 }
 
@@ -88,22 +85,27 @@ export default async function handler(req) {
     });
   }
 
-  let results = [];
+  // 1순위: Yahoo v8 chart 병렬 (price + sparkline, market-indices.js와 동일 방식)
+  const v8Settled = await Promise.allSettled(symbols.map(s => fetchYahooV8Single(s)));
 
-  // 1순위: Yahoo v7 배치 (50개씩 병렬)
-  try {
-    results = await fetchYahooV7Batch(symbols);
-  } catch (e) {
-    console.warn('[us-price] Yahoo v7 배치 실패:', e.message);
+  const results       = [];
+  const failedSymbols = [];
+
+  for (let i = 0; i < v8Settled.length; i++) {
+    if (v8Settled[i].status === 'fulfilled') {
+      results.push(v8Settled[i].value);
+    } else {
+      failedSymbols.push(symbols[i]);
+    }
   }
 
-  // 70% 이상 결과면 반환, 미달이면 Stooq로 나머지 채움
-  if (results.length < symbols.length * 0.7) {
-    const have = new Set(results.map(r => r.symbol));
-    const missing = symbols.filter(s => !have.has(s));
-    const stooqSettled = await Promise.allSettled(
-      missing.map(s => fetchStooqSingle(s))
-    );
+  if (failedSymbols.length > 0) {
+    console.warn(`[us-price] Yahoo v8 실패 ${failedSymbols.length}개 → Stooq fallback: ${failedSymbols.join(',')}`);
+  }
+
+  // 2순위: Stooq fallback (v8 실패 심볼만 — EOD, sparkline 없음)
+  if (failedSymbols.length > 0) {
+    const stooqSettled = await Promise.allSettled(failedSymbols.map(fetchStooqSingle));
     for (const r of stooqSettled) {
       if (r.status === 'fulfilled') results.push(r.value);
     }

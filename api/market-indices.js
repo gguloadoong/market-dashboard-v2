@@ -65,9 +65,11 @@ async function fetchStooqKospi() {
 }
 
 export default async function handler(req) {
-  // KOSPI: Stooq 1순위 → Yahoo fallback
-  const kospiPromise = fetchStooqKospi()
-    .catch(() => fetchYahooIndex('KOSPI', '^KS11'));
+  // KOSPI: Stooq / Yahoo 동시 레이스 — 먼저 성공한 것 사용 (순차 대기 제거)
+  const kospiPromise = Promise.any([
+    fetchStooqKospi(),
+    fetchYahooIndex('KOSPI', '^KS11'),
+  ]);
 
   // KOSDAQ + 해외: Yahoo 직접 (서버사이드, CORS 무관)
   const [kospiResult, ...otherResults] = await Promise.allSettled([
