@@ -866,6 +866,57 @@ export const RELATED_ASSETS = {
       { symbol: '신한지주', type: 'sector', reason: '은행 섹터 동조화',              market: 'KR' },
     ],
   },
+
+  // ── 에너지 섹터 (유가·원유 뉴스 관련종목 매핑) ────────────────
+  XOM: {
+    label: 'ExxonMobil',
+    sector: '에너지',
+    related: [
+      { symbol: 'CVX',  type: 'sector', reason: '에너지 메이저 동조화',  market: 'US' },
+      { symbol: 'COP',  type: 'sector', reason: '에너지 메이저 동조화',  market: 'US' },
+      { symbol: 'SLB',  type: 'sector', reason: '유전 서비스 연관',      market: 'US' },
+      { symbol: 'XLE',  type: 'etf',    reason: '에너지 섹터 ETF',      market: 'US' },
+      { symbol: 'USO',  type: 'etf',    reason: '원유 선물 ETF',         market: 'US' },
+    ],
+  },
+  CVX: {
+    label: 'Chevron',
+    sector: '에너지',
+    related: [
+      { symbol: 'XOM',  type: 'sector', reason: '에너지 메이저 동조화',  market: 'US' },
+      { symbol: 'COP',  type: 'sector', reason: '에너지 메이저 동조화',  market: 'US' },
+      { symbol: 'SLB',  type: 'sector', reason: '유전 서비스 연관',      market: 'US' },
+      { symbol: 'XLE',  type: 'etf',    reason: '에너지 섹터 ETF',      market: 'US' },
+    ],
+  },
+  SLB: {
+    label: 'Schlumberger',
+    sector: '에너지',
+    related: [
+      { symbol: 'XOM',  type: 'sector', reason: '에너지 메이저 연관',   market: 'US' },
+      { symbol: 'CVX',  type: 'sector', reason: '에너지 메이저 연관',   market: 'US' },
+      { symbol: 'COP',  type: 'sector', reason: '에너지 메이저 연관',   market: 'US' },
+    ],
+  },
+  COP: {
+    label: 'ConocoPhillips',
+    sector: '에너지',
+    related: [
+      { symbol: 'XOM',  type: 'sector', reason: '에너지 메이저 동조화', market: 'US' },
+      { symbol: 'CVX',  type: 'sector', reason: '에너지 메이저 동조화', market: 'US' },
+      { symbol: 'OXY',  type: 'sector', reason: '에너지 독립계 연관',   market: 'US' },
+      { symbol: 'XLE',  type: 'etf',    reason: '에너지 섹터 ETF',     market: 'US' },
+    ],
+  },
+  OXY: {
+    label: 'Occidental',
+    sector: '에너지',
+    related: [
+      { symbol: 'COP',  type: 'sector', reason: '에너지 독립계 동조화', market: 'US' },
+      { symbol: 'XOM',  type: 'sector', reason: '에너지 메이저 연관',   market: 'US' },
+      { symbol: 'XLE',  type: 'etf',    reason: '에너지 섹터 ETF',     market: 'US' },
+    ],
+  },
 };
 
 // ─── 헬퍼 함수 ────────────────────────────────────────────────
