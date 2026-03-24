@@ -1,6 +1,7 @@
 // 뉴스 상세 슬라이드 패널 — AI 요약 + 관련 종목 + 관련 뉴스 + 원문 링크
 import { useMemo, useEffect, useState } from 'react';
 import { buildStockKeywords, matchesKeywords } from '../utils/newsAlias';
+import { RELATED_ASSETS } from '../data/relatedAssets';
 import { useAllNewsQuery } from '../hooks/useNewsQuery';
 
 const CAT_COLOR = {
@@ -137,10 +138,34 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
       return keywords.length > 0 && matchesKeywords(text, keywords);
     });
 
-    // 뉴스 관련종목 = 기사에 직접 언급된 종목만
-    // relatedAssets 2단계 확장은 뉴스 패널에서 사용하지 않음
-    // (relatedAssets는 종목 차트 패널 전용 — 뉴스에 적용하면 맥락 없는 종목이 오염됨)
-    return directMatches.slice(0, 8);
+    // 2단계: 직접 매칭 종목의 연관 종목 확장 (relatedAssets)
+    // 뉴스 카테고리 기준으로 허용 시장을 제한 — 코인 뉴스에 국장 종목이 딸려오는 오염 방지
+    const newsCategory = news.category;
+    const allowedMarkets = new Set(
+      newsCategory === 'coin' ? ['COIN', 'US']      // 코인 뉴스: 코인·미장만, KR 차단
+      : newsCategory === 'kr' ? ['KR', 'US']        // 국장 뉴스: KR·미장만, 코인 차단
+      : ['US', 'COIN', 'KR']                        // 미장·일반: 전체 허용
+    );
+
+    const seen = new Set(directMatches.map(d => d.symbol));
+    const expanded = [];
+    for (const matched of directMatches) {
+      const info = RELATED_ASSETS[matched.symbol];
+      if (!info?.related) continue;
+      for (const rel of info.related) {
+        if (seen.has(rel.symbol)) continue;
+        if (!allowedMarkets.has(rel.market)) continue; // 뉴스 맥락과 맞지 않는 시장 차단
+        seen.add(rel.symbol);
+        expanded.push(allMap[rel.symbol] ?? {
+          symbol: rel.symbol,
+          name: rel.reason,
+          _market: rel.market,
+          _relationType: rel.type,
+        });
+      }
+    }
+
+    return [...directMatches, ...expanded].slice(0, 8);
   }, [news, krStocks, usStocks, coins]);
 
   if (!news) return null;
