@@ -25,7 +25,9 @@ const EXCH_MAP = {
   TTD:  'NASD', IONQ: 'NASD', COIN: 'NASD', HOOD:  'NASD', SOFI:  'NASD',
   SOUN: 'NASD', RKLB: 'NASD', ASTS: 'NASD', BBAI:  'NASD', RGTI:  'NASD',
   PATH: 'NASD', RIVN: 'NASD', LCID: 'NASD', SHOP:  'NASD', PINS:  'NASD',
-  SNAP: 'NASD', SPOT: 'NASD', SBUX: 'NASD',
+  SNAP: 'NASD', SPOT: 'NASD', SBUX: 'NASD', MRNA:  'NASD', BIIB:  'NASD',
+  ADSK: 'NASD', CDNS: 'NASD', SNPS: 'NASD', ADP:   'NASD', PAYX:  'NASD',
+  CTAS: 'NASD', MDLZ: 'NASD', TMUS: 'NASD',
   // ── NYSE ────────────────────────────────────────
   JPM:  'NYSE', V:    'NYSE', MA:   'NYSE', JNJ:   'NYSE', XOM:   'NYSE',
   WMT:  'NYSE', UNH:  'NYSE', BAC:  'NYSE', LLY:   'NYSE', GS:    'NYSE',
@@ -38,31 +40,41 @@ const EXCH_MAP = {
   FDX:  'NYSE', RTX:  'NYSE', LMT:  'NYSE', NOC:   'NYSE', GD:    'NYSE',
   GE:   'NYSE', MMM:  'NYSE', ITW:  'NYSE', EMR:   'NYSE', PH:    'NYSE',
   NEE:  'NYSE', DUK:  'NYSE', SO:   'NYSE', AEP:   'NYSE', D:     'NYSE',
-  XOM:  'NYSE', COP:  'NYSE', SLB:  'NYSE', OXY:   'NYSE', EOG:   'NYSE',
-  PSX:  'NYSE', VLO:  'NYSE', FCX:  'NYSE', NEM:   'NYSE', LIN:   'NYSE',
-  APD:  'NYSE', LOW:  'NYSE', TJX:  'NYSE', MAR:   'NYSE', HLT:   'NYSE',
-  CMG:  'NYSE', YUM:  'NYSE', BKNG: 'NYSE', ABNB:  'NYSE', LYFT:  'NYSE',
-  VZ:   'NYSE', T:    'NYSE', TMUS: 'NYSE', AMT:   'NYSE', CCI:   'NYSE',
+  COP:  'NYSE', SLB:  'NYSE', OXY:  'NYSE', EOG:   'NYSE', PSX:   'NYSE',
+  VLO:  'NYSE', FCX:  'NYSE', NEM:  'NYSE', LIN:   'NYSE', APD:   'NYSE',
+  LOW:  'NYSE', TJX:  'NYSE', MAR:  'NYSE', HLT:   'NYSE', CMG:   'NYSE',
+  YUM:  'NYSE', BKNG: 'NYSE', ABNB: 'NYSE', LYFT:  'NYSE',
+  VZ:   'NYSE', T:    'NYSE', AMT:  'NYSE', CCI:   'NYSE',
   F:    'NYSE', GM:   'NYSE', DAL:  'NYSE', UAL:   'NYSE', LUV:   'NYSE',
   SCHW: 'NYSE', ICE:  'NYSE', CME:  'NYSE', CB:    'NYSE', MMC:   'NYSE',
   AON:  'NYSE', ISRG: 'NYSE', ELV:  'NYSE', HCA:   'NYSE', CVS:   'NYSE',
   ZTS:  'NYSE', REGN: 'NYSE', VRTX: 'NYSE', SQ:    'NYSE', NVO:   'NYSE',
   RIOT: 'NYSE', MARA: 'NYSE', CLSK: 'NYSE', HUT:   'NYSE', CORZ:  'NYSE',
-  // BRK-B 처리 (하이픈 제거)
+  // S&P 500 추가 종목 (NYSE)
+  TMO:  'NYSE', BSX:  'NYSE', SYK:  'NYSE', IQV:   'NYSE',
+  SPGI: 'NYSE', MCO:  'NYSE', PM:   'NYSE', MO:    'NYSE',
+  KMB:  'NYSE', CL:   'NYSE', UNP:  'NYSE', NSC:   'NYSE',
+  WM:   'NYSE', SHW:  'NYSE', ECL:  'NYSE', PLD:   'NYSE',
+  O:    'NYSE', BDX:  'NYSE', EW:   'NYSE',
+  // BRK-B (하이픈 포함 심볼 — 키는 원본 그대로)
   'BRK-B': 'NYSE',
 };
 
-// tr_key 생성: exchange+symbol (BRK-B → BRKB)
+// tr_key → 원본 심볼 역매핑 (BRK-B 등 하이픈 종목 복원용)
+const trKeyToSymbol = new Map();
+
+// tr_key 생성: exchange+symbol (BRK-B → BRKB 하이픈 제거)
 function toTrKey(symbol) {
   const cleaned = symbol.replace(/-/g, '');
-  const exch = EXCH_MAP[symbol] ?? 'NASD'; // 불명 종목은 NASDAQ 기본값
-  return `${exch}${cleaned}`;
+  const exch    = EXCH_MAP[symbol] ?? 'NASD'; // 매핑 없으면 NASDAQ 기본값
+  const trKey   = `${exch}${cleaned}`;
+  trKeyToSymbol.set(trKey.toUpperCase(), symbol); // 역매핑 저장
+  return trKey;
 }
 
-// tr_key에서 순수 심볼 추출 (4자리 거래소 코드 제거)
+// tr_key에서 원본 심볼 복원 (역매핑 우선, 없으면 4자리 거래소 코드 제거)
 function parseSymbol(trKey) {
-  // NASD, NYSE, AMEX, SEHK 등 4자리 거래소 코드
-  return trKey.slice(4);
+  return trKeyToSymbol.get(trKey.toUpperCase()) ?? trKey.slice(4);
 }
 
 /**
@@ -71,19 +83,97 @@ function parseSymbol(trKey) {
  * @param {Function} onQuote  - 콜백: ({ symbol, price, change, changePct }) => void
  */
 export function useKisUsWebSocket(symbols, onQuote) {
-  const onQuoteRef  = useRef(onQuote);
-  const symbolsRef  = useRef(symbols);
-  const wsRef       = useRef(null);
-  const retryRef    = useRef(0);
-  const retryTimer  = useRef(null);
-  const mountedRef  = useRef(true);
+  const onQuoteRef     = useRef(onQuote);
+  const symbolsRef     = useRef(symbols);
+  const prevSymbolsRef = useRef([]);
+  const wsRef          = useRef(null);
+  const approvalKeyRef = useRef(null);
+  const retryRef       = useRef(0);
+  const retryTimer     = useRef(null);
+  const mountedRef     = useRef(true);
 
   useEffect(() => { onQuoteRef.current = onQuote; }, [onQuote]);
   useEffect(() => { symbolsRef.current = symbols; }, [symbols]);
 
+  // ── 구독/해제 헬퍼 ──────────────────────────────────────────────
+  function sendSubscribe(ws, key, syms, trType) {
+    if (!syms?.length || ws.readyState !== WebSocket.OPEN) return;
+    syms.forEach(sym => {
+      try {
+        ws.send(JSON.stringify({
+          header: {
+            approval_key:   key,
+            custtype:       'P',
+            tr_type:        trType, // '1'=등록, '2'=해제
+            'content-type': 'utf-8',
+          },
+          body: { input: { tr_id: TR_ID, tr_key: toTrKey(sym) } },
+        }));
+      } catch {}
+    });
+  }
+
+  // ── symbols 변경 시 diff 기반 구독 갱신 ────────────────────────
+  useEffect(() => {
+    const next = symbols.slice(0, MAX_SYMS);
+    const prev = prevSymbolsRef.current;
+    prevSymbolsRef.current = next;
+
+    const ws  = wsRef.current;
+    const key = approvalKeyRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !key) return;
+
+    const prevSet = new Set(prev.map(toTrKey));
+    const nextSet = new Set(next.map(toTrKey));
+
+    const toRemove = prev.filter(s => !nextSet.has(toTrKey(s)));
+    const toAdd    = next.filter(s => !prevSet.has(toTrKey(s)));
+
+    if (toRemove.length) sendSubscribe(ws, key, toRemove, '2');
+    if (toAdd.length)    sendSubscribe(ws, key, toAdd,    '1');
+  }, [symbols]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── HDFSCNT0 파이프 메시지 파싱 ────────────────────────────────
+  // 형식: `0|HDFSCNT0|001|NASDAAPL^1^20250325^153012^225.43^1^1.23^0.55^...`
+  // 필드 (^ 구분):
+  //   0: RSYM     거래소코드+종목코드 (예: NASDAAPL)
+  //   1: ZDIV     소수점 자리수
+  //   2: XYMD     일자 (YYYYMMDD)
+  //   3: XHMS     시각 (HHmmss)
+  //   4: CLOS     현재가
+  //   5: SIGN     부호 (1/2=상승, 4/5=하락, 3=보합)
+  //   6: DIFF     전일대비 절대값
+  //   7: RATE     등락률 (%)
+  function parsePipeMessage(raw) {
+    const parts = raw.split('|');
+    if (parts.length < 4) return null;
+    if (parts[1] !== TR_ID) return null;
+
+    const fields    = parts[3].split('^');
+    if (fields.length < 8) return null;
+
+    const symbol    = parseSymbol(fields[0]);
+    const price     = parseFloat(fields[4]);
+    const sign      = fields[5];
+    const absChg    = parseFloat(fields[6]);
+    const changePct = parseFloat(fields[7]);
+
+    if (!symbol || isNaN(price) || price <= 0) return null;
+
+    const isNeg  = sign === '4' || sign === '5';
+    const change = isNeg ? -absChg : absChg;
+
+    return {
+      symbol,
+      price,
+      change:    parseFloat(change.toFixed(2)),
+      changePct: isNeg ? -Math.abs(changePct) : changePct,
+    };
+  }
+
+  // ── WebSocket 연결 관리 ─────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
-    let approvalKey = null;
 
     async function fetchApprovalKey() {
       try {
@@ -100,79 +190,6 @@ export function useKisUsWebSocket(symbols, onQuote) {
       }
     }
 
-    function subscribe(ws, key, syms) {
-      if (!syms?.length) return;
-      syms.slice(0, MAX_SYMS).forEach(sym => {
-        const tr_key = toTrKey(sym);
-        const msg = JSON.stringify({
-          header: {
-            approval_key:   key,
-            custtype:       'P',
-            tr_type:        '1',
-            'content-type': 'utf-8',
-          },
-          body: { input: { tr_id: TR_ID, tr_key } },
-        });
-        ws.send(msg);
-      });
-    }
-
-    function unsubscribe(ws, key, syms) {
-      if (!syms?.length || ws.readyState !== WebSocket.OPEN) return;
-      syms.slice(0, MAX_SYMS).forEach(sym => {
-        const tr_key = toTrKey(sym);
-        const msg = JSON.stringify({
-          header: {
-            approval_key:   key,
-            custtype:       'P',
-            tr_type:        '2',
-            'content-type': 'utf-8',
-          },
-          body: { input: { tr_id: TR_ID, tr_key } },
-        });
-        try { ws.send(msg); } catch {}
-      });
-    }
-
-    // HDFSCNT0 파이프 메시지 파싱
-    // 형식: `0|HDFSCNT0|001|NASDAAPL^1^20250325^153012^225.43^1^1.23^0.55^...`
-    // 필드 (^ 구분, index):
-    //   0: RSYM     거래소코드+종목코드 (예: NASDAAPL)
-    //   1: ZDIV     소수점 자리수
-    //   2: XYMD     일자 (YYYYMMDD)
-    //   3: XHMS     시각 (HHmmss)
-    //   4: CLOS     현재가
-    //   5: SIGN     부호 (1/2=상승, 4/5=하락, 3=보합)
-    //   6: DIFF     전일대비 절대값
-    //   7: RATE     등락률 (%)
-    function parsePipeMessage(raw) {
-      const parts = raw.split('|');
-      if (parts.length < 4) return null;
-      if (parts[1] !== TR_ID) return null;
-
-      const fields   = parts[3].split('^');
-      if (fields.length < 8) return null;
-
-      const rsym     = fields[0];                    // 거래소+종목코드
-      const symbol   = parseSymbol(rsym);            // 순수 종목코드
-      const price    = parseFloat(fields[4]);
-      const sign     = fields[5];
-      const absChg   = parseFloat(fields[6]);
-      const changePct = parseFloat(fields[7]);
-
-      if (!symbol || isNaN(price) || price <= 0) return null;
-
-      const isNeg  = sign === '4' || sign === '5';
-      const change = isNeg ? -absChg : absChg;
-
-      return {
-        symbol,
-        price,
-        change:    parseFloat(change.toFixed(2)),
-        changePct: isNeg ? -Math.abs(changePct) : changePct,
-      };
-    }
-
     function connect(key) {
       if (!mountedRef.current) return;
 
@@ -182,7 +199,9 @@ export function useKisUsWebSocket(symbols, onQuote) {
       ws.onopen = () => {
         if (!mountedRef.current) { ws.close(); return; }
         retryRef.current = 0;
-        subscribe(ws, key, symbolsRef.current);
+        const syms = symbolsRef.current.slice(0, MAX_SYMS);
+        prevSymbolsRef.current = syms;
+        sendSubscribe(ws, key, syms, '1');
       };
 
       ws.onmessage = (event) => {
@@ -212,16 +231,17 @@ export function useKisUsWebSocket(symbols, onQuote) {
 
     fetchApprovalKey().then(key => {
       if (!mountedRef.current || !key) return;
-      approvalKey = key;
+      approvalKeyRef.current = key;
       connect(key);
     });
 
     return () => {
       mountedRef.current = false;
       clearTimeout(retryTimer.current);
-      const ws = wsRef.current;
+      const ws  = wsRef.current;
+      const key = approvalKeyRef.current;
       if (ws) {
-        if (approvalKey) unsubscribe(ws, approvalKey, symbolsRef.current);
+        if (key) sendSubscribe(ws, key, prevSymbolsRef.current, '2');
         ws.onclose = null;
         ws.close();
         wsRef.current = null;
