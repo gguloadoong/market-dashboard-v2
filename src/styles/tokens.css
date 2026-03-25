@@ -61,3 +61,73 @@
   --radius-xl:  20px;
   --radius-pill: 9999px;
 }
+
+/* ── 다크모드 토큰 오버라이드 ─────────────────────────────────
+   상승/하락 색상 (ADR-002 한국 컨벤션 유지, WCAG AA 검증 완료):
+   - 상승 #F04452 → #FF6B77 (6.74:1 on dark bg)
+   - 하락 #1764ED → #5B9CF6 (6.66:1 on dark bg)
+──────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg:           #E8EBF0;
+    --fg-muted:     #8B95A1;
+    --fg-disabled:  #4A525C;
+    --fg-inverse:   #191F28;
+    --fg-positive:  #FF6B77;
+    --fg-negative:  #5B9CF6;
+    --bg-positive:  rgba(255,107,119,0.12);
+    --bg-negative:  rgba(91,156,246,0.12);
+    --bg-warning:   rgba(255,149,0,0.12);
+    --bg:           #0F1117;
+    --bg-surface:   #1A1D24;
+    --bg-alt:       #1F2330;
+    --bg-hover:     #252A35;
+    --border:       #2A2F3C;
+    --border-heavy: #3A4050;
+    --elevation-1:  0 2px 8px rgba(0,0,0,0.4);
+    --elevation-2:  0 8px 24px rgba(0,0,0,0.6);
+  }
+
+  body {
+    background: var(--bg) !important;
+    color: var(--fg);
+  }
+
+  .bg-white, [class*="bg-white"] { background-color: var(--bg-surface) !important; }
+
+  .bg-\[\#F8F9FA\], .bg-\[\#F2F4F6\], .bg-\[\#FAFBFC\], .bg-\[\#F7F8FA\] {
+    background-color: var(--bg-alt) !important;
+  }
+
+  header.bg-white {
+    background-color: var(--bg-surface) !important;
+    border-bottom-color: var(--border) !important;
+  }
+
+  nav.bg-white {
+    background-color: var(--bg-surface) !important;
+    border-top-color: var(--border) !important;
+  }
+
+  .border-\[\#E5E8EB\], .border-\[\#F2F4F6\] { border-color: var(--border) !important; }
+  .divide-\[\#F2F4F6\] > * + * { border-color: var(--border) !important; }
+
+  .text-\[\#191F28\] { color: var(--fg) !important; }
+  .text-\[\#6B7684\] { color: var(--fg-muted) !important; }
+  .text-\[\#8B95A1\], .text-\[\#B0B8C1\] { color: var(--fg-disabled) !important; }
+
+  .text-up,   .text-\[\#F04452\] { color: var(--fg-positive) !important; }
+  .text-down, .text-\[\#1764ED\] { color: var(--fg-negative) !important; }
+
+  .badge-up   { background: var(--bg-positive) !important; color: var(--fg-positive) !important; }
+  .badge-down { background: var(--bg-negative) !important; color: var(--fg-negative) !important; }
+  .badge-flat { background: var(--bg-alt) !important; color: var(--fg-muted) !important; }
+
+  .chip { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--fg-muted) !important; }
+  .chip.active { background: var(--fg) !important; border-color: var(--fg) !important; color: var(--bg-surface) !important; }
+
+  .hover\:bg-\[\#F9FAFB\]:hover, .hover\:bg-\[\#F2F4F6\]:hover { background-color: var(--bg-hover) !important; }
+  .active\:bg-\[\#F7F8FA\]:active { background-color: var(--bg-alt) !important; }
+
+  .bg-\[\#FFF8E1\] { background-color: rgba(255,149,0,0.1) !important; }
+}
