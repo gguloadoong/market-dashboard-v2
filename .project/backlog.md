@@ -152,3 +152,8 @@
 | 2026-03-18 | KIS WebSocket 실시간 국장 체결가 구독 |
 | 2026-03-18 | 미장 fallback 체인 강화 — Alpaca Markets 지원 |
 | 2026-03-18 | 뉴스 RSS 소스 10개 추가 — CoinDesk/Decrypt/매경/연합/MarketWatch 등 |
+| 2026-03-25 | CDS TabbedChips 전면 적용 — TopMoversWidget/MarketInvestorSection/ChartSidePanel/WatchlistTable (PR #144) |
+| 2026-03-25 | CDS Button 적용 — Header 새로고침 버튼 (PR #144) |
+| 2026-03-25 | SurgeBanner Coinbase ticker 스타일 재설계 + 시간외 단일가 배지 (PR #144) |
+| 2026-03-25 | 퍼포먼스 고도화 — KIS WS 40종목, Yahoo v8 동시처리 10개, 한투 50종목 배치 (PR #143) |
+| 2026-03-25 | 국장 애프터마켓(시간외 단일가) 데이터 필드 추가 — hantoo-price API (PR #143) |
