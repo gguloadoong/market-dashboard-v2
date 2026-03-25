@@ -648,9 +648,10 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
         className="fixed top-0 right-0 bg-white shadow-2xl flex flex-col w-full sm:w-[min(620px,48vw)]"
         style={{
           zIndex: 151,
-          height: '100vh',
+          height: '100dvh',
           borderLeft: '1px solid #E5E8EB',
           animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         {/* ─── 헤더 ─────────────────────────────────────────────── */}
