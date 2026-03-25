@@ -48,8 +48,8 @@ export default function Header({
           <span className="text-[20px] font-bold text-[#191F28] tracking-tight flex-shrink-0">
             마켓레이더
           </span>
-          {/* 탭 — 모바일에서 가로 스크롤 지원 */}
-          <nav className="flex items-center gap-0.5 overflow-x-auto no-scrollbar">
+          {/* 탭 — 모바일에서 숨김 (하단 네비가 담당), lg 이상에서 표시 */}
+          <nav className="hidden lg:flex items-center gap-0.5">
             {TABS.map(tab => {
               const isActive = activeTab === tab.id;
               const hasSurge = getTabHasSurge(tab.id, { krStocks, usStocks, coins });

@@ -191,8 +191,12 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
 
       {/* 슬라이드 패널 */}
       <div
-        className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-white z-50 shadow-2xl flex flex-col"
-        style={{ animation: 'slideInRight 0.25s ease-out' }}
+        className="fixed top-0 right-0 w-full sm:w-[420px] bg-white z-50 shadow-2xl flex flex-col"
+        style={{
+          animation: 'slideInRight 0.25s ease-out',
+          height: '100dvh',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
       >
         {/* 헤더 */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 border-b border-[#F2F4F6]">

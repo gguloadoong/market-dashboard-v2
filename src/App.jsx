@@ -1,6 +1,7 @@
 // 마켓레이더 — 메인 앱 (훅 기반 상태 관리)
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Header from './components/Header';
+import MobileBottomNav from './components/MobileBottomNav';
 import SurgeBanner from './components/SurgeBanner';
 import MarketSummaryBar from './components/MarketSummaryBar';
 import WatchlistTable from './components/WatchlistTable';
@@ -140,6 +141,53 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
+  // ── 모바일 백버튼 처리 (History API) ──────────────────────────
+  // 패널/검색이 열릴 때 history entry 추가 → 뒤로가기 시 앱 닫힘 방지
+  // closingViaUI: X 버튼으로 닫을 때 history.back()에 의한 popstate 중복 처리 방지
+  const closingViaUI = useRef(false);
+
+  useEffect(() => {
+    if (selectedItem) history.pushState({ panel: 'chart' }, '');
+  }, [selectedItem]);
+
+  useEffect(() => {
+    if (selectedNews) history.pushState({ panel: 'news' }, '');
+  }, [selectedNews]);
+
+  useEffect(() => {
+    if (searchOpen) history.pushState({ panel: 'search' }, '');
+  }, [searchOpen]);
+
+  useEffect(() => {
+    const onPop = () => {
+      // X 버튼 닫기 → history.back() → popstate 중복 차단
+      if (closingViaUI.current) { closingViaUI.current = false; return; }
+      // 열린 패널을 역순으로 닫음 (검색 → 뉴스 → 차트)
+      if (searchOpen)   { setSearchOpen(false);  return; }
+      if (selectedNews) { setSelectedNews(null); return; }
+      if (selectedItem) { setSelectedItem(null); return; }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [searchOpen, selectedNews, selectedItem]);
+
+  // X 버튼 close 핸들러 — history entry도 함께 소비
+  const closeSelectedItem = useCallback(() => {
+    closingViaUI.current = true;
+    setSelectedItem(null);
+    history.back();
+  }, []);
+  const closeSelectedNews = useCallback(() => {
+    closingViaUI.current = true;
+    setSelectedNews(null);
+    history.back();
+  }, []);
+  const closeSearch = useCallback(() => {
+    closingViaUI.current = true;
+    setSearchOpen(false);
+    history.back();
+  }, []);
+
   // KRX ETF 병합 — 기존 ETF_DATA + KRX 신규 ETF (중복 symbol 제거)
   const mergedEtfs = useMemo(() => {
     if (!krxEtfs.length) return etfs;
@@ -191,7 +239,7 @@ export default function App() {
       />
 
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_360px]">
-        <div className={`min-w-0 overflow-hidden ${activeTab === 'news' ? '' : 'p-5 space-y-4'}`}>
+        <div className={`min-w-0 overflow-hidden ${activeTab === 'news' ? '' : 'p-5 space-y-4'} lg:pb-0 pb-safe-nav`}>
           {activeTab === 'home' ? (
             <HomeDashboard
               indices={indices} krStocks={krStocks} usStocks={usStocks}
@@ -224,14 +272,23 @@ export default function App() {
       </div>
 
       {selectedItem && (
-        <ChartSidePanel item={selectedItem} krwRate={krwRate} onClose={() => setSelectedItem(null)} onRelatedClick={setSelectedItem} allData={allData} />
+        <ChartSidePanel item={selectedItem} krwRate={krwRate} onClose={closeSelectedItem} onRelatedClick={setSelectedItem} allData={allData} />
       )}
       {selectedNews && (
-        <NewsSidePanel news={selectedNews} allData={allData} krwRate={krwRate} onClose={() => setSelectedNews(null)} onRelatedClick={setSelectedItem} onNewsClick={setSelectedNews} />
+        <NewsSidePanel news={selectedNews} allData={allData} krwRate={krwRate} onClose={closeSelectedNews} onRelatedClick={setSelectedItem} onNewsClick={setSelectedNews} />
       )}
       {searchOpen && (
-        <GlobalSearch krStocks={krStocks} usStocks={usStocks} coins={coins} etfs={etfItems} krwRate={krwRate} onSelect={setSelectedItem} onNewsClick={setSelectedNews} onClose={() => setSearchOpen(false)} />
+        <GlobalSearch krStocks={krStocks} usStocks={usStocks} coins={coins} etfs={etfItems} krwRate={krwRate} onSelect={setSelectedItem} onNewsClick={setSelectedNews} onClose={closeSearch} />
       )}
+
+      {/* 모바일 하단 내비게이션 */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        krStocks={krStocks}
+        usStocks={usStocks}
+        coins={coins}
+      />
     </div>
   );
 }

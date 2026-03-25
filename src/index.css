@@ -145,6 +145,16 @@
   .flash-up   { animation: flashUp 0.5s ease; }
   .flash-down { animation: flashDown 0.5s ease; }
   .tabular-nums { font-variant-numeric: tabular-nums; }
+
+  /* ── Safe Area (iPhone 노치/다이나믹 아일랜드/홈 인디케이터) ── */
+  .pb-safe         { padding-bottom: env(safe-area-inset-bottom); }
+  .pb-safe-nav     { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+  .mb-safe-nav     { margin-bottom: calc(56px + env(safe-area-inset-bottom)); }
+  .pt-safe         { padding-top: env(safe-area-inset-top); }
+  .h-safe-nav      { height: calc(56px + env(safe-area-inset-bottom)); }
+
+  /* ── 모바일 하단 네비 공간 확보 ── */
+  .main-mobile-pad { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 }
 
 @keyframes ticker   { from { transform: translateX(0); } to { transform: translateX(-50%); } }
