@@ -60,15 +60,48 @@ function RelatedRow({ item, krwRate, onItemClick }) {
 }
 
 // 제목에서 키워드 추출 (불용어 제거)
-const STOPWORDS = new Set(['the','a','an','in','on','at','to','for','of','is','are','was','were','and','or','but','not','with','from','by','as','it','its','this','that','be','have','has','had','do','does','did','will','would','shall','should','can','could','may','might','about','after','before','into','over','under','between','through','during','위해','대한','통해','따른','관련','이번','올해','내년','지난','오늘','어제','내일','것으로','있는','하는','되는','된다','한다','있다','없다','것이','라고','에서','까지','부터','으로','에게','한편','또한','이에','따라','대해','보도','전했다','밝혔다','알려졌다','나타났다','분석했다','전망했다','보였다','기자']);
+const STOPWORDS = new Set([
+  // 영문 기본 불용어
+  'the','a','an','in','on','at','to','for','of','is','are','was','were','and','or','but','not',
+  'with','from','by','as','it','its','this','that','be','have','has','had','do','does','did',
+  'will','would','shall','should','can','could','may','might','about','after','before','into',
+  'over','under','between','through','during',
+  // 영문 금융 일반어 (관련도 낮은 단어 필터)
+  'market','markets','investment','investor','investors','trading','trade','price','prices',
+  'growth','rate','rates','report','data','says','said','new','year','week','month','day',
+  'rise','rises','rising','fall','falls','falling','high','low','record','billion','million',
+  'percent','pct','stock','stocks','share','shares','crypto','economy','economic','financial',
+  'finance','global','world','us','uk',
+  // 한국어 조사/접속어/보조어
+  '위해','대한','통해','따른','관련','이번','올해','내년','지난','오늘','어제','내일',
+  '것으로','있는','하는','되는','된다','한다','있다','없다','것이','라고','에서','까지',
+  '부터','으로','에게','한편','또한','이에','따라','대해','보도','전했다','밝혔다',
+  '알려졌다','나타났다','분석했다','전망했다','보였다','기자',
+  // 한국어 금융 일반어 (관련도 낮은 단어 필터)
+  '투자','시장','상승','하락','급등','급락','전망','분석','매수','매도','수익','손실',
+  '거래','주가','가격','주식','암호화폐','블록체인','경제','금융','증시','지수','변동',
+  '세계','글로벌','올해','최근','이달','이번주','전일','전주','기록','억원','조원',
+]);
 
-function extractKeywords(title) {
+// 키워드 가중치 분류: 티커(3pts) / 영문 고유명사(2pts) / 일반(1pt)
+function extractKeywordsWeighted(title) {
   if (!title) return [];
   return title
     .replace(/[^\wㄱ-ㅎ가-힣\s]/g, ' ')
     .split(/\s+/)
-    .filter(w => w.length >= 2 && !STOPWORDS.has(w.toLowerCase()))
-    .slice(0, 10);
+    .filter(w => w.length >= 2 && !STOPWORDS.has(w.toLowerCase()) && !STOPWORDS.has(w))
+    .slice(0, 12)
+    .map(word => {
+      let pts = 1;
+      if (/^[A-Z]{2,6}$/.test(word)) pts = 3;          // 티커: BTC, XRP, NVDA, ETH
+      else if (/^[A-Z][a-z]{2,}/.test(word)) pts = 2;  // 영문 고유명사: Bitcoin, Apple
+      return { word, pts };
+    });
+}
+
+// 하위 호환 — 단순 키워드 배열 반환
+function extractKeywords(title) {
+  return extractKeywordsWeighted(title).map(k => k.word);
 }
 
 export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelatedClick, onNewsClick }) {
@@ -101,26 +134,44 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
       .finally(() => setSummaryLoading(false));
   }, [news?.link]);
 
-  // 관련 뉴스 매칭 — 키워드 2개 이상 겹치는 뉴스
+  // 관련 뉴스 매칭 — 가중치 스코어링 + 카테고리 필터
+  // 동일 카테고리: score≥3 / 교차 카테고리: score≥5 (오염 방지)
   const relatedNews = useMemo(() => {
     if (!news?.title || !allNews.length) return [];
-    const keywords = extractKeywords(news.title);
-    if (keywords.length < 2) return [];
+    const kwWeighted = extractKeywordsWeighted(news.title);
+    if (!kwWeighted.length) return [];
+    const newsCategory = news.category;
+
     return allNews
       .filter(n => n.link !== news.link && n.title !== news.title)
       .map(n => {
-        const nTitle = (n.title || '').toLowerCase();
-        const nDesc  = (n.description || n.summary || '').toLowerCase();
-        const combined = `${nTitle} ${nDesc}`;
-        const score = keywords.filter(kw => combined.includes(kw.toLowerCase())).length;
+        const combined = `${n.title || ''} ${n.description || n.summary || ''}`.toLowerCase();
+        let score = 0;
+        for (const { word, pts } of kwWeighted) {
+          if (combined.includes(word.toLowerCase())) score += pts;
+        }
         return { ...n, _score: score };
       })
-      .filter(n => n._score >= 2)
-      .sort((a, b) => b._score - a._score)
+      .filter(n => {
+        if (n._score === 0) return false;
+        const sameCat = n.category === newsCategory;
+        return sameCat ? n._score >= 3 : n._score >= 5;
+      })
+      .sort((a, b) => {
+        // 동일 카테고리 우선, 그 다음 score 순
+        const aSame = a.category === newsCategory ? 1 : 0;
+        const bSame = b.category === newsCategory ? 1 : 0;
+        if (bSame !== aSame) return bSame - aSame;
+        return b._score - a._score;
+      })
       .slice(0, 5);
   }, [news, allNews]);
 
-  // 관련 종목 매칭 — 키워드 직접 매칭 + relatedAssets 연관 종목 확장
+  // 관련 종목 매칭 — 3단계 알고리즘 + 코인 앵커
+  // Stage 1: 직접 키워드 매칭 (score 10)
+  // Stage 2: relatedAssets 확장 (score 7)
+  // Stage 3: 섹터 기반 자동 확장 (score 3)
+  // 코인 앵커: coin 뉴스에 BTC·ETH 미포함 시 추가 (score 5)
   const relatedItems = useMemo(() => {
     if (!news) return [];
     const text = `${news.title || ''} ${news.description || ''} ${news.summary || ''}`;
@@ -131,41 +182,70 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
     ];
     const allMap = Object.fromEntries(all.map(item => [item.symbol, item]));
 
-    // 1단계: 키워드 직접 매칭
-    const directMatches = all.filter(item => {
-      const keywords = buildStockKeywords(item.symbol, item.name,
-        item._market === 'KR' ? 'KR' : item._market === 'COIN' ? 'COIN' : 'US');
-      return keywords.length > 0 && matchesKeywords(text, keywords);
-    });
-
-    // 2단계: 직접 매칭 종목의 연관 종목 확장 (relatedAssets)
-    // 뉴스 카테고리 기준으로 허용 시장을 제한 — 코인 뉴스에 국장 종목이 딸려오는 오염 방지
     const newsCategory = news.category;
     const allowedMarkets = new Set(
-      newsCategory === 'coin' ? ['COIN', 'US']      // 코인 뉴스: 코인·미장만, KR 차단
-      : newsCategory === 'kr' ? ['KR', 'US']        // 국장 뉴스: KR·미장만, 코인 차단
-      : ['US', 'COIN', 'KR']                        // 미장·일반: 전체 허용
+      newsCategory === 'coin' ? ['COIN', 'US']
+      : newsCategory === 'kr'  ? ['KR', 'US']
+      : ['US', 'COIN', 'KR']
     );
 
-    const seen = new Set(directMatches.map(d => d.symbol));
-    const expanded = [];
-    for (const matched of directMatches) {
-      const info = RELATED_ASSETS[matched.symbol];
-      if (!info?.related) continue;
-      for (const rel of info.related) {
-        if (seen.has(rel.symbol)) continue;
-        if (!allowedMarkets.has(rel.market)) continue; // 뉴스 맥락과 맞지 않는 시장 차단
-        seen.add(rel.symbol);
-        expanded.push(allMap[rel.symbol] ?? {
-          symbol: rel.symbol,
-          name: rel.reason,
-          _market: rel.market,
-          _relationType: rel.type,
-        });
+    // score Map: symbol → { item, score }
+    const scored = new Map();
+
+    // Stage 1: 키워드 직접 매칭 (score 10)
+    for (const item of all) {
+      if (!allowedMarkets.has(item._market)) continue;
+      const keywords = buildStockKeywords(item.symbol, item.name,
+        item._market === 'KR' ? 'KR' : item._market === 'COIN' ? 'COIN' : 'US');
+      if (keywords.length > 0 && matchesKeywords(text, keywords)) {
+        scored.set(item.symbol, { item, score: 10 });
       }
     }
 
-    return [...directMatches, ...expanded].slice(0, 8);
+    // Stage 2: relatedAssets 연관 종목 확장 (score 7)
+    for (const [sym] of scored) {
+      const info = RELATED_ASSETS[sym];
+      if (!info?.related) continue;
+      for (const rel of info.related) {
+        if (scored.has(rel.symbol)) continue;
+        if (!allowedMarkets.has(rel.market)) continue;
+        const relItem = allMap[rel.symbol] ?? {
+          symbol: rel.symbol, name: rel.reason,
+          _market: rel.market, _relationType: rel.type,
+        };
+        scored.set(rel.symbol, { item: relItem, score: 7 });
+      }
+    }
+
+    // Stage 3: 섹터 기반 자동 확장 (score 3) — 직접 매칭 종목과 같은 섹터 전체 추가
+    const matchedSectors = new Set();
+    for (const [sym] of scored) {
+      const sector = RELATED_ASSETS[sym]?.sector;
+      if (sector) matchedSectors.add(sector);
+    }
+    if (matchedSectors.size > 0) {
+      for (const [sym, info] of Object.entries(RELATED_ASSETS)) {
+        if (!info.sector || !matchedSectors.has(info.sector)) continue;
+        if (scored.has(sym)) continue;
+        const relItem = allMap[sym];
+        if (!relItem || !allowedMarkets.has(relItem._market)) continue;
+        scored.set(sym, { item: relItem, score: 3 });
+      }
+    }
+
+    // 코인 앵커: coin 뉴스에 BTC·ETH 미포함 시 추가 (score 5)
+    if (newsCategory === 'coin' && scored.size > 0) {
+      for (const anchor of ['BTC', 'ETH']) {
+        if (!scored.has(anchor) && allMap[anchor]) {
+          scored.set(anchor, { item: allMap[anchor], score: 5 });
+        }
+      }
+    }
+
+    return [...scored.values()]
+      .sort((a, b) => b.score - a.score)
+      .map(({ item }) => item)
+      .slice(0, 8);
   }, [news, krStocks, usStocks, coins]);
 
   if (!news) return null;
