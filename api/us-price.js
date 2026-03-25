@@ -52,6 +52,36 @@ async function fetchYahooV8Single(symbol) {
   };
 }
 
+// Polygon.io 스냅샷 배치 — 3순위 최후 fallback (POLYGON_API_KEY 없으면 스킵)
+// /v2/snapshot: todaysChange, todaysChangePerc, lastTrade.price (15분 지연, 무료 티어)
+async function fetchPolygonBatch(symbols) {
+  const key = process.env.POLYGON_API_KEY;
+  if (!key) return [];
+  const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${symbols.join(',')}&apiKey=${key}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible)' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`Polygon ${res.status}`);
+  const data = await res.json();
+  return (data.tickers ?? []).map(t => {
+    const price  = t.lastTrade?.p ?? t.day?.c ?? 0;
+    const change = t.todaysChange ?? 0;
+    const pct    = t.todaysChangePerc ?? 0;
+    return {
+      symbol:    t.ticker,
+      price:     parseFloat(price.toFixed(2)),
+      change:    parseFloat(change.toFixed(2)),
+      changePct: parseFloat(pct.toFixed(2)),
+      volume:    t.day?.v ?? 0,
+      marketCap: 0,
+      high52w:   null,
+      low52w:    null,
+      sparkline: [],
+    };
+  }).filter(r => r.price > 0);
+}
+
 // Stooq 개별 쿼리 — fallback (EOD 데이터, sparkline 없음)
 async function fetchStooqSingle(symbol) {
   const url = `https://stooq.com/q/l/?s=${symbol.toLowerCase()}.us&f=sd2t2ohlcvnp&h&e=json`;
@@ -121,10 +151,26 @@ export default async function handler(req) {
   }
 
   // 2순위: Stooq fallback (v8 실패 심볼만 — EOD, sparkline 없음)
+  const stooqFailed = [];
   if (failedSymbols.length > 0) {
     const stooqSettled = await Promise.allSettled(failedSymbols.map(fetchStooqSingle));
-    for (const r of stooqSettled) {
-      if (r.status === 'fulfilled') results.push(r.value);
+    for (let i = 0; i < stooqSettled.length; i++) {
+      if (stooqSettled[i].status === 'fulfilled') {
+        results.push(stooqSettled[i].value);
+      } else {
+        stooqFailed.push(failedSymbols[i]);
+      }
+    }
+  }
+
+  // 3순위: Polygon.io 스냅샷 배치 (Stooq까지 실패 심볼, POLYGON_API_KEY 필요)
+  if (stooqFailed.length > 0) {
+    try {
+      console.warn(`[us-price] Stooq 실패 ${stooqFailed.length}개 → Polygon fallback: ${stooqFailed.join(',')}`);
+      const polygonResults = await fetchPolygonBatch(stooqFailed);
+      results.push(...polygonResults);
+    } catch (e) {
+      console.error('[us-price] Polygon fallback 실패:', e.message);
     }
   }
 
