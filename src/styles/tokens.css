@@ -114,7 +114,8 @@
 
   .text-\[\#191F28\] { color: var(--fg) !important; }
   .text-\[\#6B7684\] { color: var(--fg-muted) !important; }
-  .text-\[\#8B95A1\], .text-\[\#B0B8C1\] { color: var(--fg-disabled) !important; }
+  .text-\[\#8B95A1\] { color: var(--fg-muted) !important; }
+  .text-\[\#B0B8C1\] { color: var(--fg-disabled) !important; }
 
   .text-up,   .text-\[\#F04452\] { color: var(--fg-positive) !important; }
   .text-down, .text-\[\#1764ED\] { color: var(--fg-negative) !important; }
