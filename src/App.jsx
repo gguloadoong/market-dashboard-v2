@@ -16,6 +16,7 @@ import { ETF_DATA } from './data/mock';
 import { fetchKoreanStocksBatch, fetchEtfPricesBatch } from './api/stocks';
 import { requestNotificationPermission, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
 import { useWatchlist } from './hooks/useWatchlist';
+import { useNewsAlerts } from './hooks/useNewsAlerts';
 import { useKrxEtf } from './hooks/useKrxEtf';
 import { useKisWebSocket } from './hooks/useKisWebSocket';
 import { useKisUsWebSocket } from './hooks/useKisUsWebSocket';
@@ -147,6 +148,24 @@ export default function App() {
     window.addEventListener('alert-open-item', onAlertOpen);
     return () => window.removeEventListener('alert-open-item', onAlertOpen);
   }, []);
+
+  // 뉴스 알림 클릭 딥링크 — useNewsAlerts 'alert-open-news' 이벤트 수신 → NewsSidePanel 오픈
+  useEffect(() => {
+    const onNewsAlertOpen = e => { if (e.detail) setSelectedNews(e.detail); };
+    window.addEventListener('alert-open-news', onNewsAlertOpen);
+    return () => window.removeEventListener('alert-open-news', onNewsAlertOpen);
+  }, []);
+
+  // 관심종목 뉴스 알림 — watchlist에 있는 종목 필터링 후 useNewsAlerts에 주입
+  const watchedItemsForAlert = useMemo(() => {
+    const watchSet = new Set(watchlist.map(w => (typeof w === 'string' ? w : w.symbol)));
+    return [
+      ...krStocks.filter(s => watchSet.has(s.symbol)).map(s => ({ ...s, _market: 'KR' })),
+      ...usStocks.filter(s => watchSet.has(s.symbol)).map(s => ({ ...s, _market: 'US' })),
+      ...coins.filter(c => watchSet.has(c.symbol)).map(c => ({ ...c, _market: 'COIN' })),
+    ];
+  }, [watchlist, krStocks, usStocks, coins]);
+  useNewsAlerts(watchedItemsForAlert);
 
   // ── 모바일 백버튼 처리 (History API) ──────────────────────────
   // 패널/검색이 열릴 때 history entry 추가 → 뒤로가기 시 앱 닫힘 방지
