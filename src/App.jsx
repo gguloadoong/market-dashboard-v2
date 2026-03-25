@@ -58,7 +58,7 @@ export default function App() {
   // KIS WebSocket — watchlist KR 우선
   const kisSymbols = useMemo(() => {
     const combined = [...new Set([...krSymbols, ...KOREAN_STOCKS.map(s => s.symbol)])];
-    return combined.slice(0, 20);
+    return combined.slice(0, 40); // H0STCNT0 세션당 최대 40개
   }, [krSymbols]);
   useKisWebSocket(kisSymbols, useCallback((quote) => {
     setKrStocks(prev => prev.map(s => s.symbol === quote.symbol ? { ...s, ...quote } : s));

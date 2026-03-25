@@ -4,8 +4,8 @@
 // query1/query2 로테이션: Yahoo IP 기반 rate-limit 분산
 export const config = { runtime: 'edge' };
 
-// Yahoo v8 청크 동시 처리 — 6개씩 순차 라운드 (429 방지)
-const YAHOO_CONCURRENCY = 6;
+// Yahoo v8 청크 동시 처리 — 10개씩 순차 라운드 (429 방지, 최적 실험값)
+const YAHOO_CONCURRENCY = 10;
 const YAHOO_HOSTS = ['query1.finance.yahoo.com', 'query2.finance.yahoo.com'];
 let _hostIdx = 0;
 function nextYahooHost() {

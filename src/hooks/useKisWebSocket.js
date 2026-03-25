@@ -54,8 +54,8 @@ export function useKisWebSocket(symbols, onQuote) {
     // ── 구독 메시지 전송 ───────────────────────────────────────
     function subscribe(ws, key, syms) {
       if (!syms?.length) return;
-      // 최대 20개 제한 (KIS API 제한)
-      syms.slice(0, 20).forEach(tr_key => {
+      // 최대 40개 제한 (H0STCNT0 세션당 40개)
+      syms.slice(0, 40).forEach(tr_key => {
         const msg = JSON.stringify({
           header: {
             approval_key:   key,
@@ -74,7 +74,7 @@ export function useKisWebSocket(symbols, onQuote) {
     // ── 구독 해제 메시지 전송 ──────────────────────────────────
     function unsubscribe(ws, key, syms) {
       if (!syms?.length || ws.readyState !== WebSocket.OPEN) return;
-      syms.slice(0, 20).forEach(tr_key => {
+      syms.slice(0, 40).forEach(tr_key => {
         const msg = JSON.stringify({
           header: {
             approval_key:   key,

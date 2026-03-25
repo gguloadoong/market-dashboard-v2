@@ -39,6 +39,19 @@ async function fetchSinglePrice(symbol, token) {
   const changeAbs = parseInt(o.prdy_vrss || '0', 10);
   const change    = (sign === '4' || sign === '5') ? -changeAbs : changeAbs;
 
+  // ── 시간외(애프터마켓) 단일가 ────────────────────────────────
+  // ovtm_untp_prpr: 시간외 단일가 현재가 (장 마감 후 15:30~18:00 KST)
+  // 정규장 중에는 0 또는 미응답 → null 처리
+  const afterHoursPrice   = parseInt(o.ovtm_untp_prpr   || '0', 10) || null;
+  const afterHoursSign    = o.ovtm_untp_prpd_vrss_sign ?? '3';
+  const afterHoursChgAbs  = parseInt(o.ovtm_untp_prpd_vrss || '0', 10);
+  const afterHoursChange  = afterHoursPrice
+    ? ((afterHoursSign === '4' || afterHoursSign === '5') ? -afterHoursChgAbs : afterHoursChgAbs)
+    : null;
+  const afterHoursChangePct = afterHoursPrice
+    ? parseFloat(o.ovtm_untp_prdy_ctrt || '0')
+    : null;
+
   return {
     symbol,
     price,
@@ -50,6 +63,10 @@ async function fetchSinglePrice(symbol, token) {
     // 52주 고가/저가 (없으면 null)
     high52w:   parseInt(o.d250_hgpr   || '0', 10) || null,
     low52w:    parseInt(o.d250_lwpr   || '0', 10) || null,
+    // 시간외 단일가 (정규장 외 시간만 값 있음, 정규장 중 null)
+    afterHoursPrice,
+    afterHoursChange,
+    afterHoursChangePct,
   };
 }
 
@@ -59,12 +76,12 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'HANTOO_APP_KEY not configured' });
   }
 
-  // symbols 파라미터 — 최대 20개
+  // symbols 파라미터 — 최대 50개 (Promise.allSettled 병렬 처리)
   const symbols = (req.query.symbols || '')
     .split(',')
     .map(s => s.trim())
     .filter(s => /^\d{6}$/.test(s))
-    .slice(0, 20);
+    .slice(0, 50);
 
   if (!symbols.length) {
     return res.status(400).json({ error: 'symbols required (e.g. ?symbols=005930,000660)' });
