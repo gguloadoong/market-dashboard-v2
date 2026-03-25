@@ -556,6 +556,13 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     if (filter === 'up')        list = list.filter(i => getPct(i) > 0);
     if (filter === 'down')      list = list.filter(i => getPct(i) < 0);
     if (filter === 'hot')       list = list.filter(i => getPct(i) >= 3);
+    if (filter === 'hot5')      list = list.filter(i => getPct(i) >= 5);
+    if (filter === 'drop3')     list = list.filter(i => getPct(i) <= -3);
+    if (filter === 'vol') {
+      const getVol = i => i.id ? (i.volume24h ?? 0) : (i.volume ?? 0);
+      const avg = items.length ? items.reduce((s, i) => s + getVol(i), 0) / items.length : 0;
+      if (avg > 0) list = list.filter(i => getVol(i) >= avg * 2);
+    }
     if (filter === 'watchlist') list = list.filter(i => isWatched(i.id || i.symbol));
     // ★ 관심종목만 보기 토글
     if (showWatchlistOnly)      list = list.filter(i => isWatched(i.id || i.symbol));
@@ -569,7 +576,14 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     return [...s].sort();
   }, [items, type]);
 
-  const hotCount = items.filter(i => getPct(i) >= 3).length;
+  const hotCount    = items.filter(i => getPct(i) >= 3).length;
+  const hot5Count   = items.filter(i => getPct(i) >= 5).length;
+  const drop3Count  = items.filter(i => getPct(i) <= -3).length;
+  const volSpikeCount = useMemo(() => {
+    const getVol = i => i.id ? (i.volume24h ?? 0) : (i.volume ?? 0);
+    const avg = items.length ? items.reduce((s, i) => s + getVol(i), 0) / items.length : 0;
+    return avg > 0 ? items.filter(i => getVol(i) >= avg * 2).length : 0;
+  }, [items]);
 
   // 코인 탭: BTC 도미넌스 + ETH 도미넌스 + 전체 시총 (보유 데이터에서 계산, 추가 API 호출 없음)
   const coinMarketStats = useMemo(() => {
@@ -714,16 +728,21 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
           />
         </div>
 
-        <TabbedChips
-          tabs={[
-            { id: 'all',  label: '전체' },
-            { id: 'hot',  label: hotCount > 0 ? `🔥 ${hotCount}` : '🔥' },
-            { id: 'up',   label: '▲' },
-            { id: 'down', label: '▼' },
-          ]}
-          value={filter}
-          onChange={setFilter}
-        />
+        <div className="overflow-x-auto no-scrollbar flex-shrink-0">
+          <TabbedChips
+            tabs={[
+              { id: 'all',   label: '전체' },
+              { id: 'hot',   label: hotCount  > 0 ? `🔥 ${hotCount}` : '🔥' },
+              { id: 'hot5',  label: hot5Count > 0 ? `🚀 ${hot5Count}` : '🚀' },
+              { id: 'up',    label: '▲' },
+              { id: 'down',  label: '▼' },
+              { id: 'drop3', label: drop3Count > 0 ? `📉 ${drop3Count}` : '📉' },
+              { id: 'vol',   label: volSpikeCount > 0 ? `📦 ${volSpikeCount}` : '📦' },
+            ]}
+            value={filter}
+            onChange={setFilter}
+          />
+        </div>
 
         {/* ★ 관심종목만 보기 토글 버튼 */}
         <button
