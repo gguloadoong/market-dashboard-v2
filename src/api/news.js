@@ -121,8 +121,8 @@ function parsePubDate(raw) {
     if (!isNaN(ms)) return ms;
   }
 
-  // 최후 fallback: 현재 시간 (시간 정보 없는 기사보다 필터 통과가 나음)
-  return Date.now();
+  // 최후 fallback: 0 → isRecentNews에서 걸러짐 (Date.now()로 두면 오래된 기사가 최상단에 올라옴)
+  return 0;
 }
 
 // ─── RSS XML 파서 ──────────────────────────────────────────────
@@ -199,10 +199,11 @@ const IMPACT_EVENT_KW = [
   'earnings','revenue','profit','guidance','shares',
 ];
 
+// 재무/공시 이벤트만 (계약·수주 등 광범위 키워드 제거 → 비금융 기사 유입 방지)
 const LISTED_COMPANY_EVENT_KW = [
   '실적','매출','영업이익','순이익','적자','흑자','상장','공모','배당','자사주',
-  '유상증자','무상증자','cb','bw','전환사채','m&a','인수','합병','매각','수주',
-  '계약','투자의견','목표주가','호실적','어닝',
+  '유상증자','무상증자','cb','bw','전환사채','m&a','인수','합병','매각',
+  '투자의견','목표주가','호실적','어닝',
 ];
 
 const BLOCK_KW = [
@@ -228,11 +229,12 @@ function isFinancialNews(item) {
     return hasMarketAnchor || hasImpactEvent;
   }
 
-  // 시장/자산 언급 + 가격 영향 이벤트가 함께 있을 때만 일반 경제 기사를 통과시킨다.
+  // 시장/자산 언급 + 가격 영향 이벤트가 함께 있을 때만 일반 경제 기사를 통과
   if (hasMarketAnchor && hasImpactEvent) return true;
 
-  // 개별 상장사 실적/공시/딜 관련 기사는 시장 키워드가 없어도 허용.
-  if (hasListedCompanyEvent) return true;
+  // 상장사 재무/공시 이벤트 + 시장/자산 언급 병행 필요 (단독 통과 금지)
+  // 단독 허용 시 "계약·인수·합병" 키워드로 비금융 기사가 다수 유입됨
+  if (hasListedCompanyEvent && hasMarketAnchor) return true;
 
   return false;
 }
@@ -247,11 +249,15 @@ function dedup(items) {
   });
 }
 
-// 7일 이내 뉴스만 허용 (오래된 뉴스 인사이트 제거)
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+// 2일 이내 뉴스만 허용 (7일은 현재 시점과 괴리 심함)
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 function isRecentNews(item) {
   if (!item.pubDate) return false;
-  try { return Date.now() - new Date(item.pubDate).getTime() < SEVEN_DAYS_MS; }
+  try {
+    const ms = new Date(item.pubDate).getTime();
+    if (isNaN(ms) || ms === 0) return false;
+    return Date.now() - ms < TWO_DAYS_MS;
+  }
   catch { return false; }
 }
 
