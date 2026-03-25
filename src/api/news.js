@@ -102,7 +102,7 @@ function cleanTitle(title, sourceName) {
 //   ISO 8601: "2026-03-18T14:00:00Z"             ← new Date() OK
 //   한국어: "2026년 3월 18일 14:00"               ← new Date() NaN → fallback 처리
 function parsePubDate(raw) {
-  if (!raw) return Date.now();
+  if (!raw) return 0; // 날짜 없는 기사 → isRecentNews에서 제거
 
   // 1차 시도: 표준 파싱 (RFC2822 / ISO8601)
   let ms = new Date(raw).getTime();
@@ -229,12 +229,9 @@ function isFinancialNews(item) {
     return hasMarketAnchor || hasImpactEvent;
   }
 
-  // 시장/자산 언급 + 가격 영향 이벤트가 함께 있을 때만 일반 경제 기사를 통과
+  // 시장/자산 언급 + 가격 영향 이벤트(거시/재무/공시 포함)가 함께 있을 때만 통과
+  // LISTED_COMPANY_EVENT_KW ⊆ IMPACT_EVENT_KW 이므로 별도 분기 불필요
   if (hasMarketAnchor && hasImpactEvent) return true;
-
-  // 상장사 재무/공시 이벤트 + 시장/자산 언급 병행 필요 (단독 통과 금지)
-  // 단독 허용 시 "계약·인수·합병" 키워드로 비금융 기사가 다수 유입됨
-  if (hasListedCompanyEvent && hasMarketAnchor) return true;
 
   return false;
 }
