@@ -13,6 +13,28 @@ const MARKET_DOT = {
   index: '#9CA3AF',  // 지수 — 회색
 };
 
+// 배너 상태별 컬러 토큰 — Gemini 제안: 하드코딩 제거
+const C = {
+  bgHot:          '#0A0A0A',
+  bgDefault:      '#111318',
+  borderHot:      'rgba(240,68,82,0.15)',
+  borderDefault:  'rgba(255,255,255,0.06)',
+  dotHot:         '#F04452',   // 급등 상태 ping/dot
+  dotIdle:        '#6B7280',   // 비활성 ping
+  dotIdleSolid:   '#4B5563',   // 비활성 dot
+  labelHot:       '#FF6B77',   // LIVE 텍스트
+  labelDefault:   'rgba(255,255,255,0.28)',
+  afterHoursBg:   'rgba(245,158,11,0.15)',
+  afterHoursText: '#F59E0B',
+  pctUp:          '#FF6B77',   // 상승 등락률
+  pctDown:        '#5B9CF6',   // 하락 등락률
+  pctFlat:        'rgba(255,255,255,0.38)',
+  separator:      'rgba(255,255,255,0.08)',
+  labelBorder:    'rgba(255,255,255,0.07)',
+  symbolText:     'rgba(255,255,255,0.88)',
+  valueText:      'rgba(255,255,255,0.55)',
+};
+
 // React.memo: coins WS 틱마다 재렌더 방지 — 급등 순위 실제 변경 시에만 업데이트
 const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices = [], onClick }) {
   const { items, hasHot, isIndexMode } = useMemo(() => {
@@ -80,17 +102,17 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
     <div
       className="flex items-center ticker-wrap select-none"
       style={{
-        background: hasHot ? '#0A0A0A' : '#111318',
+        background: hasHot ? C.bgHot : C.bgDefault,
         height: '36px',
         borderBottom: hasHot
-          ? '1px solid rgba(240,68,82,0.15)'
-          : '1px solid rgba(255,255,255,0.06)',
+          ? `1px solid ${C.borderHot}`
+          : `1px solid ${C.borderDefault}`,
       }}
     >
       {/* 라벨 */}
       <div
         className="flex-shrink-0 flex items-center gap-2 h-full px-3"
-        style={{ borderRight: '1px solid rgba(255,255,255,0.07)', minWidth: 72 }}
+        style={{ borderRight: `1px solid ${C.labelBorder}`, minWidth: 72 }}
       >
         {/* 상태 표시 펄스 */}
         <span
@@ -99,16 +121,16 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
         >
           <span
             className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-            style={{ background: hasHot ? '#F04452' : '#6B7280' }}
+            style={{ background: hasHot ? C.dotHot : C.dotIdle }}
           />
           <span
             className="relative inline-flex rounded-full h-2 w-2"
-            style={{ background: hasHot ? '#F04452' : '#4B5563' }}
+            style={{ background: hasHot ? C.dotHot : C.dotIdleSolid }}
           />
         </span>
         <span
           className="text-[10px] font-semibold tracking-[0.08em] uppercase whitespace-nowrap"
-          style={{ color: hasHot ? '#FF6B77' : 'rgba(255,255,255,0.28)' }}
+          style={{ color: hasHot ? C.labelHot : C.labelDefault }}
         >
           {hasHot ? 'LIVE' : isIndexMode ? 'INDEX' : 'MARKET'}
         </span>
@@ -133,13 +155,13 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
               {/* 시장 컬러 도트 */}
               <span
                 className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: MARKET_DOT[item.market] ?? '#9CA3AF' }}
+                style={{ background: MARKET_DOT[item.market] ?? C.dotIdleSolid }}
               />
 
               {/* 심볼 */}
               <span
                 className="text-[11px] font-bold tracking-tight"
-                style={{ color: 'rgba(255,255,255,0.88)' }}
+                style={{ color: C.symbolText }}
               >
                 {item.symbol}
               </span>
@@ -148,7 +170,7 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
               {item._value > 0 && (
                 <span
                   className="text-[11px] font-mono tabular-nums"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}
+                  style={{ color: C.valueText }}
                 >
                   {item._value >= 1000
                     ? item._value.toLocaleString('ko-KR', { maximumFractionDigits: 0 })
@@ -161,8 +183,8 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
                 <span
                   className="text-[9px] font-semibold px-1 rounded"
                   style={{
-                    background: 'rgba(245,158,11,0.15)',
-                    color: '#F59E0B',
+                    background: C.afterHoursBg,
+                    color: C.afterHoursText,
                     letterSpacing: '0.04em',
                   }}
                 >
@@ -173,13 +195,7 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
               {/* 등락률 */}
               <span
                 className="text-[11px] font-semibold tabular-nums font-mono"
-                style={{
-                  color: isUp
-                    ? '#FF6B77'
-                    : isDown
-                    ? '#5B9CF6'
-                    : 'rgba(255,255,255,0.38)',
-                }}
+                style={{ color: isUp ? C.pctUp : isDown ? C.pctDown : C.pctFlat }}
               >
                 {isUp ? '+' : ''}{displayPct.toFixed(2)}%
               </span>
@@ -187,7 +203,7 @@ const SurgeBanner = memo(function SurgeBanner({ stocks = [], coins = [], indices
               {/* 구분선 */}
               <span
                 className="w-px h-3 flex-shrink-0 ml-1"
-                style={{ background: 'rgba(255,255,255,0.08)' }}
+                style={{ background: C.separator }}
               />
             </button>
           );
