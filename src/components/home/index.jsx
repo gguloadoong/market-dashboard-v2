@@ -6,6 +6,7 @@ import MarketPulseWidget from './widgets/MarketPulseWidget';
 import WatchlistWidget from './widgets/WatchlistWidget';
 import TopMoversWidget from './widgets/TopMoversWidget';
 import NewsFeedWidget from './widgets/NewsFeedWidget';
+import FearGreedWidget from './widgets/FearGreedWidget';
 import NotableMoversSection from './NotableMoversSection';
 import MarketInvestorSection from './MarketInvestorSection';
 import EarlySignalSection from './EarlySignalSection';
@@ -151,7 +152,8 @@ export default function HomeDashboard({
         />
       )}
 
-      {/* ─── 경제 이벤트 티커 ─────────────────────────────── */}
+      {/* ─── 공포탐욕 지수 + 경제 이벤트 티커 ─────────────── */}
+      <FearGreedWidget />
       <EventTicker />
 
       {/* ─── 관심종목 + 섹터 흐름 (2열 나란히, 모바일은 세로) ── */}
