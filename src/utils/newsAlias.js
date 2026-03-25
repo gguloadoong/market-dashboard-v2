@@ -239,13 +239,13 @@ export function matchesKeywords(text, keywords) {
         const re = new RegExp(
           '(?:^|[\\s,;:·\\-/（("\'「【]|(?<=[\\s,;:·\\-/（("\'「【]))' +
           escapeRe(kw) +
-          '(?=[\\s,;:·\\-/）)"\'」】가이을를의에서는은도만과와로이고라며]|$)',
+          '(?=[\\s,;:·\\-/）)"\'」】가이을를의에서는은도만과와로]|이고|라며|$)',
           'i'
         );
         return re.test(lowerText);
       } catch {
-        // lookbehind 미지원 환경 fallback
-        return new RegExp('(?:^|[\\s/])' + escapeRe(kw) + '(?=[\\s/]|$|[가이을를의에서는은도만과와로])', 'i').test(lowerText);
+        // lookbehind 미지원 환경 fallback — 주 패턴과 동일한 문자셋 사용
+        return new RegExp('(?:^|[\\s,;:·\\-/（("\'「【])' + escapeRe(kw) + '(?=[\\s,;:·\\-/）)"\'」】가이을를의에서는은도만과와로]|이고|라며|$)', 'i').test(lowerText);
       }
     }
     return lowerText.includes(kw);
