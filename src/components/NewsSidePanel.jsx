@@ -72,8 +72,8 @@ const STOPWORDS = new Set([
   'rise','rises','rising','fall','falls','falling','high','low','record','billion','million',
   'percent','pct','stock','stocks','share','shares','crypto','economy','economic','financial',
   'finance','global','world','us','uk',
-  // 한국어 조사/접속어/보조어
-  '위해','대한','통해','따른','관련','이번','올해','내년','지난','오늘','어제','내일',
+  // 한국어 조사/접속어/보조어 (내용어 아닌 연결어 전수 추가)
+  '위해','위한','통한','대한','통해','따른','관련','이번','올해','내년','지난','오늘','어제','내일',
   '것으로','있는','하는','되는','된다','한다','있다','없다','것이','라고','에서','까지',
   '부터','으로','에게','한편','또한','이에','따라','대해','보도','전했다','밝혔다',
   '알려졌다','나타났다','분석했다','전망했다','보였다','기자',
@@ -192,9 +192,8 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
     // score Map: symbol → { item, score }
     const scored = new Map();
 
-    // Stage 1: 키워드 직접 매칭 (score 10)
+    // Stage 1: 키워드 직접 매칭 (score 10) — 직접 언급 종목은 시장 제한 없이 표시
     for (const item of all) {
-      if (!allowedMarkets.has(item._market)) continue;
       const keywords = buildStockKeywords(item.symbol, item.name,
         item._market === 'KR' ? 'KR' : item._market === 'COIN' ? 'COIN' : 'US');
       if (keywords.length > 0 && matchesKeywords(text, keywords)) {

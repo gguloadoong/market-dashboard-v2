@@ -4,5 +4,6 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+  ],
+  "ignoreCommand": "[ \"$VERCEL_ENV\" != \"production\" ]"
 }
