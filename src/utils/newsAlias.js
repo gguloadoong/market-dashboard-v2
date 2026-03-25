@@ -14,7 +14,7 @@ export const KR_ALIASES = {
   'LG에너지솔루션':   ['lg energy', 'lges'],
   '현대차':           ['hyundai', '현대자동차'],
   '현대자동차':       ['hyundai', '현대차'],
-  '기아':             ['kia'],
+  '기아':             ['kia', '기아차'],
   '카카오':           ['kakao'],
   '네이버':           ['naver'],
   '셀트리온':         ['celltrion'],
@@ -237,15 +237,15 @@ export function matchesKeywords(text, keywords) {
       // 한글 조사(가,이,을,의...)가 붙은 경우도 허용 (예: 기아가)
       try {
         const re = new RegExp(
-          '(?:^|[\\s,;:·\\-（("\'「【]|(?<=[\\s,;:·\\-（("\'「【]))' +
+          '(?:^|[\\s,;:·\\-/（("\'「【]|(?<=[\\s,;:·\\-/（("\'「【]))' +
           escapeRe(kw) +
-          '(?=[\\s,;:·\\-）)"\'」】가이을를의에서는은도만과와로]|$)',
+          '(?=[\\s,;:·\\-/）)"\'」】가이을를의에서는은도만과와로이고라며]|$)',
           'i'
         );
         return re.test(lowerText);
       } catch {
         // lookbehind 미지원 환경 fallback
-        return new RegExp('(?:^|\\s)' + escapeRe(kw) + '(?=\\s|$|[가이을를의에서는은도만과와로])', 'i').test(lowerText);
+        return new RegExp('(?:^|[\\s/])' + escapeRe(kw) + '(?=[\\s/]|$|[가이을를의에서는은도만과와로])', 'i').test(lowerText);
       }
     }
     return lowerText.includes(kw);
