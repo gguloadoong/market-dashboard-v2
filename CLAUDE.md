@@ -1,7 +1,30 @@
 # 프로젝트 지침
 
 이 프로젝트는 국장·미장·코인 실시간 시세 모니터링 웹앱이다.
-PRD_v3.md 를 항상 먼저 읽고 작업한다.
+작업 전 `.project/backlog.md`, `.project/decisions.md`, `.project/quality-baseline.md`를 먼저 읽는다.
+
+---
+
+## 🤖 자율 정의 (Autonomy Definition)
+
+**자율 = 대표 개입 없이도 서비스 품질이 지속적으로 향상되는 상태**
+
+### 위반 불가 3원칙 (HARD RULES)
+
+1. **Issue → Code** — 코드 1줄 수정 전 반드시 Issue 생성 (`feat:`/`fix:`). Issue 없는 변경은 무효.
+2. **품질 래칫** — `.project/quality-baseline.md` 기준 이하로 내려가면 P0. 모든 신규 작업 중단, 복구 후 재개.
+3. **배포 규칙** — `vercel --prod` CLI 수동 호출 절대 금지. main 머지 = 자동 배포.
+
+### 대표에게만 묻는 것 (request-to-ceo)
+
+| 묻는 것 | 묻지 않는 것 |
+|--------|------------|
+| 외부 서비스 결제 | 기술 선택 |
+| 사업 방향 피벗 | 구현 방법 |
+| 법적/규제 판단 | 버그 수정 |
+| 새 환경변수/API 키 발급 | 디자인 디테일 |
+
+---
 
 ---
 
