@@ -4,13 +4,14 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { TabbedChips } from '@coinbase/cds-web/chips';
 import { formatNetAmt } from '../../api/investor';
 
 // ─── 탭 정의 ─────────────────────────────────────────────────
 const TABS = [
-  { key: 'combined', label: '통합' },
-  { key: 'kospi',    label: '코스피' },
-  { key: 'kosdaq',   label: '코스닥' },
+  { id: 'combined', label: '통합' },
+  { id: 'kospi',    label: '코스피' },
+  { id: 'kosdaq',   label: '코스닥' },
 ];
 
 // ─── 투자자 행 정의 ───────────────────────────────────────────
@@ -180,21 +181,8 @@ export default function MarketInvestorSection() {
       </div>
 
       {/* ─── 탭 (코스피 / 코스닥 / 통합) ──────────────────── */}
-      <div className="flex border-t border-[#F2F4F6]">
-        {TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={[
-              'flex-1 py-2 text-[12px] font-medium transition-colors',
-              activeTab === tab.key
-                ? 'text-[#191F28] font-bold border-b-2 border-[#1764ED]'
-                : 'text-[#8B95A1]',
-            ].join(' ')}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex justify-center px-4 py-2 border-t border-[#F2F4F6]">
+        <TabbedChips tabs={TABS} value={activeTab} onChange={setActiveTab} />
       </div>
     </div>
   );

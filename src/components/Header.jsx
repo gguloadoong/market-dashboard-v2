@@ -2,6 +2,7 @@
 // 탭: active 상태 개선 (underline + filled bg), 뱃지 🔥, 이모지 레이블
 import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
 import { fmt } from '../utils/format';
+import { Button } from '@coinbase/cds-web/buttons';
 
 const TABS = [
   { id: 'home', label: '🏠 홈' },
@@ -114,25 +115,26 @@ export default function Header({
           )}
 
           {/* 새로고침 버튼 */}
-          <button
-            onClick={onRefresh}
+          <Button
+            variant="secondary"
+            compact
+            loading={loading}
             disabled={loading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium border border-[#E5E8EB] transition-colors ${
-              loading
-                ? 'opacity-40 cursor-not-allowed text-[#B0B8C1]'
-                : 'text-[#6B7684] hover:bg-[#F2F4F6] hover:text-[#191F28]'
-            }`}
+            onClick={onRefresh}
+            start={
+              !loading && (
+                <svg
+                  width="13" height="13" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+              )
+            }
           >
-            <svg
-              width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-              className={loading ? 'animate-spin' : ''}
-            >
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-            </svg>
             새로고침
-          </button>
+          </Button>
         </div>
       </div>
     </header>

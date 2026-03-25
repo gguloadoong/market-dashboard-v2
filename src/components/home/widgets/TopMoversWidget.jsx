@@ -1,12 +1,13 @@
 // 급등/급락 위젯 — KR/US/COIN 탭 (6박스)
 import { useState } from 'react';
+import { TabbedChips } from '@coinbase/cds-web/chips';
 import HotListSection from '../HotListSection';
 
 const TABS = [
-  { id: 'all', label: '전체' },
-  { id: 'kr',  label: '국내' },
-  { id: 'us',  label: '미장' },
-  { id: 'coin',label: '코인' },
+  { id: 'all',  label: '전체' },
+  { id: 'kr',   label: '국내' },
+  { id: 'us',   label: '미장' },
+  { id: 'coin', label: '코인' },
 ];
 
 export default function TopMoversWidget({ hasData, krHot, usHot, coinHot, krDrop, usDrop, coinDrop, krwRate, onItemClick }) {
@@ -23,17 +24,9 @@ export default function TopMoversWidget({ hasData, krHot, usHot, coinHot, krDrop
 
   return (
     <div>
-      <div className="flex items-center gap-1 mb-2">
-        <span className="text-[12px] font-bold text-[#8B95A1] uppercase tracking-wide mr-2">급등/급락</span>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors ${
-              tab === t.id ? 'bg-[#191F28] text-white' : 'bg-white text-[#6B7684] hover:bg-[#F2F4F6]'
-            }`}
-          >{t.label}</button>
-        ))}
+      <div className="flex items-center gap-3 mb-2">
+        <span className="text-[12px] font-bold text-[#8B95A1] uppercase tracking-wide flex-shrink-0">급등/급락</span>
+        <TabbedChips tabs={TABS} value={tab} onChange={setTab} />
       </div>
       <HotListSection hasData={hasData} krwRate={krwRate} onItemClick={onItemClick} {...filtered} />
     </div>
