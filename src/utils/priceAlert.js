@@ -57,7 +57,7 @@ function checkTargetAlertForItem(item, type, currentKrwPrice) {
   sendAlert(
     `${dirLabel} ${name}`,
     `현재가 ₩${Math.round(currentKrwPrice).toLocaleString()} ${sign} ₩${Math.round(targetPrice).toLocaleString()}`,
-    { tag: alertKey },
+    { tag: alertKey, clickData: item },
   );
   targetAlertTime.set(alertKey, now);
 }
@@ -83,7 +83,8 @@ export function getNotificationPermission() {
 }
 
 // ─── 단일 알림 발송 ─────────────────────────────────────────
-function sendAlert(title, body, { tag, icon } = {}) {
+// clickData: 알림 클릭 시 'alert-open-item' 커스텀 이벤트로 dispatch → App.jsx에서 ChartSidePanel 오픈
+function sendAlert(title, body, { tag, icon, clickData } = {}) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
   try {
@@ -93,6 +94,14 @@ function sendAlert(title, body, { tag, icon } = {}) {
       icon: icon ?? '/favicon.ico',
       silent: false,
     });
+    // 알림 클릭 → 창 포커스 + 해당 종목 패널 오픈
+    if (clickData) {
+      n.onclick = () => {
+        window.focus();
+        window.dispatchEvent(new CustomEvent('alert-open-item', { detail: clickData }));
+        n.close();
+      };
+    }
     // 5초 후 자동 닫기
     setTimeout(() => n.close(), 5000);
   } catch {}
@@ -128,7 +137,7 @@ export function checkAndAlert(item, type) {
   sendAlert(
     `${dir} ${name}  ${sign}${pct.toFixed(2)}%`,
     `현재가 ${priceStr}`,
-    { tag: key },
+    { tag: key, clickData: item },
   );
   lastAlertTime.set(key, now);
 }

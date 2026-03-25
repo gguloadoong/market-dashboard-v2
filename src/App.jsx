@@ -141,6 +141,13 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
+  // 알림 클릭 딥링크 — priceAlert.js 'alert-open-item' 이벤트 수신 → ChartSidePanel 오픈
+  useEffect(() => {
+    const onAlertOpen = e => { if (e.detail) setSelectedItem(e.detail); };
+    window.addEventListener('alert-open-item', onAlertOpen);
+    return () => window.removeEventListener('alert-open-item', onAlertOpen);
+  }, []);
+
   // ── 모바일 백버튼 처리 (History API) ──────────────────────────
   // 패널/검색이 열릴 때 history entry 추가 → 뒤로가기 시 앱 닫힘 방지
   // closingViaUI: X 버튼으로 닫을 때 history.back()에 의한 popstate 중복 처리 방지
