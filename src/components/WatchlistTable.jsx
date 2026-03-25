@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import React from 'react';
 import { getKoreanMarketStatus, getUsMarketStatus } from '../utils/marketHours';
+import { setTargetPrice, removeTargetPrice, getTargetPrices } from '../utils/priceAlert';
 import Sparkline from './Sparkline';
 import { useWatchlist } from '../hooks/useWatchlist';
 // CDS Table 컴포넌트
@@ -122,6 +123,106 @@ function BuyPriceCell({ item, buyPrice, onBuyPriceChange, krwRate }) {
   );
 }
 
+// ─── 목표가 알림 셀 ──────────────────────────────────────────
+function TargetPriceCell({ item, targetPrice, targetDir, onTargetChange, krwRate }) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState('');
+  const [dir, setDir] = useState('above');
+  const inputRef = useRef(null);
+
+  const currentKrwPrice = item.id
+    ? (item.priceKrw || (item.priceUsd ?? 0) * krwRate)
+    : item.market === 'us'
+      ? (item.price ?? 0) * krwRate
+      : (item.price ?? 0);
+
+  const hasTarget = targetPrice != null && targetPrice > 0;
+  const reached = hasTarget && (
+    targetDir === 'above' ? currentKrwPrice >= targetPrice : currentKrwPrice <= targetPrice
+  );
+
+  const startEdit = (e) => {
+    e.stopPropagation();
+    setInputVal(hasTarget ? String(targetPrice) : '');
+    setDir(targetDir || 'above');
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const save = () => {
+    const num = parseFloat(String(inputVal).replace(/,/g, ''));
+    if (!num || num <= 0) {
+      onTargetChange(item.id || item.symbol, null, null);
+    } else {
+      onTargetChange(item.id || item.symbol, num, dir);
+    }
+    setEditing(false);
+  };
+
+  const clear = (e) => {
+    e.stopPropagation();
+    onTargetChange(item.id || item.symbol, null, null);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <TableCell className="px-2 py-2 text-right" onClick={e => e.stopPropagation()}>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setDir(d => d === 'above' ? 'below' : 'above')}
+              className={`text-[10px] font-bold px-1.5 py-0.5 rounded border transition-colors ${
+                dir === 'above'
+                  ? 'bg-[#FFF0F1] text-[#F04452] border-[#FFD5D8]'
+                  : 'bg-[#F0F4FF] text-[#1764ED] border-[#C9D8FF]'
+              }`}
+            >
+              {dir === 'above' ? '≥↑' : '≤↓'}
+            </button>
+            <input
+              ref={inputRef}
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              onBlur={save}
+              onKeyDown={e => {
+                if (e.key === 'Enter') save();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+              placeholder="목표가"
+              className="w-20 text-right text-[12px] px-1.5 py-1 border border-[#3182F6] rounded-md outline-none bg-white tabular-nums font-mono"
+            />
+          </div>
+          {hasTarget && (
+            <button onClick={clear} className="text-[10px] text-[#C9CDD2] hover:text-[#F04452] transition-colors">
+              삭제
+            </button>
+          )}
+        </div>
+      </TableCell>
+    );
+  }
+
+  if (hasTarget) {
+    return (
+      <TableCell className="px-2 py-3 text-right" onClick={startEdit}>
+        <div className={`text-[11px] font-bold ${reached ? 'text-[#059669]' : targetDir === 'above' ? 'text-[#F04452]' : 'text-[#1764ED]'}`}>
+          {reached ? '🎯' : (targetDir === 'above' ? '↑' : '↓')}
+        </div>
+        <div className="text-[10px] text-[#8B95A1] font-mono tabular-nums mt-0.5">
+          ₩{Math.round(targetPrice).toLocaleString('ko-KR')}
+        </div>
+      </TableCell>
+    );
+  }
+
+  return (
+    <TableCell className="px-2 py-3 text-right" onClick={startEdit}>
+      <span className="text-[13px] text-[#D9DDE3] hover:text-[#8B95A1] transition-colors cursor-pointer select-none">🔔</span>
+    </TableCell>
+  );
+}
+
 // ─── 로고 URL + 아바타 색상 (home/utils.js 통합본 사용) ──────
 import { getLogoUrls, getAvatarBg as colorFor } from './home/utils';
 
@@ -156,7 +257,7 @@ const LogoAvatar = React.memo(function LogoAvatar({ item, size = 32 }) {
 });
 
 // ─── 행 플래시 애니메이션 ────────────────────────────────────
-const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched, buyPrice, onBuyPriceChange }) {
+const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched, buyPrice, onBuyPriceChange, targetPrice, targetDir, onTargetChange }) {
   const rowRef  = useRef(null);
   const prevPct = useRef(getPct(item));
   const pct     = getPct(item);
@@ -294,6 +395,9 @@ const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, se
       {/* 매수가 / 평가손익 */}
       <BuyPriceCell item={item} buyPrice={buyPrice} onBuyPriceChange={onBuyPriceChange} krwRate={krwRate} />
 
+      {/* 목표가 알림 */}
+      <TargetPriceCell item={item} targetPrice={targetPrice} targetDir={targetDir} onTargetChange={onTargetChange} krwRate={krwRate} />
+
       {/* 클릭 화살표 */}
       <TableCell className="pr-4 py-3 w-8">
         <svg className="text-[#C9CDD2] group-hover:text-[#8B95A1] transition-colors mx-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -330,6 +434,7 @@ function SkeletonRow() {
       <TableCell className="px-3 py-3 text-right hidden lg:table-cell"><div className="h-3 bg-[#F2F4F6] rounded w-16 ml-auto" /></TableCell>
       <TableCell className="px-3 py-3 w-[88px]"><div className="h-7 bg-[#F2F4F6] rounded w-full" /></TableCell>
       <TableCell className="px-2 py-3 w-[80px]" />
+      <TableCell className="px-2 py-3 w-8" />
       <TableCell className="pr-4 py-3 w-8" />
     </TableRow>
   );
@@ -395,10 +500,22 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
       return next;
     });
   }, []);
+
+  // 목표가 상태
+  const [targetPrices, setTargetPrices] = useState(() => getTargetPrices());
+  const handleTargetPriceChange = useCallback((symbol, price, direction) => {
+    if (!price || price <= 0) {
+      removeTargetPrice(symbol);
+      setTargetPrices(prev => Object.fromEntries(Object.entries(prev).filter(([k]) => k !== symbol)));
+    } else {
+      setTargetPrice(symbol, price, direction);
+      setTargetPrices(prev => ({ ...prev, [symbol]: { price, direction } }));
+    }
+  }, []);
   // 코인 탭: 100개씩 표시 (250개 한번에 렌더링 성능 방지)
   const PAGE_SIZE   = 100;
   const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
-  const { toggle, isWatched, watchlist } = useWatchlist();
+  const { toggle, isWatched } = useWatchlist();
 
   const handleSort = (key) => {
     if (sortKey === key) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
@@ -441,7 +558,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
     // ★ 관심종목만 보기 토글
     if (showWatchlistOnly)      list = list.filter(i => isWatched(i.id || i.symbol));
     return list;
-  }, [items, search, filter, sector, showWatchlistOnly, watchlist, isWatched]);
+  }, [items, search, filter, sector, showWatchlistOnly, isWatched]);
 
   // items에서 고유 섹터 목록 동적 추출 (kr/us 탭에서만 의미있음)
   const availableSectors = useMemo(() => {
@@ -493,6 +610,9 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         isWatched={isWatched}
         buyPrice={buyPrices[item.id || item.symbol] ?? null}
         onBuyPriceChange={handleBuyPriceChange}
+        targetPrice={targetPrices[item.id || item.symbol]?.price ?? null}
+        targetDir={targetPrices[item.id || item.symbol]?.direction ?? 'above'}
+        onTargetChange={handleTargetPriceChange}
       />
     ));
   };
@@ -687,6 +807,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
               >시가총액{sortKey === 'marketCap' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
               <TableCell as="th" scope="col" className="px-3 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-[88px]">차트</TableCell>
               <TableCell as="th" scope="col" className="px-2 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-[80px]">손익</TableCell>
+              <TableCell as="th" scope="col" className="px-2 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-8">알림</TableCell>
               <TableCell as="th" scope="col" className="w-8" />
             </TableRow>
           </TableHeader>
