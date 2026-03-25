@@ -1,5 +1,5 @@
 import { memo, useState, useMemo } from 'react';
-import { getPct, fmt, MARKET_BADGE, TYPE_BADGE, PALETTE, getAvatarBg } from './utils';
+import { getPct, MARKET_BADGE, TYPE_BADGE, PALETTE } from './utils';
 import { MARKET_FLAG, RELATION_TYPES } from '../../data/relatedAssets';
 import { extractNewsSignals } from '../../utils/newsSignal';
 

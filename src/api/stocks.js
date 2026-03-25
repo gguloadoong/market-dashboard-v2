@@ -273,7 +273,7 @@ export async function fetchEtfPricesBatch(symbols) {
 // ─── 지수 ────────────────────────────────────────────────────
 // 모든 지수: Yahoo Finance via 다중 프록시 동시 레이스 (KOSPI 포함)
 // KOSPI: ^KS11, KOSDAQ: ^KQ11 (Yahoo Finance 공식 티커)
-const toNum = s => parseFloat((s || '').toString().replace(/,/g, '')) || 0;
+const _toNum = s => parseFloat((s || '').toString().replace(/,/g, '')) || 0;
 
 // allorigins 두 엔드포인트로 레이스 (corsproxy.io 서비스 종료로 제거)
 async function fetchYahooRace(symbol, id) {

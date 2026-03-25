@@ -29,7 +29,7 @@ function toNum(val) {
   return parseInt(String(val).replace(/,/g, ''), 10) || 0;
 }
 
-function toFloat(val) {
+function _toFloat(val) {
   if (val === null || val === undefined || val === '') return 0;
   return parseFloat(String(val).replace(/,/g, '')) || 0;
 }

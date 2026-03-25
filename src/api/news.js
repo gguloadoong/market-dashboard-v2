@@ -76,7 +76,7 @@ function cleanTitle(title, sourceName) {
   // 영어 언론사명 끝부분 제거 "제목 - Reuters" (대소문자 무관)
   t = t.replace(/\s*[-–]\s*[A-Z][a-zA-Z\s.]+$/, '');
   // 대괄호/소괄호 접두사 제거 "[Reuters] 제목" "【연합뉴스】 제목"
-  t = t.replace(/^[\[【\(].*?[\]】\)]\s*/, '');
+  t = t.replace(/^[[【(].*?[\]】)]\s*/, '');
   // 소스명 접두사 제거 "Reuters: 제목"
   t = t.replace(new RegExp(`^${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[-–:]\\s*`, 'i'), '');
   // 영문 프리픽스 제거
@@ -114,7 +114,7 @@ function parsePubDate(raw) {
   if (!isNaN(ms)) return ms;
 
   // 3차 시도: 한국어 날짜 포맷 "2026년 3월 18일 14:00" 또는 "2026.03.18"
-  const krMatch = raw.match(/(\d{4})[년.\-\/]?\s*(\d{1,2})[월.\-\/]?\s*(\d{1,2})[일]?\s*(?:(\d{1,2}):(\d{2}))?/);
+  const krMatch = raw.match(/(\d{4})[년./-]?\s*(\d{1,2})[월./-]?\s*(\d{1,2})[일]?\s*(?:(\d{1,2}):(\d{2}))?/);
   if (krMatch) {
     const [, y, mo, d, h = '0', m = '0'] = krMatch;
     ms = new Date(+y, +mo - 1, +d, +h, +m).getTime();

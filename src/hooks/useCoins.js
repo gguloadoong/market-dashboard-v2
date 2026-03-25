@@ -3,7 +3,7 @@
 // 스파크라인: CoinGecko(5분) — 유일한 소스
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { COINS_INITIAL } from '../data/mock';
-import { fetchCoins, fetchCoinsUpbitOnly, fetchExchangeRate, fetchUpbitAllSymbols, fetchCoinGecko, getSparklineCache } from '../api/coins';
+import { fetchCoins, fetchCoinsUpbitOnly, fetchUpbitAllSymbols, fetchCoinGecko, getSparklineCache } from '../api/coins';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from '../api/coinWs';
 import { setWhaleBtcKrwPrice } from '../api/whale';
 import { POLLING } from '../constants/polling';

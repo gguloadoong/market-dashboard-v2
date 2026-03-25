@@ -1,5 +1,5 @@
 // 우측 고정 뉴스·속보 패널 — React Query로 중복 호출 차단
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNewsAutoRefetch, useCategoryNewsQuery } from '../hooks/useNewsQuery';
 import WhalePanel from './WhalePanel';
 import { subscribeLatestWhale } from '../state/whaleBus';

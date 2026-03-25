@@ -228,7 +228,7 @@ function buildInsightText(event) {
 }
 
 // ─── 거래소 경로 표시 (fromOwner → toOwner) ─────────────────────
-function buildRouteLabel(event) {
+function _buildRouteLabel(event) {
   if (event.source !== 'whale-alert') {
     // Upbit 체결은 거래소 이름 표시 없음
     return null;

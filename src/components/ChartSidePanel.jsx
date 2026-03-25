@@ -112,7 +112,7 @@ function getPct(item) {
   return item.id ? (item.change24h ?? 0) : (item.changePct ?? 0);
 }
 
-function timeAgo(date) {
+function _timeAgo(date) {
   const diff = (Date.now() - new Date(date)) / 1000;
   if (diff < 60) return `${Math.floor(diff)}초 전`;
   if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
@@ -121,7 +121,7 @@ function timeAgo(date) {
 }
 
 // ─── 시가총액 포맷 (조/억 단위) ──────────────────────────────────
-function fmtMcap(v, isCoin = false, krwRate = 1466) {
+function fmtMcap(v, isCoin = false, _krwRate = 1466) {
   if (!v) return '—';
   // 코인: USD 기준 → 조(T), 억(B)
   if (isCoin) {
@@ -209,7 +209,6 @@ function genInvestorInsight(data) {
 
 // ─── 뉴스 시그널 라벨 (간단 버전) ────────────────────────────────
 function extractSignalLabel(title = '') {
-  const t = title.toLowerCase();
   if (/급등|상승|돌파|신고가|매수|호재/.test(title)) return { label: '호재', color: '#F04452', bg: '#FFF0F1' };
   if (/급락|하락|하한가|매도|악재|리스크/.test(title)) return { label: '악재', color: '#1764ED', bg: '#EDF4FF' };
   if (/실적|매출|영업이익|어닝/.test(title))            return { label: '실적', color: '#8B5CF6', bg: '#F5F3FF' };
@@ -916,7 +915,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                     연관 종목
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {nonEtfItems.map(({ ticker, item: rel, type, reason }) => {
+                    {nonEtfItems.map(({ ticker, item: rel, type, reason: _reason }) => {
                       const relPct   = rel ? (rel.change24h ?? rel.changePct ?? 0) : null;
                       const relColor = relPct == null ? '#B0B8C1' : relPct > 0 ? '#F04452' : relPct < 0 ? '#1764ED' : '#8B95A1';
                       const relPrice = rel

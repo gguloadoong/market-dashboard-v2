@@ -37,7 +37,7 @@ function num(s) {
   return parseFloat(String(s).replace(/,/g, '').trim()) || 0;
 }
 
-export default async function handler(req) {
+export default async function handler(_req) {
   if (!AUTH_KEY) {
     return Response.json({ error: 'KRX_API_KEY not set', etfs: [] }, { status: 500 });
   }

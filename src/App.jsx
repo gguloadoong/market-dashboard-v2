@@ -29,10 +29,10 @@ export default function App() {
   const krwRateRef                  = useRef(1466);
   useEffect(() => { krwRateRef.current = krwRate; }, [krwRate]);
 
-  const { coins, setCoins, coinError, refreshCoins } = useCoins(krwRateRef);
+  const { coins, setCoins: _setCoins, coinError, refreshCoins } = useCoins(krwRateRef);
   const {
     usStocks, setUsStocks, krStocks, setKrStocks,
-    dataErrors, setDataErrors,
+    dataErrors, setDataErrors: _setDataErrors,
     krSymbolsRef, usSymbolsRef, refreshUsStocks, refreshKoreanStocks,
   } = usePrices();
 

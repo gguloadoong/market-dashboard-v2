@@ -301,7 +301,7 @@ export async function fetchCoins(krwRate = 1466) {
         priceUsd:    binance.priceUsd ?? priceKrw / krwRate,
         priceKrw,
         change24h:   upbit.change24h ?? binance.change24h ?? 0,
-        volume24h:   (upbit.volume24hKrw ?? 0) / krwRate || binance.volume24hUsd ?? 0,
+        volume24h:   (upbit.volume24hKrw ?? 0) / krwRate || (binance.volume24hUsd ?? 0),
         sparkline:   cgSparklineCache[sym] ?? [],
         sector:      getCoinSector(sym),
         market:      'coin',

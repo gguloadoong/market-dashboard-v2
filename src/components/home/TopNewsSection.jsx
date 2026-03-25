@@ -35,7 +35,6 @@ function cleanDesc(raw) {
 // 뉴스와 매칭되는 종목 찾기 (allItems에서)
 function findMatchedStocks(newsTitle, allItems, max = 3) {
   if (!newsTitle || !allItems.length) return [];
-  const text = newsTitle.toLowerCase();
   const matched = [];
   const seen = new Set();
 

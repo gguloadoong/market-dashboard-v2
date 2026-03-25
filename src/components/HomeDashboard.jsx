@@ -10,7 +10,7 @@ import Sparkline from './Sparkline';
 import SectorRotation from './SectorRotation';
 import { useAllNewsQuery } from '../hooks/useNewsQuery';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { findRelatedItems, MARKET_FLAG, RELATION_TYPES } from '../data/relatedAssets';
+import { MARKET_FLAG, RELATION_TYPES } from '../data/relatedAssets';
 import { extractNewsSignals } from '../utils/newsSignal';
 
 // ─── 종목 키워드 매핑 테이블 ──────────────────────────────────

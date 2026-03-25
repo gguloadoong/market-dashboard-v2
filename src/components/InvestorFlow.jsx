@@ -1,7 +1,7 @@
 // 투자자 동향 — 외국인/기관/개인 순매수 흐름 시각화
 // 토스 스타일: 숫자 중심, 색상으로 방향, 게이지 바
 import { useState, useEffect } from 'react';
-import { fetchInvestorDataSafe, fetchInvestorTrendSafe, formatNetAmt } from '../api/investor';
+import { fetchInvestorDataSafe } from '../api/investor';
 
 const ROWS = [
   { key: 'foreign',     label: '외인',  color: '#1764ED', bgPos: '#EDF4FF', bgNeg: '#FFF0F1' },
