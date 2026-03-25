@@ -197,6 +197,7 @@ export default function App() {
               indices={indices} krStocks={krStocks} usStocks={usStocks}
               coins={coins} etfs={mergedEtfs} krwRate={krwRate}
               onItemClick={setSelectedItem} onNewsClick={setSelectedNews}
+              onTabChange={setActiveTab}
             />
           ) : activeTab === 'sector' ? (
             <SectorRotation krStocks={krStocks} usStocks={usStocks} coins={coins} />

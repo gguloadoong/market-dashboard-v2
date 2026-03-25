@@ -12,7 +12,7 @@ import EventTicker from './EventTicker';
 import CoinListingSection from './CoinListingSection';
 
 // ─── 섹터 미니 위젯 (HOT 3 + COLD 3 칩 → 섹터 탭 유도) ──
-function SectorMiniWidget({ krStocks, usStocks, coins }) {
+function SectorMiniWidget({ krStocks, usStocks, coins, onTabChange }) {
   const sectors = useMemo(() => {
     const coinsWithPct = coins.filter(c => c.sector).map(c => ({ ...c, changePct: c.change24h ?? 0 }));
     const items = [...krStocks, ...usStocks, ...coinsWithPct];
@@ -40,7 +40,10 @@ function SectorMiniWidget({ krStocks, usStocks, coins }) {
           <span className="text-[13px] font-bold text-[#191F28]">섹터 자금 흐름</span>
           <span className="text-[10px] text-[#B0B8C1]">HOT · COLD</span>
         </div>
-        <span className="text-[11px] text-[#3182F6] font-medium">섹터 탭에서 상세 →</span>
+        <button
+          onClick={() => onTabChange?.('sector')}
+          className="text-[11px] text-[#3182F6] font-medium hover:underline"
+        >섹터 탭에서 상세 →</button>
       </div>
       <div className="flex gap-4">
         {/* HOT */}
@@ -72,7 +75,7 @@ function SectorMiniWidget({ krStocks, usStocks, coins }) {
 
 export default function HomeDashboard({
   indices = [], krStocks = [], usStocks = [], coins = [], etfs = [],
-  krwRate = 1466, onItemClick, onNewsClick,
+  krwRate = 1466, onItemClick, onNewsClick, onTabChange,
 }) {
   const { data: allNews = [] } = useAllNewsQuery();
   const { watchlist, toggle, isWatched } = useWatchlist();
@@ -161,7 +164,7 @@ export default function HomeDashboard({
           krwRate={krwRate}
         />
         {(krStocks.length > 0 || usStocks.length > 0 || coins.length > 0) && (
-          <SectorMiniWidget krStocks={krStocks} usStocks={usStocks} coins={coins} />
+          <SectorMiniWidget krStocks={krStocks} usStocks={usStocks} coins={coins} onTabChange={onTabChange} />
         )}
       </div>
 
