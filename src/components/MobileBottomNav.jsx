@@ -96,6 +96,8 @@ const MobileBottomNav = memo(function MobileBottomNav({ activeTab, onTabChange, 
               onClick={() => onTabChange(tab.id)}
               className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 relative"
               style={{ minHeight: 56 }}
+              aria-label={tab.label}
+              aria-current={active ? 'page' : undefined}
             >
               {/* 급등 배지 */}
               {surge && !active && (
