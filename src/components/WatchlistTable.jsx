@@ -12,6 +12,8 @@ import { TableRow } from '@coinbase/cds-web/tables';
 import { TableCell } from '@coinbase/cds-web/tables';
 import { TableHeader } from '@coinbase/cds-web/tables';
 import { TableCaption } from '@coinbase/cds-web/tables';
+// CDS Chips
+import { TabbedChips } from '@coinbase/cds-web/chips';
 
 // ─── 숫자 포맷 ──────────────────────────────────────────────
 function fmt(n, d = 0) {
@@ -712,26 +714,16 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
           />
         </div>
 
-        <div className="flex gap-1 flex-shrink-0">
-          {[
-            { key: 'all',  label: '전체' },
-            { key: 'hot',  label: `🔥${hotCount > 0 ? ` ${hotCount}` : ''}` },
-            { key: 'up',   label: '▲' },
-            { key: 'down', label: '▼' },
-          ].map(f => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-2 py-1.5 text-[11px] rounded-lg font-semibold transition-colors ${
-                filter === f.key
-                  ? 'bg-[#191F28] text-white'
-                  : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <TabbedChips
+          tabs={[
+            { id: 'all',  label: '전체' },
+            { id: 'hot',  label: hotCount > 0 ? `🔥 ${hotCount}` : '🔥' },
+            { id: 'up',   label: '▲' },
+            { id: 'down', label: '▼' },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
 
         {/* ★ 관심종목만 보기 토글 버튼 */}
         <button
