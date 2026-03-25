@@ -31,6 +31,33 @@ export const NEWS_SIGNALS = [
   { tag: '⚡ 신제품',  keywords: ['출시','공개','발표','개발','특허','계약','수주','신제품','업그레이드'], bg: '#F0FFF6', color: '#059669', priority: 3 },
 ];
 
+// ─── 호재/악재/중립 임팩트 분류 ─────────────────────────────
+const IMPACT_POSITIVE = [
+  '실적 개선','영업이익 증가','흑자전환','흑자','어닝서프라이즈','목표가 상향','상향','매수',
+  '급등','신고가','상한가','수주','계약 체결','수출 증가','증익','호실적','자사주 매입','배당 증가',
+];
+const IMPACT_NEGATIVE = [
+  '적자','영업손실','어닝쇼크','목표가 하향','하향','매도','급락','하한가','부도','파산','상장폐지',
+  '리콜','제재','과징금','손실','위기','붕괴','감익','배당 삭감','대규모 매도','공매도',
+];
+
+/**
+ * getNewsImpact(title)
+ * 뉴스 제목의 호재/악재 여부를 판별
+ * @param {string} title
+ * @returns {{ label: string, bg: string, color: string } | null}
+ */
+export function getNewsImpact(title) {
+  if (!title) return null;
+  const lower = title.toLowerCase();
+  const posHits = IMPACT_POSITIVE.filter(kw => lower.includes(kw.toLowerCase())).length;
+  const negHits = IMPACT_NEGATIVE.filter(kw => lower.includes(kw.toLowerCase())).length;
+  if (posHits === 0 && negHits === 0) return null;
+  if (posHits > negHits) return { label: '🟢 호재', bg: '#F0FFF6', color: '#059669' };
+  if (negHits > posHits) return { label: '🔴 악재', bg: '#FFF0F1', color: '#F04452' };
+  return { label: '⚪ 중립', bg: '#F2F4F6', color: '#8B95A1' };
+}
+
 /**
  * extractNewsSignals(title, pubDate?)
  * 뉴스 제목에서 매칭되는 시그널 태그를 최대 2개 반환 (priority 낮은 순)

@@ -1,7 +1,7 @@
 // 시장을 움직이는 뉴스 — 종목 연결 카드형 뉴스 피드
 // 뉴스와 관련 종목을 뱃지로 연결, 종목 등락률 표시
 import { useMemo } from 'react';
-import { extractNewsSignals } from '../../utils/newsSignal';
+import { extractNewsSignals, getNewsImpact } from '../../utils/newsSignal';
 import { buildStockKeywords, matchesKeywords } from '../../utils/newsAlias';
 
 const CAT_BADGE = {
@@ -92,6 +92,7 @@ export default function TopNewsSection({ allNews = [], onNewsClick, allItems = [
     return recent
       .map(n => {
         const signals = extractNewsSignals(n.title);
+        const impact = getNewsImpact(n.title);
         const stockCount = countStockTags(n.title);
         const isRecent = n.pubDate && (Date.now() - new Date(n.pubDate).getTime()) < 3600000;
         // 종목 실제 움직임 점수 (연결된 종목의 변동폭 합산)
@@ -99,7 +100,7 @@ export default function TopNewsSection({ allNews = [], onNewsClick, allItems = [
         const movementScore = matchedStocks.reduce((sum, s) => sum + Math.abs(s.pct), 0);
         // 점수: 시그널 태그 2점 + 종목 태그 1점 + 1시간 이내 1점 + 종목 움직임 가산
         const score = signals.length * 2 + stockCount + (isRecent ? 1 : 0) + Math.min(movementScore * 0.5, 3);
-        return { ...n, _signals: signals, _score: score, _matchedStocks: matchedStocks };
+        return { ...n, _signals: signals, _impact: impact, _score: score, _matchedStocks: matchedStocks };
       })
       .sort((a, b) => b._score - a._score || new Date(b.pubDate) - new Date(a.pubDate))
       .slice(0, 5);
@@ -149,6 +150,14 @@ export default function TopNewsSection({ allNews = [], onNewsClick, allItems = [
                     {sig.tag}
                   </span>
                 ))}
+                {item._impact && (
+                  <span
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                    style={{ background: item._impact.bg, color: item._impact.color }}
+                  >
+                    {item._impact.label}
+                  </span>
+                )}
                 <span className="text-[10px] text-[#C9CDD2] ml-auto flex-shrink-0">{item.timeAgo}</span>
               </div>
               <p className="text-[13px] font-medium text-[#191F28] leading-snug line-clamp-2">

@@ -3,8 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNewsAutoRefetch, useCategoryNewsQuery } from '../hooks/useNewsQuery';
 import WhalePanel from './WhalePanel';
 import { subscribeLatestWhale } from '../state/whaleBus';
-import { extractNewsSignals } from '../utils/newsSignal';
-// NEWS_SIGNALS는 extractNewsSignals 내부에서 처리
+import { extractNewsSignals, getNewsImpact } from '../utils/newsSignal';
 
 // ─── 종목 태그 추출 — 뉴스 제목에서 주요 종목명 감지 ──────────
 // 자주 언급되는 주요 종목명만 체크 (성능 + 정확도 균형)
@@ -55,6 +54,7 @@ function NewsItem({ item, onNewsClick }) {
   const cat = CAT_COLOR[item.category] || { bg: '#F2F4F6', color: '#6B7684', label: 'NEWS' };
   // 시그널 태그 추출 — pubDate 전달하여 속보(🔴 속보) 자동 감지, 최대 2개
   const signals = extractNewsSignals(item.title, item.pubDate);
+  const impact = getNewsImpact(item.title);
   // 뉴스 제목에서 종목 태그 추출
   const stockTags = extractStockTags(item.title);
   // RSS description 1줄 미리보기
@@ -74,13 +74,17 @@ function NewsItem({ item, onNewsClick }) {
         </span>
         <span className="text-[11px] text-[#B0B8C1] flex-shrink-0 ml-auto">{item.timeAgo}</span>
       </div>
-      {/* 시그널 태그 — NEWS_SIGNALS 배열 기반 자동 추출, 속보 포함 */}
-      {signals.length > 0 && (
-        <div className="flex items-center gap-1 mb-1">
+      {/* 시그널 태그 + 호재/악재 배지 */}
+      {(signals.length > 0 || impact) && (
+        <div className="flex items-center gap-1 mb-1 flex-wrap">
           {signals.map(sig => (
             <span key={sig.tag} className="text-[9px] font-bold px-1.5 py-0.5 rounded"
               style={{ background: sig.bg, color: sig.color }}>{sig.tag}</span>
           ))}
+          {impact && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+              style={{ background: impact.bg, color: impact.color }}>{impact.label}</span>
+          )}
         </div>
       )}
       <div className="text-[13px] font-medium text-[#191F28] leading-snug line-clamp-2">
