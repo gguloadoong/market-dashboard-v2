@@ -21,6 +21,7 @@ class ChartErrorBoundary extends Component {
     return this.props.children;
   }
 }
+import { TabbedChips } from '@coinbase/cds-web/chips';
 import { fetchCandles, PERIOD_CONFIG } from '../api/chart';
 import { fetchInvestorDataSafe, fetchInvestorTrendSafe, formatNetAmt } from '../api/investor';
 import { useStockNews, useStockDirectNews } from '../hooks/useNewsQuery';
@@ -73,13 +74,17 @@ function MarketBadge({ item }) {
   return null;
 }
 
-// ─── 타임프레임 버튼 목록 (PERIOD_CONFIG 키와 일치) ──────────────
-const PERIODS = ['5분', '15분', '30분', '1시간', '4시간', '일', '주', '월'];
-const PERIOD_LABEL = {
-  '5분': '5분', '15분': '15분', '30분': '30분',
-  '1시간': '1H', '4시간': '4H',
-  '일': '1D', '주': '1W', '월': '1M',
-};
+// ─── 타임프레임 탭 (PERIOD_CONFIG 키와 일치) ─────────────────────
+const PERIOD_TABS = [
+  { id: '5분',   label: '5분' },
+  { id: '15분',  label: '15분' },
+  { id: '30분',  label: '30분' },
+  { id: '1시간', label: '1H' },
+  { id: '4시간', label: '4H' },
+  { id: '일',    label: '1D' },
+  { id: '주',    label: '1W' },
+  { id: '월',    label: '1M' },
+];
 
 // ─── 숫자 포맷 헬퍼 ───────────────────────────────────────────
 function fmt(n, d = 0) {
@@ -808,21 +813,9 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
 
           {/* ── 타임프레임 + 차트 타입 버튼 ──────────────────────── */}
           <div className="flex items-center justify-between px-4 py-2.5 gap-2">
-            {/* 타임프레임 pill 버튼 — 모바일 가로 스크롤 */}
-            <div className="flex gap-1 overflow-x-auto no-scrollbar flex-shrink-1 min-w-0">
-              {PERIODS.map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all flex-shrink-0 ${
-                    period === p
-                      ? 'bg-[#191F28] text-white shadow-sm'
-                      : 'bg-[#F2F4F6] text-[#6B7684] hover:bg-[#E5E8EB]'
-                  }`}
-                >
-                  {PERIOD_LABEL[p]}
-                </button>
-              ))}
+            {/* 타임프레임 — CDS TabbedChips */}
+            <div className="flex-shrink-1 min-w-0 overflow-hidden">
+              <TabbedChips tabs={PERIOD_TABS} value={period} onChange={setPeriod} />
             </div>
             {/* 캔들/라인 토글 */}
             <div className="flex gap-1 flex-shrink-0 bg-[#F2F4F6] p-0.5 rounded-xl">
