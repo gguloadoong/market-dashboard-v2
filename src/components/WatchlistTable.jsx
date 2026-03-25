@@ -55,6 +55,73 @@ function fmtChangeAmt(item, krwRate) {
   return `${sign}${amt.toFixed(2)}`;
 }
 
+// ─── 매수가 입력 + 평가손익 셀 ──────────────────────────────
+function BuyPriceCell({ item, buyPrice, onBuyPriceChange, krwRate }) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState('');
+  const inputRef = useRef(null);
+
+  const currentKrwPrice = item.id
+    ? (item.priceKrw || (item.priceUsd ?? 0) * krwRate)
+    : item.market === 'us'
+      ? (item.price ?? 0) * krwRate
+      : (item.price ?? 0);
+
+  const pnlPct = buyPrice && currentKrwPrice ? (currentKrwPrice - buyPrice) / buyPrice * 100 : null;
+  const pnlAmt = buyPrice && currentKrwPrice ? currentKrwPrice - buyPrice : null;
+  const isProfit = pnlPct != null && pnlPct > 0;
+  const isLoss   = pnlPct != null && pnlPct < 0;
+
+  const startEdit = (e) => {
+    e.stopPropagation();
+    setInputVal(buyPrice ? String(buyPrice) : '');
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+  const save = () => {
+    const num = parseFloat(String(inputVal).replace(/,/g, ''));
+    onBuyPriceChange(item.id || item.symbol, (!num || num <= 0) ? null : num);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <TableCell className="px-2 py-3 text-right" onClick={e => e.stopPropagation()}>
+        <input
+          ref={inputRef}
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onBlur={save}
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+          placeholder="매수가"
+          className="w-20 text-right text-[12px] px-1.5 py-1 border border-[#3182F6] rounded-md outline-none bg-white tabular-nums font-mono"
+        />
+      </TableCell>
+    );
+  }
+
+  if (pnlPct != null) {
+    return (
+      <TableCell className="px-2 py-3 text-right" onClick={startEdit}>
+        <div className={`text-[12px] font-bold tabular-nums font-mono ${isProfit ? 'text-[#F04452]' : isLoss ? 'text-[#1764ED]' : 'text-[#8B95A1]'}`}>
+          {isProfit ? '+' : ''}{pnlPct.toFixed(2)}%
+        </div>
+        <div className={`text-[10px] tabular-nums font-mono mt-0.5 ${isProfit ? 'text-[#F04452]' : isLoss ? 'text-[#1764ED]' : 'text-[#8B95A1]'}`}>
+          {pnlAmt >= 0 ? '+' : ''}₩{Math.abs(Math.round(pnlAmt)).toLocaleString('ko-KR')}
+        </div>
+      </TableCell>
+    );
+  }
+
+  return (
+    <TableCell className="px-2 py-3 text-right" onClick={startEdit}>
+      <span className="text-[10px] text-[#C9CDD2] hover:text-[#8B95A1] transition-colors cursor-pointer select-none">
+        ✎ 매수가
+      </span>
+    </TableCell>
+  );
+}
+
 // ─── 로고 URL + 아바타 색상 (home/utils.js 통합본 사용) ──────
 import { getLogoUrls, getAvatarBg as colorFor } from './home/utils';
 
@@ -89,7 +156,7 @@ const LogoAvatar = React.memo(function LogoAvatar({ item, size = 32 }) {
 });
 
 // ─── 행 플래시 애니메이션 ────────────────────────────────────
-const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched }) {
+const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, searchTerm, toggle, isWatched, buyPrice, onBuyPriceChange }) {
   const rowRef  = useRef(null);
   const prevPct = useRef(getPct(item));
   const pct     = getPct(item);
@@ -224,6 +291,9 @@ const FlashRow = React.memo(function FlashRow({ item, rank, krwRate, onClick, se
         />
       </TableCell>
 
+      {/* 매수가 / 평가손익 */}
+      <BuyPriceCell item={item} buyPrice={buyPrice} onBuyPriceChange={onBuyPriceChange} krwRate={krwRate} />
+
       {/* 클릭 화살표 */}
       <TableCell className="pr-4 py-3 w-8">
         <svg className="text-[#C9CDD2] group-hover:text-[#8B95A1] transition-colors mx-auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -259,6 +329,7 @@ function SkeletonRow() {
       <TableCell className="px-3 py-3 text-right hidden sm:table-cell"><div className="h-3 bg-[#F2F4F6] rounded w-12 ml-auto" /></TableCell>
       <TableCell className="px-3 py-3 text-right hidden lg:table-cell"><div className="h-3 bg-[#F2F4F6] rounded w-16 ml-auto" /></TableCell>
       <TableCell className="px-3 py-3 w-[88px]"><div className="h-7 bg-[#F2F4F6] rounded w-full" /></TableCell>
+      <TableCell className="px-2 py-3 w-[80px]" />
       <TableCell className="pr-4 py-3 w-8" />
     </TableRow>
   );
@@ -311,6 +382,19 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
   const [filter,  setFilter]  = useState('all');
   const [sector,  setSector]  = useState(null);
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
+  const [buyPrices, setBuyPrices] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('marketradar_buyprices') || '{}'); }
+    catch { return {}; }
+  });
+  const handleBuyPriceChange = useCallback((symbol, price) => {
+    setBuyPrices(prev => {
+      const next = price != null
+        ? { ...prev, [symbol]: price }
+        : Object.fromEntries(Object.entries(prev).filter(([k]) => k !== symbol));
+      localStorage.setItem('marketradar_buyprices', JSON.stringify(next));
+      return next;
+    });
+  }, []);
   // 코인 탭: 100개씩 표시 (250개 한번에 렌더링 성능 방지)
   const PAGE_SIZE   = 100;
   const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
@@ -407,6 +491,8 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
         searchTerm={search}
         toggle={toggle}
         isWatched={isWatched}
+        buyPrice={buyPrices[item.id || item.symbol] ?? null}
+        onBuyPriceChange={handleBuyPriceChange}
       />
     ));
   };
@@ -600,6 +686,7 @@ export default function WatchlistTable({ items = [], type = 'kr', krwRate = 1466
                 onClick={() => handleSort('marketCap')}
               >시가총액{sortKey === 'marketCap' && <span className="ml-0.5">{sortDir === 'desc' ? '↓' : '↑'}</span>}</TableCell>
               <TableCell as="th" scope="col" className="px-3 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-[88px]">차트</TableCell>
+              <TableCell as="th" scope="col" className="px-2 py-2 text-right text-[11px] font-semibold text-[#B0B8C1] w-[80px]">손익</TableCell>
               <TableCell as="th" scope="col" className="w-8" />
             </TableRow>
           </TableHeader>
