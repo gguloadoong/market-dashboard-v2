@@ -44,6 +44,11 @@ export default defineConfig({
         // navigateFallback: null — navigation 요청은 항상 네트워크에서 서빙
         // SW가 HTML을 인터셉트하면 blank page 위험이 있으므로 비활성화
         navigateFallback: null,
+        // 새 SW 즉시 활성화 — 이전 캐시 즉시 교체
+        skipWaiting: true,
+        clientsClaim: true,
+        // 이전 버전 precache 자동 정리
+        cleanupOutdatedCaches: true,
         // JS/CSS/폰트/아이콘만 precache (HTML 제외 — 항상 최신 서버 버전 사용)
         globPatterns: ['**/*.{js,css,woff2,png}'],
         runtimeCaching: [
