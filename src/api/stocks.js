@@ -89,6 +89,16 @@ async function fetchYahooChart(symbol) {
 
 // ─── 미국 주식 ─────────────────────────────────────────────────
 export async function fetchUsStocksBatch(symbols) {
+  // 부분 결과 보존 Map — 실시간 데이터를 EOD로 오염시키지 않기 위해
+  // 각 단계에서 missing symbol만 fallback, 이미 확보된 실시간 데이터는 유지
+  const collected = new Map();
+
+  const missing = () => symbols.filter(s => !collected.has(s.toUpperCase()));
+  const addResults = (results) => results.forEach(r => {
+    const key = (r.symbol || '').toUpperCase();
+    if (key && !collected.has(key)) collected.set(key, r);
+  });
+
   // 1) /api/us-price — Yahoo v8 실시간 (Vercel Edge 프록시)
   try {
     const res = await fetch(`/api/us-price?symbols=${symbols.join(',')}`, {
@@ -96,40 +106,58 @@ export async function fetchUsStocksBatch(symbols) {
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.results?.length >= symbols.length * 0.7) return data.results;
-      if (data.results?.length > 0) console.warn(`[미장] Edge 프록시 부분 결과: ${data.results.length}/${symbols.length}`);
+      if (data.results?.length > 0) {
+        addResults(data.results);
+        if (missing().length === 0) return [...collected.values()];
+        if (data.results.length < symbols.length * 0.7) {
+          console.warn(`[미장] Edge 프록시 부분 결과: ${data.results.length}/${symbols.length} — missing: ${missing().join(',')}`);
+        }
+      }
     }
   } catch (e) { console.warn('[미장] Edge 프록시 실패:', e.message); }
 
-  // 2) Stooq (직접 CORS 허용, EOD 데이터) — Prev_Close 필드 기반 전일 종가 대비 등락률
-  try {
-    const data = await fetchStooq(symbols);
-    if (data.length >= symbols.length * 0.7) return data;
-    if (data.length > 0) console.warn(`[미장] Stooq 부분 결과: ${data.length}/${symbols.length}`);
-  } catch (e) { console.warn('[미장] Stooq 실패:', e.message); }
+  // 2) Stooq (직접 CORS 허용, EOD 데이터) — missing symbol만 조회
+  const miss2 = missing();
+  if (miss2.length > 0) {
+    try {
+      const data = await fetchStooq(miss2);
+      addResults(data);
+      if (missing().length === 0) return [...collected.values()];
+      if (data.length > 0) console.warn(`[미장] Stooq 부분 결과: ${data.length}/${miss2.length}`);
+    } catch (e) { console.warn('[미장] Stooq 실패:', e.message); }
+  }
 
-  // 3) Yahoo v7 batch via allorigins proxy — Stooq 실패 시 fallback
-  try {
-    const results = await fetchYahooQuoteBatch(symbols);
-    if (results.length >= symbols.length * 0.7) return results.map(r => ({
-      symbol:    r.symbol,
-      price:     r.regularMarketPrice,
-      change:    r.regularMarketChange,
-      changePct: r.regularMarketChangePercent,
-      volume:    r.regularMarketVolume,
-      marketCap: r.marketCap,
-      high52w:   r.fiftyTwoWeekHigh,
-      low52w:    r.fiftyTwoWeekLow,
-      _source:   'yahoo',
-    }));
-    if (results.length > 0) console.warn(`[미장] Yahoo v7 부분 결과: ${results.length}/${symbols.length}`);
-  } catch (e) { console.warn('[미장] Yahoo v7 실패:', e.message); }
+  // 3) Yahoo v7 batch via allorigins proxy — missing symbol만 조회
+  const miss3 = missing();
+  if (miss3.length > 0) {
+    try {
+      const results = await fetchYahooQuoteBatch(miss3);
+      addResults(results.map(r => ({
+        symbol:    r.symbol,
+        price:     r.regularMarketPrice,
+        change:    r.regularMarketChange,
+        changePct: r.regularMarketChangePercent,
+        volume:    r.regularMarketVolume,
+        marketCap: r.marketCap,
+        high52w:   r.fiftyTwoWeekHigh,
+        low52w:    r.fiftyTwoWeekLow,
+        _source:   'yahoo',
+      })));
+      if (missing().length === 0) return [...collected.values()];
+      if (results.length > 0) console.warn(`[미장] Yahoo v7 부분 결과: ${results.length}/${miss3.length}`);
+    } catch (e) { console.warn('[미장] Yahoo v7 실패:', e.message); }
+  }
 
-  // 4) Yahoo v8 개별 chart — 전일 종가(previousClose) 기반
-  const settled = await Promise.allSettled(symbols.map(fetchYahooChart));
-  const v8Results = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
-  if (v8Results.length === 0) console.warn('[미장] 모든 소스 실패 — 데이터 없음');
-  return v8Results;
+  // 4) Yahoo v8 개별 chart — 마지막 missing symbol 처리
+  const miss4 = missing();
+  if (miss4.length > 0) {
+    const settled = await Promise.allSettled(miss4.map(fetchYahooChart));
+    const v8Results = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+    addResults(v8Results);
+  }
+
+  if (collected.size === 0) console.warn('[미장] 모든 소스 실패 — 데이터 없음');
+  return [...collected.values()];
 }
 
 // ─── Naver Finance (Vercel serverless 프록시) ─────────────────
