@@ -76,6 +76,7 @@ export default async function handler(request) {
     });
 
     if (!upstream.ok) {
+      console.error(`[RSS_PROXY_FAIL] ${targetUrl.hostname} → HTTP ${upstream.status}`);
       return new Response(JSON.stringify({ error: `Upstream ${upstream.status}` }), {
         status: 502,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -95,6 +96,7 @@ export default async function handler(request) {
       },
     });
   } catch (err) {
+    console.error(`[RSS_PROXY_FAIL] ${targetUrl?.hostname ?? rssUrl} → ${err.message}`);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },

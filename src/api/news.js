@@ -175,7 +175,14 @@ async function fetchViaProxy(rssUrl, category, sourceName) {
 // ─── 단일 RSS 취득 (자체 Vercel Edge Function 전용) ─────────
 // corsproxy.io: 2026-03 무료 플랜 서버사이드 차단 → 완전 제거
 async function fetchRSS(rssUrl, category, sourceName) {
-  try { return await fetchViaProxy(rssUrl, category, sourceName); } catch {}
+  try { return await fetchViaProxy(rssUrl, category, sourceName); } catch (e) {
+    console.warn(`[RSS_FAIL] ${sourceName} (${category})`, e.message);
+    // 세션 통계 누적 — 브라우저 콘솔에서 window.__rssStats__ 로 확인
+    if (typeof window !== 'undefined') {
+      if (!window.__rssStats__) window.__rssStats__ = {};
+      window.__rssStats__[sourceName] = (window.__rssStats__[sourceName] || 0) + 1;
+    }
+  }
   return [];
 }
 
