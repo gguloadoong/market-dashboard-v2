@@ -24,7 +24,7 @@ class ChartErrorBoundary extends Component {
 import { TabbedChips } from '@coinbase/cds-web/chips';
 import { fetchCandles, PERIOD_CONFIG } from '../api/chart';
 import { fetchInvestorDataSafe, fetchInvestorTrendSafe, formatNetAmt } from '../api/investor';
-import { useStockNews, useStockDirectNews } from '../hooks/useNewsQuery';
+import { useStockAndRelatedNews, useStockDirectNews } from '../hooks/useNewsQuery';
 import { findRelatedItems } from '../data/relatedAssets';
 
 // ─── 로고 URL + 아바타 색상 (home/utils.js 통합본 사용) ──────
@@ -550,25 +550,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
   const [showMoreNews, setShowMoreNews] = useState(false); // "더 보기" 상태
   const [isFav, setIsFav]         = useState(false);       // 관심 종목 토글 (UI 전용)
 
-  // 종목 키워드 기반 관련 뉴스 — React Query 캐시 활용
-  const newsMarket = item?.id ? 'COIN' : item?.market === 'kr' ? 'KR' : 'US';
-  const { news: relatedNews, isLoading: newsLoading } = useStockNews(
-    item?.symbol || item?.id,
-    item?.name || item?.nameEn,
-    newsMarket,
-  );
-  // 글로벌 캐시 매칭 0건 시 종목명으로 직접 구글뉴스 검색 (fallback)
-  const directEnabled = !newsLoading && relatedNews.length === 0;
-  const { data: directNews = [], isLoading: directNewsLoading } = useStockDirectNews(
-    item?.symbol || item?.id,
-    item?.name || item?.nameEn,
-    newsMarket,
-    directEnabled,
-  );
-  const finalNews        = relatedNews.length > 0 ? relatedNews : directNews;
-  const finalNewsLoading = newsLoading || (directEnabled && directNewsLoading);
-
-  // 연관 종목 — relatedAssets 매핑 기반, allData에서 현재 가격 조회
+  // 연관 종목 — relatedAssets 매핑 기반, allData에서 현재 가격 조회 (뉴스 훅보다 먼저)
   const relatedItems = useMemo(() => {
     if (!item) return [];
     const { krStocks = [], usStocks = [], coins = [], etfs = [] } = allData;
@@ -580,6 +562,25 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     const sym = item.symbol?.toUpperCase() || item.id?.toUpperCase() || '';
     return findRelatedItems(sym, dataMap, 8); // 최대 8개
   }, [item?.symbol, item?.name, allData]);
+
+  // 종목 키워드 + 관련종목 기반 관련 뉴스 — 주 종목 → 관련종목 순으로 합산
+  const newsMarket = item?.id ? 'COIN' : item?.market === 'kr' ? 'KR' : 'US';
+  const { news: relatedNews, isLoading: newsLoading } = useStockAndRelatedNews(
+    item?.symbol || item?.id,
+    item?.name || item?.nameEn,
+    newsMarket,
+    relatedItems,
+  );
+  // 글로벌 캐시 매칭 0건 시 종목명으로 직접 구글뉴스 검색 (fallback)
+  const directEnabled = !newsLoading && relatedNews.length === 0;
+  const { data: directNews = [], isLoading: directNewsLoading } = useStockDirectNews(
+    item?.symbol || item?.id,
+    item?.name || item?.nameEn,
+    newsMarket,
+    directEnabled,
+  );
+  const finalNews        = relatedNews.length > 0 ? relatedNews : directNews;
+  const finalNewsLoading = newsLoading || (directEnabled && directNewsLoading);
 
   // ETF와 일반종목 분리
   const etfItems     = relatedItems.filter(r => r.isEtf);

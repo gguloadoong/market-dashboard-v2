@@ -108,3 +108,50 @@ export function useStockNews(symbol, name, market) {
 
   return { news, isLoading };
 }
+
+// 주 종목 + 관련종목 뉴스 합산 훅 — ChartSidePanel 관련뉴스에서 사용
+// relatedItems: RELATED_ASSETS에서 추출된 관련종목 배열 (symbol, name, market, isEtf 필드)
+export function useStockAndRelatedNews(symbol, name, market, relatedItems = []) {
+  const { data: allNews = [], isLoading } = useAllNewsQuery();
+
+  const news = useMemo(() => {
+    if (!symbol || !allNews.length) return [];
+
+    const detectedMarket = market || (/^\d{6}$/.test(symbol) ? 'KR' : 'US');
+    const primaryKeywords = buildStockKeywords(symbol, name, detectedMarket);
+    if (!primaryKeywords.length) return [];
+
+    // 관련종목 키워드 (ETF 제외, 최대 4개)
+    const relatedKeywordSets = relatedItems
+      .filter(r => !r.isEtf)
+      .slice(0, 4)
+      .map(r => {
+        const relMarket = r.market || detectedMarket;
+        return buildStockKeywords(r.symbol, r.name, relMarket);
+      })
+      .filter(kws => kws.length > 0);
+
+    const seen = new Set();
+    const primary = [];
+    const secondary = [];
+
+    for (const item of allNews) {
+      const text = item.title + ' ' + (item.summary || item.description || '');
+      const key = item.id || item.title?.slice(0, 50);
+      if (seen.has(key)) continue;
+
+      if (matchesKeywords(text, primaryKeywords)) {
+        seen.add(key);
+        primary.push(item);
+      } else if (relatedKeywordSets.some(kws => matchesKeywords(text, kws))) {
+        seen.add(key);
+        secondary.push(item);
+      }
+    }
+
+    // 주 종목 뉴스 우선, 부족분을 관련종목 뉴스로 채움
+    return [...primary, ...secondary].slice(0, 8);
+  }, [symbol, name, market, allNews, relatedItems]);
+
+  return { news, isLoading };
+}
