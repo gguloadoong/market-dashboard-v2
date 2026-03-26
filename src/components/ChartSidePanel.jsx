@@ -976,6 +976,8 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                       // 타입별 배지
                       const typeBadge = type === 'coin'
                         ? { label: '코인', bg: '#FFF3E0', color: '#E65100' }
+                        : type === 'news' || type === 'kr' || type === 'us'
+                        ? { label: type === 'news' ? '뉴스' : '주식', bg: type === 'news' ? '#E8F5E9' : '#F2F4F6', color: type === 'news' ? '#2E7D32' : '#4E5968' }
                         : type === 'stock' || type === 'sector'
                         ? { label: '주식', bg: '#F2F4F6', color: '#4E5968' }
                         : null;
