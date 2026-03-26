@@ -130,14 +130,21 @@
 > **선정 기준**: 매수 결정 직전 5분을 돕는가 + DAU를 높이는가 + 경쟁사가 못하는가
 > **리서치 날짜**: 2026-03-26
 
-### [P2-7] 관심종목 뉴스 알림 ← 최우선
-- 배경: 가격 알림은 있지만 뉴스 언급 알림 없음. 토스/업비트/키움 모두 미구현
-- 기능:
-  1. 뉴스 RSS 폴링(3분) 시 관심종목 키워드 매칭
-  2. 새 뉴스에 관심종목 언급 → 브라우저 Push Notification
-  3. 5분 쿨다운 (종목당, priceAlert.js 패턴 재사용)
-- 난이도: 낮음 (useNewsQuery + priceAlert 인프라 재사용)
-- 완료 기준: 관심종목 뉴스 발행 후 5분 내 알림 수신
+### [P2-11] CDS 번들 블로트 해소 (재산정: P1→P2)
+- 배경: cds 번들 361KB(gzip 100KB) — 앱 번들(340KB)보다 큼
+- 실제 사용 범위 (딥다이브 2026-03-26 재조사):
+  - TabbedChips: 4곳 (TopMovers, MarketInvestor, WatchlistTable, ChartSidePanel)
+  - Button: 1곳 (Header)
+  - Table 6종: WatchlistTable.jsx 전체 (교체 난이도 높음)
+  - ThemeProvider/MediaQueryProvider: main.jsx 코어 — Table 의존
+- 완료 조건: WatchlistTable Table 교체 + ThemeProvider 제거가 필수 → P1 아닌 P2 스코프
+- 해결 경로: TabbedChips/Button 먼저 직접 구현 → WatchlistTable Table 교체 → CDS 전체 제거
+
+### ~~[P2-7] 관심종목 뉴스 알림~~ ✅ 완료 (기구현 확인 — 2026-03-26)
+- `useNewsAlerts.js` 완성 구현 확인 (React Query 캐시 구독 → 새 기사 감지 → watchlist 매칭)
+- App.jsx 연결 완료 (watchedItemsForAlert useMemo + useNewsAlerts 호출)
+- alert-open-news 클릭 핸들러 완료 → NewsSidePanel 오픈
+- 종목당 5분 쿨다운, 첫 로드 스팸 방지, 기사당 첫 매칭 종목만 알림
 
 ### ~~[P2-8] Fear & Greed 지수 위젯~~ ✅ 완료 (2026-03-26 PR #160)
 - 배경: 시장 센티먼트 한눈에 보기 — 한국어 서비스 중 통합 제공 없음
