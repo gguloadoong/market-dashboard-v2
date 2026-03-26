@@ -206,6 +206,12 @@ export default function App() {
     setSelectedItem(item);
   }, [selectedNews]);
 
+  // ChartSidePanel 관련종목 클릭 — 뉴스 맥락 초기화 후 새 종목 열기
+  const handleChartRelatedClick = useCallback((item) => {
+    setNewsContext(null);
+    setSelectedItem(item);
+  }, []);
+
   // X 버튼 close 핸들러 — history entry도 함께 소비
   const closeSelectedItem = useCallback(() => {
     closingViaUI.current = true;
@@ -309,7 +315,7 @@ export default function App() {
       </div>
 
       {selectedItem && (
-        <ChartSidePanel item={selectedItem} krwRate={krwRate} onClose={closeSelectedItem} onRelatedClick={(item) => { setNewsContext(null); setSelectedItem(item); }} allData={allData} newsContext={newsContext} />
+        <ChartSidePanel item={selectedItem} krwRate={krwRate} onClose={closeSelectedItem} onRelatedClick={handleChartRelatedClick} allData={allData} newsContext={newsContext} />
       )}
       {selectedNews && (
         <NewsSidePanel news={selectedNews} allData={allData} krwRate={krwRate} onClose={closeSelectedNews} onRelatedClick={handleNewsRelatedClick} onNewsClick={setSelectedNews} />
