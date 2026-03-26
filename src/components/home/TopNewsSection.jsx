@@ -1,6 +1,16 @@
 // 시장을 움직이는 뉴스 — 종목 연결 카드형 뉴스 피드
 // 뉴스와 관련 종목을 뱃지로 연결, 종목 등락률 표시
 import { useMemo } from 'react';
+
+// timeAgo를 렌더 시점에 동적 계산 — 캐시된 정적 문자열 대신 사용
+function computeTimeAgo(pubDate) {
+  if (!pubDate) return '';
+  const diff = (Date.now() - new Date(pubDate).getTime()) / 1000;
+  if (diff < 60)    return `${Math.floor(diff)}초 전`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+  return `${Math.floor(diff / 86400)}일 전`;
+}
 import { extractNewsSignals, getNewsImpact } from '../../utils/newsSignal';
 import { buildStockKeywords, matchesKeywords } from '../../utils/newsAlias';
 
@@ -101,7 +111,19 @@ export default function TopNewsSection({ allNews = [], onNewsClick, allItems = [
         const score = signals.length * 2 + stockCount + (isRecent ? 1 : 0) + Math.min(movementScore * 0.5, 3);
         return { ...n, _signals: signals, _impact: impact, _score: score, _matchedStocks: matchedStocks };
       })
-      .sort((a, b) => b._score - a._score || new Date(b.pubDate) - new Date(a.pubDate))
+      .sort((a, b) => {
+        const TWO_HOURS = 2 * 3600000;
+        const aAge = Date.now() - new Date(a.pubDate).getTime();
+        const bAge = Date.now() - new Date(b.pubDate).getTime();
+        const aFresh = aAge < TWO_HOURS;
+        const bFresh = bAge < TWO_HOURS;
+        // 2시간 이내 기사는 최신순 우선 (시계열 정렬)
+        if (aFresh && !bFresh) return -1;
+        if (!aFresh && bFresh) return 1;
+        if (aFresh && bFresh) return aAge - bAge;
+        // 2시간 초과: 점수순 → 동점이면 최신순
+        return b._score - a._score || aAge - bAge;
+      })
       .slice(0, 5);
   }, [allNews, allItems]);
 
@@ -157,7 +179,7 @@ export default function TopNewsSection({ allNews = [], onNewsClick, allItems = [
                     {item._impact.label}
                   </span>
                 )}
-                <span className="text-[10px] text-[#C9CDD2] ml-auto flex-shrink-0">{item.timeAgo}</span>
+                <span className="text-[10px] text-[#C9CDD2] ml-auto flex-shrink-0">{computeTimeAgo(item.pubDate)}</span>
               </div>
               <p className="text-[13px] font-medium text-[#191F28] leading-snug line-clamp-2">
                 {item.title}

@@ -214,10 +214,21 @@ const LISTED_COMPANY_EVENT_KW = [
 ];
 
 const BLOCK_KW = [
+  // 스포츠
   '야구','축구','농구','배구','골프','올림픽','월드컵','스포츠','선수',
-  '감독','코치','우승','결승','드라마','영화','아이돌','가수','배우','연예',
-  '예능','콘서트','앨범','시청률','날씨','태풍','지진','홍수','미세먼지',
+  '감독','코치','우승','결승',
+  // 연예/문화
+  '드라마','영화','아이돌','가수','배우','연예',
+  '예능','콘서트','앨범','시청률',
+  // 날씨/재해
+  '날씨','태풍','지진','홍수','미세먼지',
+  // 생활
   '요리','레시피','맛집','카페','패션','뷰티','화장품','수능','대입','입시',
+  // 부동산 (주식·투자 관련 없는 생활경제 기사 차단)
+  // 주의: 건설주 수주 기사(예: "GS건설 아파트 수주")는 '수주'가 IMPACT_EVENT_KW에 있어 별도 통과됨
+  '전세 시장','전세 대출','전셋값','월세 상승','임대차 계약','임대료',
+  '아파트 분양','분양가','청약 경쟁','청약률','재건축 조합','재개발 조합',
+  '부동산 투자','부동산 시장','부동산 전망','집값','주택 가격','주택 시장',
 ];
 
 const STRICT_FINANCE_SOURCES = new Set([
@@ -530,7 +541,13 @@ export async function fetchStockDirectNews(name, market) {
 
   const cat   = market === 'KR' ? 'kr' : market === 'COIN' ? 'coin' : 'us';
   const items = await fetchRSS(url, cat, '구글뉴스');
-  const result = dedup(items.filter(isRecentNews))
+  // 직접 검색은 7일 범위 — 소형주·코인은 2일 이내 뉴스가 없는 경우 많음
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  const result = dedup(items.filter(item => {
+    if (!item.pubDate) return false;
+    try { return Date.now() - new Date(item.pubDate).getTime() < SEVEN_DAYS_MS; }
+    catch { return false; }
+  }))
     .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     .slice(0, 8);
 

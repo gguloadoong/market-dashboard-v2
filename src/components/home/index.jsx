@@ -9,7 +9,6 @@ import NewsFeedWidget from './widgets/NewsFeedWidget';
 import FearGreedWidget from './widgets/FearGreedWidget';
 import NotableMoversSection from './NotableMoversSection';
 import MarketInvestorSection from './MarketInvestorSection';
-import EarlySignalSection from './EarlySignalSection';
 import EventTicker from './EventTicker';
 import CoinListingSection from './CoinListingSection';
 
@@ -169,16 +168,6 @@ export default function HomeDashboard({
           <SectorMiniWidget krStocks={krStocks} usStocks={usStocks} coins={coins} onTabChange={onTabChange} />
         )}
       </div>
-
-      {/* ─── 선행 신호 — 뉴스 나왔지만 주가 미반응 종목 ─── */}
-      {hasData && (
-        <EarlySignalSection
-          allItems={allItems}
-          recentNews={recentNews}
-          krwRate={krwRate}
-          onItemClick={onItemClick}
-        />
-      )}
 
       {/* ─── 급등/급락 6박스 (첫 화면에 걸치도록 승격) ──── */}
       <TopMoversWidget
