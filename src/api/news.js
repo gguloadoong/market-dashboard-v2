@@ -383,7 +383,7 @@ const KR_STOCK_NEWS_QUERIES = [
   },
 ];
 
-// [국장] 한국 금융 직접 RSS 피드 — 한경, 매경, 연합뉴스 경제, 블록미디어
+// [국장] 한국 금융 직접 RSS 피드 — 한경, 매경, 연합뉴스 경제, 블록미디어, 이데일리, 머니투데이, 뉴스핌
 const KR_DIRECT_RSS_FEEDS = [
   {
     url: 'https://www.hankyung.com/feed/all-news',
@@ -400,6 +400,18 @@ const KR_DIRECT_RSS_FEEDS = [
   {
     url: 'https://www.blockmedia.co.kr/feed',
     source: '블록미디어',
+  },
+  {
+    url: 'https://www.edaily.co.kr/rss/rssnews.asp',
+    source: '이데일리',
+  },
+  {
+    url: 'https://news.mt.co.kr/rss/rss.xml',
+    source: '머니투데이',
+  },
+  {
+    url: 'https://www.newspim.com/rss/rss.xml',
+    source: '뉴스핌',
   },
 ];
 

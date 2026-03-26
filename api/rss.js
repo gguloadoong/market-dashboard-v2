@@ -21,6 +21,9 @@ const ALLOWED_DOMAINS = [
   // 한국 금융 뉴스 직접 RSS
   'www.yna.co.kr',
   'www.blockmedia.co.kr',
+  'www.edaily.co.kr',
+  'news.mt.co.kr',
+  'www.newspim.com',
   // 미국 주식 뉴스 직접 RSS
   'finance.yahoo.com',
   'feeds.content.dowjones.io',
