@@ -185,6 +185,21 @@
 - 해결: 네이버 증권 뉴스 RSS + 이데일리/머니투데이 추가
 - 완료 기준: 국장 탭 뉴스 건수 30→50건 이상
 
+### ~~[P0-7] 뉴스 알고리즘 정합성 수정~~ ✅ 완료 (2026-03-26 PR #172, #175)
+- 문제:
+  1. 부동산/분양 뉴스가 속보 피드에 노출 (이데일리/머니투데이 RSS 추가 후 '투자' 키워드 누수)
+  2. 관련뉴스 0건 — useStockNews가 120개 글로벌 캐시만 검색, 중소형주 미포함
+  3. EarlySignalSection 삭제 후에도 재등장 (import 미제거)
+  4. 속보 피드 점수순 정렬 → 오래된 기사 상단 고착
+- 해결:
+  - BLOCK_KW 복합키워드 15개 추가 + '투자' MARKET_ANCHOR_KW 제거 (PR #172)
+  - EarlySignalSection 완전 삭제 — import + 렌더 제거 (PR #172)
+  - TopNewsSection: 2시간 이내 최신순 → 2시간 초과 점수순 정렬 (PR #172)
+  - newsTopicMap.js 신규: 14개 섹터 토픽맵 + detectNewsSectors/findStocksBySectors (PR #175)
+  - useStockAndRelatedNews 훅: 주 종목 + 관련종목 키워드 합산, 최대 8건 (PR #175)
+  - ChartSidePanel: useStockAndRelatedNews 교체, relatedItems useMemo 순서 정정 (PR #175)
+- 완료 기준: 속보에 부동산 뉴스 없음, 관련뉴스 0건 해소, 시간순 정렬
+
 ### [보류] Whale Alert API 연동
 - CEO 키 발급 대기 — `VITE_WHALE_ALERT_KEY` 환경변수 설정 후 착수
 
