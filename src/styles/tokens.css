@@ -62,11 +62,14 @@
   --radius-pill: 9999px;
 }
 
-/* ── 다크모드 토큰 오버라이드 ─────────────────────────────────
+/* ── 다크모드 CSS 변수 (공통) ─────────────────────────────────
    상승/하락 색상 (ADR-002 한국 컨벤션 유지, WCAG AA 검증 완료):
    - 상승 #F04452 → #FF6B77 (6.74:1 on dark bg)
    - 하락 #1764ED → #5B9CF6 (6.66:1 on dark bg)
+   적용 방법: 시스템 선호도(@media) + 수동 토글(html.dark) 모두 지원
 ──────────────────────────────────────────────────────────── */
+
+/* ── 시스템 선호도 다크모드 ─────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
     --fg:           #E8EBF0;
@@ -75,6 +78,9 @@
     --fg-inverse:   #191F28;
     --fg-positive:  #FF6B77;
     --fg-negative:  #5B9CF6;
+    --fg-neutral:   #6B7684;
+    --fg-warning:   #FFAA33;
+    --fg-live:      #3DD68C;
     --bg-positive:  rgba(255,107,119,0.12);
     --bg-negative:  rgba(91,156,246,0.12);
     --bg-warning:   rgba(255,149,0,0.12);
@@ -84,51 +90,115 @@
     --bg-hover:     #252A35;
     --border:       #2A2F3C;
     --border-heavy: #3A4050;
+    --primary:      #4E9BFF;
+    --primary-muted: rgba(78,155,255,0.12);
+    --live:         #3DD68C;
     --elevation-1:  0 2px 8px rgba(0,0,0,0.4);
     --elevation-2:  0 8px 24px rgba(0,0,0,0.6);
   }
+}
 
-  body {
-    background: var(--bg) !important;
-    color: var(--fg);
-  }
+/* ── 다크모드 유틸리티 오버라이드 (미디어쿼리 + html.dark 모두 적용) ── */
+@media (prefers-color-scheme: dark) { body { background: var(--bg) !important; color: var(--fg); } }
+html.dark body { background: var(--bg) !important; color: var(--fg); }
 
+/* 수동 토글(html.dark)에서 :root 변수 오버라이드 */
+html.dark {
+  --fg:           #E8EBF0;
+  --fg-muted:     #8B95A1;
+  --fg-disabled:  #4A525C;
+  --fg-inverse:   #191F28;
+  --fg-positive:  #FF6B77;
+  --fg-negative:  #5B9CF6;
+  --fg-neutral:   #6B7684;
+  --fg-warning:   #FFAA33;
+  --fg-live:      #3DD68C;
+  --bg-positive:  rgba(255,107,119,0.12);
+  --bg-negative:  rgba(91,156,246,0.12);
+  --bg-warning:   rgba(255,149,0,0.12);
+  --bg:           #0F1117;
+  --bg-surface:   #1A1D24;
+  --bg-alt:       #1F2330;
+  --bg-hover:     #252A35;
+  --border:       #2A2F3C;
+  --border-heavy: #3A4050;
+  --primary:      #4E9BFF;
+  --primary-muted: rgba(78,155,255,0.12);
+  --live:         #3DD68C;
+  --elevation-1:  0 2px 8px rgba(0,0,0,0.4);
+  --elevation-2:  0 8px 24px rgba(0,0,0,0.6);
+}
+
+/* color-scheme 힌트 — 스크롤바/인풋 등 브라우저 기본 UI에 다크 테마 적용 */
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; } }
+html.dark { color-scheme: dark; }
+
+/* ─── 시스템 다크 오버라이드 ─────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
   .bg-white, [class*="bg-white"] { background-color: var(--bg-surface) !important; }
-
-  .bg-\[\#F8F9FA\], .bg-\[\#F2F4F6\], .bg-\[\#FAFBFC\], .bg-\[\#F7F8FA\] {
-    background-color: var(--bg-alt) !important;
-  }
-
-  header.bg-white {
-    background-color: var(--bg-surface) !important;
-    border-bottom-color: var(--border) !important;
-  }
-
-  nav.bg-white {
-    background-color: var(--bg-surface) !important;
-    border-top-color: var(--border) !important;
-  }
-
-  .border-\[\#E5E8EB\], .border-\[\#F2F4F6\] { border-color: var(--border) !important; }
+  .bg-\[\#F8F9FA\], .bg-\[\#F2F4F6\], .bg-\[\#FAFBFC\], .bg-\[\#F7F8FA\] { background-color: var(--bg-alt) !important; }
+  .bg-\[\#FFF0F1\], .bg-\[\#FFF0F0\], .bg-\[\#FFD6D9\], .bg-\[\#FFD0D4\] { background-color: var(--bg-positive) !important; }
+  .bg-\[\#EDF4FF\], .bg-\[\#F4F8FF\], .bg-\[\#F0F4FF\] { background-color: var(--bg-negative) !important; }
+  .bg-\[\#FFF4E6\], .bg-\[\#FFF3E0\], .bg-\[\#FFF8E1\] { background-color: var(--bg-warning) !important; }
+  .bg-\[\#F0FFF6\], .bg-\[\#F0FFF4\] { background-color: rgba(61,214,140,0.08) !important; }
+  header.bg-white { background-color: var(--bg-surface) !important; border-bottom-color: var(--border) !important; }
+  nav.bg-white    { background-color: var(--bg-surface) !important; border-top-color: var(--border) !important; }
+  .border-\[\#E5E8EB\], .border-\[\#F2F4F6\], .border-\[\#C9CDD2\] { border-color: var(--border) !important; }
   .divide-\[\#F2F4F6\] > * + * { border-color: var(--border) !important; }
-
   .text-\[\#191F28\] { color: var(--fg) !important; }
-  .text-\[\#6B7684\] { color: var(--fg-muted) !important; }
-  .text-\[\#8B95A1\] { color: var(--fg-muted) !important; }
-  .text-\[\#B0B8C1\] { color: var(--fg-disabled) !important; }
-
+  .text-\[\#4E5968\], .text-\[\#6B7684\] { color: var(--fg-muted) !important; }
+  .text-\[\#8B95A1\], .text-\[\#B0B8C1\], .text-\[\#C9CDD2\] { color: var(--fg-disabled) !important; }
+  .text-\[\#3182F6\], .text-\[\#1764ED\] { color: var(--fg-negative) !important; }
+  .text-\[\#FF9500\] { color: var(--fg-warning) !important; }
+  .text-\[\#2AC769\] { color: var(--fg-live) !important; }
   .text-up,   .text-\[\#F04452\] { color: var(--fg-positive) !important; }
-  .text-down, .text-\[\#1764ED\] { color: var(--fg-negative) !important; }
-
+  .text-down { color: var(--fg-negative) !important; }
   .badge-up   { background: var(--bg-positive) !important; color: var(--fg-positive) !important; }
   .badge-down { background: var(--bg-negative) !important; color: var(--fg-negative) !important; }
-  .badge-flat { background: var(--bg-alt) !important; color: var(--fg-muted) !important; }
-
+  .badge-flat, .badge-neutral { background: var(--bg-alt) !important; color: var(--fg-muted) !important; }
+  .badge-vol  { background: var(--bg-warning) !important; color: var(--fg-warning) !important; }
   .chip { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--fg-muted) !important; }
   .chip.active { background: var(--fg) !important; border-color: var(--fg) !important; color: var(--bg-surface) !important; }
-
+  .stock-row { background: var(--bg-surface) !important; border-bottom-color: var(--border) !important; }
+  .stock-row:hover { background: var(--bg-hover) !important; }
+  .news-row:hover  { background: var(--bg-hover) !important; }
+  .news-row { border-bottom-color: var(--border) !important; }
+  .card { background: var(--bg-surface) !important; }
+  .sc   { background: var(--bg-surface) !important; }
   .hover\:bg-\[\#F9FAFB\]:hover, .hover\:bg-\[\#F2F4F6\]:hover { background-color: var(--bg-hover) !important; }
-  .active\:bg-\[\#F7F8FA\]:active { background-color: var(--bg-alt) !important; }
-
-  .bg-\[\#FFF8E1\] { background-color: rgba(255,149,0,0.1) !important; }
+  .active\:bg-\[\#F7F8FA\]:active, .active\:bg-\[\#F2F4F6\]:active { background-color: var(--bg-alt) !important; }
 }
+
+/* ─── 수동 토글(html.dark) 오버라이드 ───────────────────────── */
+html.dark .bg-white, html.dark [class*="bg-white"] { background-color: var(--bg-surface) !important; }
+html.dark .bg-\[\#F8F9FA\], html.dark .bg-\[\#F2F4F6\], html.dark .bg-\[\#FAFBFC\], html.dark .bg-\[\#F7F8FA\] { background-color: var(--bg-alt) !important; }
+html.dark .bg-\[\#FFF0F1\], html.dark .bg-\[\#FFF0F0\], html.dark .bg-\[\#FFD6D9\], html.dark .bg-\[\#FFD0D4\] { background-color: var(--bg-positive) !important; }
+html.dark .bg-\[\#EDF4FF\], html.dark .bg-\[\#F4F8FF\], html.dark .bg-\[\#F0F4FF\] { background-color: var(--bg-negative) !important; }
+html.dark .bg-\[\#FFF4E6\], html.dark .bg-\[\#FFF3E0\], html.dark .bg-\[\#FFF8E1\] { background-color: var(--bg-warning) !important; }
+html.dark .bg-\[\#F0FFF6\], html.dark .bg-\[\#F0FFF4\] { background-color: rgba(61,214,140,0.08) !important; }
+html.dark header.bg-white { background-color: var(--bg-surface) !important; border-bottom-color: var(--border) !important; }
+html.dark nav.bg-white    { background-color: var(--bg-surface) !important; border-top-color: var(--border) !important; }
+html.dark .border-\[\#E5E8EB\], html.dark .border-\[\#F2F4F6\], html.dark .border-\[\#C9CDD2\] { border-color: var(--border) !important; }
+html.dark .divide-\[\#F2F4F6\] > * + * { border-color: var(--border) !important; }
+html.dark .text-\[\#191F28\] { color: var(--fg) !important; }
+html.dark .text-\[\#4E5968\], html.dark .text-\[\#6B7684\] { color: var(--fg-muted) !important; }
+html.dark .text-\[\#8B95A1\], html.dark .text-\[\#B0B8C1\], html.dark .text-\[\#C9CDD2\] { color: var(--fg-disabled) !important; }
+html.dark .text-\[\#3182F6\], html.dark .text-\[\#1764ED\] { color: var(--fg-negative) !important; }
+html.dark .text-\[\#FF9500\] { color: var(--fg-warning) !important; }
+html.dark .text-\[\#2AC769\] { color: var(--fg-live) !important; }
+html.dark .text-up,   html.dark .text-\[\#F04452\] { color: var(--fg-positive) !important; }
+html.dark .text-down { color: var(--fg-negative) !important; }
+html.dark .badge-up   { background: var(--bg-positive) !important; color: var(--fg-positive) !important; }
+html.dark .badge-down { background: var(--bg-negative) !important; color: var(--fg-negative) !important; }
+html.dark .badge-flat, html.dark .badge-neutral { background: var(--bg-alt) !important; color: var(--fg-muted) !important; }
+html.dark .badge-vol  { background: var(--bg-warning) !important; color: var(--fg-warning) !important; }
+html.dark .chip { background: var(--bg-alt) !important; border-color: var(--border) !important; color: var(--fg-muted) !important; }
+html.dark .chip.active { background: var(--fg) !important; border-color: var(--fg) !important; color: var(--bg-surface) !important; }
+html.dark .stock-row { background: var(--bg-surface) !important; border-bottom-color: var(--border) !important; }
+html.dark .stock-row:hover { background: var(--bg-hover) !important; }
+html.dark .news-row:hover  { background: var(--bg-hover) !important; }
+html.dark .news-row { border-bottom-color: var(--border) !important; }
+html.dark .card { background: var(--bg-surface) !important; }
+html.dark .sc   { background: var(--bg-surface) !important; }
+html.dark .hover\:bg-\[\#F9FAFB\]:hover, html.dark .hover\:bg-\[\#F2F4F6\]:hover { background-color: var(--bg-hover) !important; }
+html.dark .active\:bg-\[\#F7F8FA\]:active, html.dark .active\:bg-\[\#F2F4F6\]:active { background-color: var(--bg-alt) !important; }

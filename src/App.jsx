@@ -17,6 +17,7 @@ import { fetchKoreanStocksBatch, fetchEtfPricesBatch } from './api/stocks';
 import { requestNotificationPermission, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
 import { useWatchlist } from './hooks/useWatchlist';
 import { useNewsAlerts } from './hooks/useNewsAlerts';
+import { useDarkMode } from './hooks/useDarkMode';
 import { useKrxEtf } from './hooks/useKrxEtf';
 import { useKisWebSocket } from './hooks/useKisWebSocket';
 import { useKisUsWebSocket } from './hooks/useKisUsWebSocket';
@@ -26,6 +27,7 @@ import { useIndices } from './hooks/useIndices';
 import { KOREAN_STOCKS } from './data/mock';
 
 export default function App() {
+  const { dark, toggle: toggleDark } = useDarkMode();
   const { watchlist, krSymbols, usSymbols } = useWatchlist();
   const { indices, krwRate }        = useIndices();
   const krwRateRef                  = useRef(1466);
@@ -262,6 +264,7 @@ export default function App() {
         krwRate={krwRate} lastUpdated={lastUpdated} onRefresh={refreshAll} loading={loading}
         activeTab={activeTab} onTabChange={setActiveTab}
         krStocks={krStocks} usStocks={usStocks} coins={coins}
+        dark={dark} onDarkToggle={toggleDark}
       />
 
       <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_360px]">
