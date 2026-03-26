@@ -4,7 +4,26 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TabbedChips } from '@coinbase/cds-web/chips';
+// 네이티브 탭 컴포넌트 (CDS TabbedChips 대체)
+function SimpleTabs({ tabs, activeTab, onChange }) {
+  return (
+    <div className="flex gap-1 bg-[#F2F4F6] rounded-lg p-1">
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => onChange(tab.id)}
+          className={`flex-1 text-[12px] font-medium py-1 px-2 rounded-md transition-colors ${
+            activeTab === tab.id
+              ? 'bg-white text-[#191F28] shadow-sm'
+              : 'text-[#8B95A1] hover:text-[#191F28]'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 import { formatNetAmt } from '../../api/investor';
 
 // ─── 탭 정의 ─────────────────────────────────────────────────
@@ -182,7 +201,7 @@ export default function MarketInvestorSection() {
 
       {/* ─── 탭 (코스피 / 코스닥 / 통합) ──────────────────── */}
       <div className="flex justify-center px-4 py-2 border-t border-[#F2F4F6]">
-        <TabbedChips tabs={TABS} value={activeTab} onChange={setActiveTab} />
+        <SimpleTabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
       </div>
     </div>
   );
