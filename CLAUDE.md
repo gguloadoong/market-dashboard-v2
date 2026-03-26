@@ -3,6 +3,9 @@
 이 프로젝트는 국장·미장·코인 실시간 시세 모니터링 웹앱이다.
 작업 전 `.project/backlog.md`, `.project/decisions.md`, `.project/quality-baseline.md`를 먼저 읽는다.
 
+**홈 컴포넌트를 건드리는 경우**: `src/components/home/HOME_CONTRACT.md`를 반드시 먼저 읽는다.
+이 파일에 "영구 삭제된 컴포넌트" 목록이 있다. 목록에 있는 컴포넌트는 절대 재추가하지 않는다.
+
 ---
 
 ## 🤖 자율 정의 (Autonomy Definition)

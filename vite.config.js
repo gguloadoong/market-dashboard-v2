@@ -57,6 +57,10 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    environment: 'node',
+    globals: true,
+  },
   build: {
     // CDS 포함 번들 크기 경고 임계값 상향 (CDS 자체가 대형 라이브러리)
     chunkSizeWarningLimit: 800,

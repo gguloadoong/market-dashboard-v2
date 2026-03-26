@@ -237,7 +237,7 @@ const STRICT_FINANCE_SOURCES = new Set([
   '코인데스크코리아','블록미디어',
 ]);
 
-function isFinancialNews(item) {
+export function isFinancialNews(item) {
   const text = ((item.title || '') + ' ' + (item.description || '')).toLowerCase();
   if (BLOCK_KW.some(k => text.includes(k))) return false;
 
