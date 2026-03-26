@@ -179,24 +179,15 @@ async function fetchKoreanStocksHantoo(stocks) {
     chunks.push(symbols.slice(i, i + HANTOO_BATCH));
   }
 
-  // 첫 배치 먼저 실행 — 키 미설정(503) 등 API 자체 문제 조기 감지
-  const firstResult = await fetchSingleHantooBatch(chunks[0]);
-  const results = [...firstResult];
+  // 모든 청크 동시 처리 — 50종목(2청크) 기준 순차 대비 50%+ 응답 속도 개선
+  const settled = await Promise.allSettled(
+    chunks.map(chunk => fetchSingleHantooBatch(chunk))
+  );
 
-  // 나머지 배치: 동시 처리, 라운드 간 200ms 딜레이
-  for (let i = 1; i < chunks.length; i += HANTOO_BATCH) {
-    const round = chunks.slice(i, i + HANTOO_BATCH);
-    const settled = await Promise.allSettled(
-      round.map(chunk => fetchSingleHantooBatch(chunk))
-    );
-    for (const r of settled) {
-      if (r.status === 'fulfilled') results.push(...r.value);
-      else console.warn(`[한투] 배치 실패 (건너뜀):`, r.reason?.message);
-    }
-    // 라운드 간 200ms 딜레이 (마지막 라운드 제외)
-    if (i + HANTOO_BATCH < chunks.length) {
-      await new Promise(r => setTimeout(r, 200));
-    }
+  const results = [];
+  for (const r of settled) {
+    if (r.status === 'fulfilled') results.push(...r.value);
+    else console.warn(`[한투] 배치 실패 (건너뜀):`, r.reason?.message);
   }
 
   if (!results.length) throw new Error('한투: 데이터 없음');
