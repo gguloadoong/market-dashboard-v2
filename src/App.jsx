@@ -51,6 +51,7 @@ export default function App() {
   const [loading, setLoading]           = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedNews, setSelectedNews] = useState(null);
+  const [newsContext, setNewsContext]   = useState(null); // 뉴스에서 종목 클릭 시 뉴스 맥락 전달
   const [searchOpen, setSearchOpen]     = useState(false);
   const [notifBanner, setNotifBanner]   = useState(() => {
     const perm = getNotificationPermission();
@@ -199,10 +200,17 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, [searchOpen, selectedNews, selectedItem]);
 
+  // 뉴스에서 종목 클릭 — 뉴스 맥락 함께 전달
+  const handleNewsRelatedClick = useCallback((item) => {
+    setNewsContext(selectedNews);
+    setSelectedItem(item);
+  }, [selectedNews]);
+
   // X 버튼 close 핸들러 — history entry도 함께 소비
   const closeSelectedItem = useCallback(() => {
     closingViaUI.current = true;
     setSelectedItem(null);
+    setNewsContext(null);
     history.back();
   }, []);
   const closeSelectedNews = useCallback(() => {
@@ -301,10 +309,10 @@ export default function App() {
       </div>
 
       {selectedItem && (
-        <ChartSidePanel item={selectedItem} krwRate={krwRate} onClose={closeSelectedItem} onRelatedClick={setSelectedItem} allData={allData} />
+        <ChartSidePanel item={selectedItem} krwRate={krwRate} onClose={closeSelectedItem} onRelatedClick={(item) => { setNewsContext(null); setSelectedItem(item); }} allData={allData} newsContext={newsContext} />
       )}
       {selectedNews && (
-        <NewsSidePanel news={selectedNews} allData={allData} krwRate={krwRate} onClose={closeSelectedNews} onRelatedClick={setSelectedItem} onNewsClick={setSelectedNews} />
+        <NewsSidePanel news={selectedNews} allData={allData} krwRate={krwRate} onClose={closeSelectedNews} onRelatedClick={handleNewsRelatedClick} onNewsClick={setSelectedNews} />
       )}
       {searchOpen && (
         <GlobalSearch krStocks={krStocks} usStocks={usStocks} coins={coins} etfs={etfItems} krwRate={krwRate} onSelect={setSelectedItem} onNewsClick={setSelectedNews} onClose={closeSearch} />

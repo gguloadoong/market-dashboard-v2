@@ -26,6 +26,7 @@ import { fetchCandles, PERIOD_CONFIG } from '../api/chart';
 import { fetchInvestorDataSafe, fetchInvestorTrendSafe, formatNetAmt } from '../api/investor';
 import { useStockAndRelatedNews, useStockDirectNews } from '../hooks/useNewsQuery';
 import { findRelatedItems } from '../data/relatedAssets';
+import { detectNewsSectors, findStocksBySectors } from '../utils/newsTopicMap';
 
 // ─── 로고 URL + 아바타 색상 (home/utils.js 통합본 사용) ──────
 import { getLogoUrls, getAvatarBg as colorFor } from './home/utils';
@@ -542,7 +543,7 @@ function InvestorFlowEnhanced({ symbol }) {
 }
 
 // ─── 메인 패널 ──────────────────────────────────────────────────
-export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelatedClick, allData = {} }) {
+export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelatedClick, allData = {}, newsContext = null }) {
   const [period,    setPeriod]    = useState('5분');
   const [candles,   setCandles]   = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
@@ -550,7 +551,19 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
   const [showMoreNews, setShowMoreNews] = useState(false); // "더 보기" 상태
   const [isFav, setIsFav]         = useState(false);       // 관심 종목 토글 (UI 전용)
 
+  // 뉴스 맥락 기반 관련종목 — newsContext가 있으면 키워드→섹터→종목 추출
+  const newsBasedItems = useMemo(() => {
+    if (!newsContext) return [];
+    const text = `${newsContext.title || ''} ${newsContext.description || newsContext.summary || ''}`;
+    const sectors = detectNewsSectors(text);
+    if (!sectors.length) return [];
+    const { krStocks = [], usStocks = [], coins = [] } = allData;
+    const allItems = [...krStocks, ...usStocks, ...coins];
+    return findStocksBySectors(sectors, allItems, 5);
+  }, [newsContext, allData]);
+
   // 연관 종목 — relatedAssets 매핑 기반, allData에서 현재 가격 조회 (뉴스 훅보다 먼저)
+  // newsContext가 있으면 뉴스 기반 관련종목을 앞에 합산 (중복 제거)
   const relatedItems = useMemo(() => {
     if (!item) return [];
     const { krStocks = [], usStocks = [], coins = [], etfs = [] } = allData;
@@ -560,8 +573,28 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     for (const e of etfs)     dataMap[e.symbol] = e;
     for (const c of coins)    dataMap[c.symbol?.toUpperCase()] = c;
     const sym = item.symbol?.toUpperCase() || item.id?.toUpperCase() || '';
-    return findRelatedItems(sym, dataMap, 8); // 최대 8개
-  }, [item?.symbol, item?.name, allData]);
+    const assetBased = findRelatedItems(sym, dataMap, 8); // 최대 8개
+
+    // 뉴스 기반 관련종목이 있으면 앞에 합산
+    if (!newsBasedItems.length) return assetBased;
+    const seenKeys = new Set();
+    const merged = [];
+    // 뉴스 기반 종목 먼저 (현재 보고 있는 종목 제외)
+    for (const stock of newsBasedItems) {
+      const key = stock.symbol?.toUpperCase() || stock.id?.toUpperCase() || '';
+      if (key === sym || seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      merged.push({ ticker: stock.symbol || stock.id, item: stock, type: stock.market || 'news', reason: '뉴스 관련' });
+    }
+    // 기존 relatedAssets 기반 종목 추가 (중복 제거)
+    for (const rel of assetBased) {
+      const key = rel.ticker?.toUpperCase() || '';
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      merged.push(rel);
+    }
+    return merged.slice(0, 10);
+  }, [item?.symbol, item?.name, allData, newsBasedItems]);
 
   // 종목 키워드 + 관련종목 기반 관련 뉴스 — 주 종목 → 관련종목 순으로 합산
   const newsMarket = item?.id ? 'COIN' : item?.market === 'kr' ? 'KR' : 'US';
@@ -907,7 +940,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
               {nonEtfItems.length > 0 && (
                 <>
                   <div className="text-[11px] font-semibold text-[#B0B8C1] uppercase tracking-wide mb-2">
-                    연관 종목
+                    {newsBasedItems.length > 0 ? '이 뉴스 관련 종목' : '연관 종목'}
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     {nonEtfItems.map(({ ticker, item: rel, type, reason: _reason }) => {
@@ -924,6 +957,8 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                       // 타입별 배지
                       const typeBadge = type === 'coin'
                         ? { label: '코인', bg: '#FFF3E0', color: '#E65100' }
+                        : type === 'news' || type === 'kr' || type === 'us'
+                        ? { label: type === 'news' ? '뉴스' : '주식', bg: type === 'news' ? '#E8F5E9' : '#F2F4F6', color: type === 'news' ? '#2E7D32' : '#4E5968' }
                         : type === 'stock' || type === 'sector'
                         ? { label: '주식', bg: '#F2F4F6', color: '#4E5968' }
                         : null;
