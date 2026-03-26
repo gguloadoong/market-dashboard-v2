@@ -603,7 +603,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
       const key = stock.symbol?.toUpperCase() || stock.id?.toUpperCase() || '';
       if (key === sym || seenKeys.has(key)) continue;
       seenKeys.add(key);
-      merged.push({ ticker: stock.symbol || stock.id, item: stock, type: stock.market || 'news', reason: '뉴스 관련' });
+      merged.push({ ticker: stock.symbol || stock.id, item: stock, type: 'news', reason: '뉴스 관련' });
     }
     // 기존 relatedAssets 기반 종목 추가 (중복 제거)
     for (const rel of assetBased) {
