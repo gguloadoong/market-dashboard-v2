@@ -1,7 +1,8 @@
 // 공포탐욕지수 훅 — 코인(Alternative.me) + 미장(CNN Money 프록시)
 // Alternative.me: CORS 지원, 직접 호출 가능
-// CNN Money: CORS 차단 → /api/fear-greed 프록시 경유
+// CNN Money: CORS 차단 → 통합 게이트웨이 /api/d 프록시 경유
 import { useQuery } from '@tanstack/react-query';
+import { fetchFearGreed as gwFearGreed } from '../api/_gateway.js';
 
 // 점수 → 레이블 매핑
 export function getFgLabel(score) {
@@ -37,11 +38,7 @@ async function fetchCryptoFG() {
 }
 
 async function fetchUsFG() {
-  const res = await fetch('/api/fear-greed', {
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`CNN F&G ${res.status}`);
-  return res.json();
+  return gwFearGreed(8000);
 }
 
 export function useFearGreed() {

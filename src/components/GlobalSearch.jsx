@@ -1,5 +1,6 @@
 // 전역 종목 검색 모달 — `/` 키로 열기, ESC / 바깥 클릭으로 닫기
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { fetchNaverSearch, fetchUsStockSearch } from '../api/_gateway.js';
 
 function fmt(n, d = 0) {
   if (n == null || isNaN(n)) return '—';
@@ -63,8 +64,7 @@ export default function GlobalSearch({ krStocks = [], usStocks = [], coins = [],
     setNaverLoading(true);
     naverTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/naver-search?q=${encodeURIComponent(query.trim())}`);
-        const data = await res.json();
+        const data = await fetchNaverSearch(query.trim());
         setNaverItems(data.items || []);
       } catch {
         setNaverItems([]);
@@ -81,8 +81,7 @@ export default function GlobalSearch({ krStocks = [], usStocks = [], coins = [],
     if (!query.trim() || query.trim().length < 2) { setUsSearchItems([]); return; }
     usSearchTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/us-stock-search?q=${encodeURIComponent(query.trim())}`);
-        const data = await res.json();
+        const data = await fetchUsStockSearch(query.trim());
         setUsSearchItems(data.items || []);
       } catch { setUsSearchItems([]); }
     }, 400);

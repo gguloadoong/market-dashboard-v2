@@ -1,6 +1,7 @@
 // 캔들차트 OHLCV 데이터
-// 주식: Yahoo Finance via Vercel /api/chart-proxy (분봉/시봉/일봉/주봉/월봉)
+// 주식: Yahoo Finance via 통합 게이트웨이 /api/d (분봉/시봉/일봉/주봉/월봉)
 // 코인: Upbit REST API (분봉/시봉/일봉/주봉/월봉) — CORS 허용, 무료
+import { fetchChartProxy, fetchHantooChart as gwHantooChart } from './_gateway.js';
 
 // ─── 기간 설정 ────────────────────────────────────────────────
 // interval: Yahoo Finance / Upbit candle type
@@ -54,12 +55,7 @@ function parseYahooChart(data, isIntraday = false) {
 // ─── 한투 API 차트 (국내 주식 일/주/월봉) ────────────────────
 // Yahoo .KS 404 대체 — KIS API로 실제 OHLCV 취득
 async function fetchHantooCandles(symbol, periodCode = 'D') {
-  const res = await fetch(
-    `/api/hantoo-chart?symbol=${encodeURIComponent(symbol)}&period=${periodCode}`,
-    { signal: AbortSignal.timeout(10000) }
-  );
-  if (!res.ok) throw new Error(`hantoo-chart ${res.status}`);
-  const json = await res.json();
+  const json = await gwHantooChart(symbol, periodCode, 10000);
   if (!json.data?.length) throw new Error('hantoo-chart: 데이터 없음');
 
   return json.data.map(c => ({
@@ -77,17 +73,11 @@ async function fetchHantooCandles(symbol, periodCode = 'D') {
 export async function fetchStockCandles(symbol, range = '1mo', interval = '1d') {
   const isIntraday = ['5m','15m','30m','60m','90m','1h'].includes(interval);
 
-  // 1순위: Vercel 프록시 (production)
+  // 1순위: 통합 게이트웨이 프록시 (production)
   try {
-    const res = await fetch(
-      `/api/chart-proxy?symbol=${encodeURIComponent(symbol)}&range=${range}&interval=${interval}`,
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.chart?.result?.[0]) {
-        return parseYahooChart(data, isIntraday);
-      }
+    const data = await fetchChartProxy(symbol, range, interval, 6000);
+    if (data?.chart?.result?.[0]) {
+      return parseYahooChart(data, isIntraday);
     }
   } catch {}
 

@@ -1,13 +1,14 @@
 // ─── 뉴스 API v3 ───────────────────────────────────────────────
 // 설계 원칙:
-//   1. 자체 Vercel Edge Function (/api/rss) → CORS 없음, 서버사이드 취득
-//   2. 모든 카테고리: Google News RSS via /api/rss (한국어)
+//   1. 통합 게이트웨이 (/api/d) → CORS 없음, 서버사이드 취득
+//   2. 모든 카테고리: Google News RSS via /api/d (한국어)
 //   3. rss2json / allorigins / corsproxy.io 완전 제거 (불안정 또는 유료화)
 //   4. localStorage 캐시 (5분 신선, 24시간 fallback)
 //   5. React Query initialData 패턴으로 즉시 표시
 // 제거된 소스:
 //   - CryptoCompare: 2026-03 API 키 필수로 전환 (Type=1 에러, 0 items)
 //   - corsproxy.io: 무료 플랜 서버사이드 요청 차단 (유료 전환)
+import { fetchRss } from './_gateway.js';
 
 // ─── localStorage 캐시 ─────────────────────────────────────────
 // TTL 3분으로 단축 — 기존 5분은 Vercel CDN s-maxage=300과 겹쳐 최대 10분 지연 발생
@@ -157,15 +158,12 @@ function parseRssXml(xmlText, category, sourceName) {
   } catch { return []; }
 }
 
-// ─── 자체 RSS 프록시 (/api/rss) ───────────────────────────────
+// ─── 자체 RSS 프록시 (통합 게이트웨이 /api/d) ─────────────────
 // Production: Vercel Edge Function이 서버사이드로 취득
 // Development: 같은 호출 (vercel dev 사용 시) 또는 직접 fetch 시도
 async function fetchViaProxy(rssUrl, category, sourceName) {
-  const proxyUrl = `/api/rss?url=${encodeURIComponent(rssUrl)}`;
   // 개별 fetch 타임아웃: 4초 (전체 race가 아닌 소스별 적용)
-  const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(4000) });
-  if (!res.ok) throw new Error(`proxy ${res.status}`);
-  const text = await res.text();
+  const text = await fetchRss(rssUrl, 4000);
   if (text.startsWith('{')) throw new Error('proxy returned JSON error');
   const items = parseRssXml(text, category, sourceName);
   if (!items.length) throw new Error('proxy no items');

@@ -1,3 +1,4 @@
+import { fetchWhaleProxy } from './_gateway.js';
 // ─── 코인 고래 알림 API ────────────────────────────────────────
 //
 // 【결론: WhaleAlert RSS는 클라이언트 사이드에서 불가】
@@ -433,9 +434,8 @@ function getUpbitInsight(side, tradeAmt) {
 async function pollWhaleAlert(callback) {
   if (waDestroyed) return;
   try {
-    const res = await fetch('/api/whale-proxy', { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return;
-    const { transactions = [] } = await res.json();
+    const data = await fetchWhaleProxy(null, 8000);
+    const { transactions = [] } = data;
     for (const tx of transactions) {
       if (waTxIds.has(tx.id)) continue;
       waTxIds.add(tx.id);

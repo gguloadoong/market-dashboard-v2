@@ -3,6 +3,7 @@
 // tr_key 형식: {거래소코드}{종목코드} (예: NASDAAPL, NYSEJPM)
 
 import { useEffect, useRef } from 'react';
+import { fetchWsApproval } from '../api/_gateway.js';
 
 const KIS_WS_URL  = 'wss://ops.koreainvestment.com:21000';
 const TR_ID       = 'HDFSCNT0';
@@ -179,12 +180,7 @@ export function useKisUsWebSocket(symbols, onQuote) {
 
     async function fetchApprovalKey() {
       try {
-        const res = await fetch('/api/hantoo-ws-approval', {
-          method: 'POST',
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) throw new Error(`Approval 실패: ${res.status}`);
-        const data = await res.json();
+        const data = await fetchWsApproval(8000);
         return data.approval_key ?? null;
       } catch (e) {
         console.warn('[KIS US WS] approval_key 취득 실패 (폴링 fallback 유지):', e.message);

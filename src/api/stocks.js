@@ -1,6 +1,10 @@
 // 주식 데이터
-// 미국: /api/us-price (Edge 프록시) → Stooq.com (CORS OK) → Yahoo Finance v7 프록시 fallback → v8 chart fallback
-// 한국: Naver Finance 모바일 API via allorigins → Yahoo .KS 프록시 fallback
+// 미국: /api/d (통합 게이트웨이) → Stooq.com (CORS OK) → Yahoo Finance v7 프록시 fallback → v8 chart fallback
+// 한국: /api/d (통합 게이트웨이) → Yahoo .KS 프록시 fallback
+import {
+  fetchUsPrice, fetchHantooPrice, fetchNaverPrice,
+  fetchEtfPrices, fetchMarketIndices, fetchHantooIndices as gwHantooIndices,
+} from './_gateway.js';
 
 const PROXY_BASE = 'https://api.allorigins.win/get?url=';
 
@@ -99,19 +103,14 @@ export async function fetchUsStocksBatch(symbols) {
     if (key && !collected.has(key)) collected.set(key, r);
   });
 
-  // 1) /api/us-price — Yahoo v8 실시간 (Vercel Edge 프록시)
+  // 1) 통합 게이트웨이 — Yahoo v8 실시간 (Vercel Edge 프록시)
   try {
-    const res = await fetch(`/api/us-price?symbols=${symbols.join(',')}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.results?.length > 0) {
-        addResults(data.results);
-        if (missing().length === 0) return [...collected.values()];
-        if (data.results.length < symbols.length * 0.7) {
-          console.warn(`[미장] Edge 프록시 부분 결과: ${data.results.length}/${symbols.length} — missing: ${missing().join(',')}`);
-        }
+    const data = await fetchUsPrice(symbols, 8000);
+    if (data.results?.length > 0) {
+      addResults(data.results);
+      if (missing().length === 0) return [...collected.values()];
+      if (data.results.length < symbols.length * 0.7) {
+        console.warn(`[미장] Edge 프록시 부분 결과: ${data.results.length}/${symbols.length} — missing: ${missing().join(',')}`);
       }
     }
   } catch (e) { console.warn('[미장] Edge 프록시 실패:', e.message); }
@@ -156,6 +155,44 @@ export async function fetchUsStocksBatch(symbols) {
     addResults(v8Results);
   }
 
+  // 5) 네이버 해외시세 fallback — Yahoo/Stooq 모두 실패한 심볼 처리
+  const miss5 = missing();
+  if (miss5.length > 0) {
+    try {
+      console.warn(`[미장] Yahoo/Stooq 전부 실패 ${miss5.length}개 → 네이버 해외시세 fallback: ${miss5.join(',')}`);
+      const res = await fetch(`/api/naver-us-price?symbols=${miss5.join(',')}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results?.length > 0) addResults(data.results);
+      }
+    } catch (e) { console.warn('[미장] 네이버 해외시세 실패:', e.message); }
+  }
+
+  // 6) 가격 0인 종목 재시도 — 수집됐지만 price=0이면 유효하지 않음
+  const zeroPrice = [...collected.entries()]
+    .filter(([, v]) => !v.price || v.price <= 0)
+    .map(([k]) => k);
+  if (zeroPrice.length > 0) {
+    console.warn(`[미장] 가격 0 감지 ${zeroPrice.length}개 → 네이버 재시도: ${zeroPrice.join(',')}`);
+    // 기존 무효 데이터 제거 후 네이버로 재시도
+    zeroPrice.forEach(k => collected.delete(k));
+    try {
+      const res = await fetch(`/api/naver-us-price?symbols=${zeroPrice.join(',')}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results?.length > 0) {
+          data.results.filter(r => r.price > 0).forEach(r => {
+            collected.set(r.symbol.toUpperCase(), r);
+          });
+        }
+      }
+    } catch (e) { console.warn('[미장] 가격 0 재시도 실패:', e.message); }
+  }
+
   if (collected.size === 0) console.warn('[미장] 모든 소스 실패 — 데이터 없음');
   return [...collected.values()];
 }
@@ -170,12 +207,7 @@ async function fetchNaverBatch(stocks) {
 
   for (let i = 0; i < symbols.length; i += NAVER_BATCH) {
     const chunk = symbols.slice(i, i + NAVER_BATCH);
-    const res = await fetch(
-      `/api/naver-price?symbols=${chunk.join(',')}`,
-      { signal: AbortSignal.timeout(10000) }
-    );
-    if (!res.ok) throw new Error(`Naver 프록시 ${res.status}`);
-    const json = await res.json();
+    const json = await fetchNaverPrice(chunk, 10000);
     if (Array.isArray(json.data)) results.push(...json.data);
     if (i + NAVER_BATCH < symbols.length) {
       await new Promise(r => setTimeout(r, 100));
@@ -191,12 +223,7 @@ async function fetchNaverBatch(stocks) {
 const HANTOO_BATCH = 27;
 
 async function fetchSingleHantooBatch(chunk) {
-  const res = await fetch(
-    `/api/hantoo-price?symbols=${chunk.join(',')}`,
-    { signal: AbortSignal.timeout(10000) }
-  );
-  if (!res.ok) throw new Error(`한투 프록시 ${res.status}`);
-  const json = await res.json();
+  const json = await fetchHantooPrice(chunk, 10000);
   return Array.isArray(json.data) ? json.data : [];
 }
 
@@ -261,15 +288,10 @@ export async function fetchKoreanStocksBatch(stocks) {
 // ─── ETF 전용 배치 (Vercel 프록시 경유 → Yahoo CORS·레이트리밋 해소) ──────
 // 레버리지·코인 ETF(TSLL, CONL, ETHU, BITX 등) 포함 전체 커버리지
 export async function fetchEtfPricesBatch(symbols) {
-  // 1) Vercel 프록시 (api/etf-prices.js) — 서버사이드 Yahoo 호출
+  // 1) 통합 게이트웨이 (ETF) — 서버사이드 Yahoo 호출
   try {
-    const res = await fetch(`/api/etf-prices?symbols=${symbols.join(',')}`, {
-      signal: AbortSignal.timeout(10000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.results?.length > 0) return data.results;
-    }
+    const data = await fetchEtfPrices(symbols, 10000);
+    if (data.results?.length > 0) return data.results;
   } catch {}
   // 2) 직접 Yahoo v7 fallback (프록시 실패 시)
   try {
@@ -402,9 +424,7 @@ const ALL_INDICES = [
 
 // 한투 업종지수 (KOSPI/KOSDAQ — 가장 정확한 실시간)
 async function fetchHantooIndices() {
-  const res = await fetch('/api/hantoo-indices', { signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`한투 지수 ${res.status}`);
-  const json = await res.json();
+  const json = await gwHantooIndices(8000);
   return json.data || [];
 }
 
@@ -413,13 +433,10 @@ const ALL_INDEX_IDS = ['KOSPI', 'KOSDAQ', 'SPX', 'NDX', 'DJI', 'DXY'];
 export async function fetchIndices() {
   let results = [];
 
-  // 0) Vercel Edge 프록시 /api/market-indices — 서버사이드 직접 Yahoo 호출
+  // 0) 통합 게이트웨이 — 서버사이드 직접 Yahoo 호출
   try {
-    const res = await fetch('/api/market-indices', { signal: AbortSignal.timeout(10000) });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.results?.length > 0) results = data.results;
-    }
+    const data = await fetchMarketIndices(10000);
+    if (data.results?.length > 0) results = data.results;
   } catch (e) { console.warn('[지수] Edge 프록시 실패:', e.message); }
 
   // 1) 누락된 지수 확인 — Edge 프록시가 부분 결과 반환 시 보충

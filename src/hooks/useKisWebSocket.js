@@ -1,9 +1,10 @@
 // KIS (한국투자증권) WebSocket 실시간 국장 가격 스트림 훅
 // wss://ops.koreainvestment.com:21000 연결 후 H0STCNT0(주식 체결) 구독
-// 마운트 시 /api/hantoo-ws-approval 에서 approval_key 취득
+// 마운트 시 통합 게이트웨이에서 approval_key 취득
 // 언마운트 시 구독 해제 + 소켓 close
 
 import { useEffect, useRef } from 'react';
+import { fetchWsApproval } from '../api/_gateway.js';
 
 const KIS_WS_URL     = 'wss://ops.koreainvestment.com:21000';
 const TR_ID          = 'H0STCNT0';
@@ -37,12 +38,7 @@ export function useKisWebSocket(symbols, onQuote) {
     // ── approval_key 취득 ──────────────────────────────────────
     async function fetchApprovalKey() {
       try {
-        const res = await fetch('/api/hantoo-ws-approval', {
-          method: 'POST',
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) throw new Error(`Approval 실패: ${res.status}`);
-        const data = await res.json();
+        const data = await fetchWsApproval(8000);
         return data.approval_key ?? null;
       } catch (e) {
         // 조용히 실패 — 폴링 fallback이 계속 동작함

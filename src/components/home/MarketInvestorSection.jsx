@@ -1,6 +1,6 @@
 // 시장 전체 투자자 동향 섹션
 // 코스피+코스닥 외국인/기관/개인 순매수 흐름 시각화
-// 데이터: /api/hantoo-market-investor (한투 KIS API → Naver fallback)
+// 데이터: 통합 게이트웨이 /api/d (한투 KIS API → Naver fallback)
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -25,6 +25,7 @@ function SimpleTabs({ tabs, activeTab, onChange }) {
   );
 }
 import { formatNetAmt } from '../../api/investor';
+import { fetchHantooMarketInvestor } from '../../api/_gateway.js';
 
 // ─── 탭 정의 ─────────────────────────────────────────────────
 const TABS = [
@@ -42,11 +43,7 @@ const ROWS = [
 
 // ─── 시장 투자자 데이터 fetch ─────────────────────────────────
 async function fetchMarketInvestor() {
-  const res = await fetch('/api/hantoo-market-investor', {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`market-investor ${res.status}`);
-  const data = await res.json();
+  const data = await fetchHantooMarketInvestor(10000);
   if (data.error) throw new Error(data.error);
   return data;
 }

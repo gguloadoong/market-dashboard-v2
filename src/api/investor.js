@@ -1,11 +1,10 @@
 // ─── 투자자 동향 API ───────────────────────────────────────────
-// 소스: Naver Finance 모바일 API
-//   - /investor  : 기관/외인/개인 순매수 금액·거래량
-//   - /investors : 5일치 추이 (차트용)
-// CORS 문제: allorigins 프록시 경유 (주가 데이터와 동일 방식)
+// 소스: 한투 Open API → Naver Finance 모바일 API (fallback)
+// CORS 문제: 통합 게이트웨이 /api/d 경유
 //
 // 주의: 국내 주식(코스피/코스닥 종목코드 6자리)만 지원
 //       미장/코인은 Naver API 미지원 → null 반환
+import { fetchHantooInvestor } from './_gateway.js';
 
 const PROXY_BASE = 'https://api.allorigins.win/get?url=';
 const TIMEOUT    = 7000;
@@ -49,12 +48,7 @@ export function formatNetAmt(won) {
 // Vercel serverless /api/hantoo-investor 프록시
 // ─────────────────────────────────────────────────────────────
 async function fetchInvestorDataHantoo(symbol) {
-  const res = await fetch(
-    `/api/hantoo-investor?symbol=${symbol}`,
-    { signal: AbortSignal.timeout(8000) }
-  );
-  if (!res.ok) throw new Error(`한투 투자자 프록시 ${res.status}`);
-  const d = await res.json();
+  const d = await fetchHantooInvestor(symbol, 8000);
   if (d.error) throw new Error(d.error);
 
   const signalCalc = () => {

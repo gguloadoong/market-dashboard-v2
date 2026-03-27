@@ -82,6 +82,62 @@ async function fetchPolygonBatch(symbols) {
   }).filter(r => r.price > 0);
 }
 
+// 네이버 해외시세 단일 심볼 조회
+const NAVER_STOCK_API = 'https://api.stock.naver.com/stock';
+const NASDAQ_SYMBOLS = new Set([
+  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'TSLA', 'NVDA', 'NFLX',
+  'AVGO', 'COST', 'PEP', 'ADBE', 'CSCO', 'INTC', 'AMD', 'QCOM', 'TXN',
+  'PYPL', 'SBUX', 'MDLZ', 'ISRG', 'GILD', 'ADP', 'REGN', 'VRTX', 'LRCX',
+  'MU', 'KLAC', 'SNPS', 'CDNS', 'MRVL', 'FTNT', 'PANW', 'ABNB', 'CRWD',
+  'DDOG', 'TEAM', 'ZS', 'MELI', 'WDAY', 'MNST', 'BKNG', 'MAR', 'ORLY',
+  'CPRT', 'PCAR', 'ROST', 'ODFL', 'FAST', 'CTAS', 'PAYX', 'VRSK', 'IDXX',
+  'MCHP', 'ON', 'SMCI', 'ARM', 'PLTR', 'COIN', 'RIVN', 'LCID', 'SOFI',
+  'HOOD', 'IONQ', 'RGTI', 'QUBT', 'SOUN', 'RKLB',
+]);
+
+function getNaverExchanges(symbol) {
+  if (NASDAQ_SYMBOLS.has(symbol)) return ['NASDAQ', 'NYSE', 'AMEX'];
+  return ['NYSE', 'NASDAQ', 'AMEX'];
+}
+
+async function fetchNaverUsSingle(symbol) {
+  const exchanges = getNaverExchanges(symbol);
+  let lastError = null;
+  for (const exchange of exchanges) {
+    try {
+      const url = `${NAVER_STOCK_API}/${exchange}:${symbol}/basic`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+          'Referer': 'https://m.stock.naver.com/',
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) { lastError = new Error(`${exchange}:${symbol} ${res.status}`); continue; }
+      const data = await res.json();
+      const toNum = s => parseFloat((s || '').toString().replace(/,/g, '')) || 0;
+      const price     = toNum(data.closePrice) || toNum(data.lastPrice);
+      const change    = toNum(data.compareToPreviousClosePrice);
+      const changePct = toNum(data.fluctuationsRatio);
+      const volume    = toNum(data.accumulatedTradingVolume);
+      if (!price || price <= 0) { lastError = new Error(`${exchange}:${symbol} 가격 0`); continue; }
+      return {
+        symbol, price: parseFloat(price.toFixed(2)),
+        change: parseFloat(change.toFixed(2)), changePct: parseFloat(changePct.toFixed(2)),
+        volume, marketCap: 0, high52w: null, low52w: null, sparkline: [],
+      };
+    } catch (e) { lastError = e; }
+  }
+  throw lastError || new Error(`${symbol}: 네이버 해외시세 실패`);
+}
+
+// 네이버 해외시세 배치 — 개별 조회 후 성공분만 반환
+async function fetchNaverUsBatch(symbols) {
+  const settled = await Promise.allSettled(symbols.map(fetchNaverUsSingle));
+  return settled.filter(r => r.status === 'fulfilled').map(r => r.value);
+}
+
 // Stooq 개별 쿼리 — fallback (EOD 데이터, sparkline 없음)
 async function fetchStooqSingle(symbol) {
   const url = `https://stooq.com/q/l/?s=${symbol.toLowerCase()}.us&f=sd2t2ohlcvnp&h&e=json`;
@@ -164,17 +220,36 @@ export default async function handler(req) {
   }
 
   // 3순위: Polygon.io 스냅샷 배치 (Stooq까지 실패 심볼, POLYGON_API_KEY 필요)
+  const polygonFailed = [];
   if (stooqFailed.length > 0) {
     try {
       console.warn(`[us-price] Stooq 실패 ${stooqFailed.length}개 → Polygon fallback: ${stooqFailed.join(',')}`);
       const polygonResults = await fetchPolygonBatch(stooqFailed);
       results.push(...polygonResults);
+      // Polygon에서도 못 가져온 심볼 수집
+      const polygonGot = new Set(polygonResults.map(r => r.symbol.toUpperCase()));
+      stooqFailed.forEach(s => { if (!polygonGot.has(s)) polygonFailed.push(s); });
     } catch (e) {
       console.error('[us-price] Polygon fallback 실패:', e.message);
+      polygonFailed.push(...stooqFailed);
     }
   }
 
-  return new Response(JSON.stringify({ results }), {
+  // 4순위: 네이버 해외시세 (Polygon까지 실패한 심볼)
+  if (polygonFailed.length > 0) {
+    try {
+      console.warn(`[us-price] Polygon 실패 ${polygonFailed.length}개 → 네이버 해외시세 fallback: ${polygonFailed.join(',')}`);
+      const naverResults = await fetchNaverUsBatch(polygonFailed);
+      results.push(...naverResults);
+    } catch (e) {
+      console.error('[us-price] 네이버 해외시세 fallback 실패:', e.message);
+    }
+  }
+
+  // 가격 0인 결과 제거 — 클라이언트에서 무효 데이터 수신 방지
+  const validResults = results.filter(r => r.price > 0);
+
+  return new Response(JSON.stringify({ results: validResults }), {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=10',

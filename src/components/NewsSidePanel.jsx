@@ -3,6 +3,7 @@ import { useMemo, useEffect, useState } from 'react';
 import { buildStockKeywords, matchesKeywords } from '../utils/newsAlias';
 import { RELATED_ASSETS } from '../data/relatedAssets';
 import { useAllNewsQuery } from '../hooks/useNewsQuery';
+import { fetchNewsSummary } from '../api/_gateway.js';
 
 const CAT_COLOR = {
   coin: { bg: '#FFF4E6', color: '#FF9500', label: 'COIN' },
@@ -124,11 +125,7 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
     setSummaryLoading(true);
     const rssDesc = (news.description || news.summary || '')
       .replace(/<[^>]+>/g, '').trim().slice(0, 500);
-    const params = new URLSearchParams({ url: news.link });
-    if (news.title) params.set('title', news.title);
-    if (rssDesc) params.set('fallback', rssDesc);
-    fetch(`/api/news-summary?${params}`)
-      .then(r => r.json())
+    fetchNewsSummary(news.link, news.title || '', rssDesc)
       .then(d => { if (d.summary) setAiSummary(d.summary); })
       .catch(() => {})
       .finally(() => setSummaryLoading(false));
