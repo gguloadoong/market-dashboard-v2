@@ -157,7 +157,7 @@ export default async function handler(request) {
       }
       case 'c': {
         // 차트 프록시: s = symbol, rg = range, iv = interval
-        const qs = `symbol=${encodeURIComponent(body.s || '')}&range=${body.rg || '1mo'}&interval=${body.iv || '1d'}`;
+        const qs = `symbol=${encodeURIComponent(body.s || '')}&range=${encodeURIComponent(body.rg || '1mo')}&interval=${encodeURIComponent(body.iv || '1d')}`;
         const req = makeEdgeRequest(baseUrl, `/api/chart-proxy?${qs}`);
         return chartProxyHandler(req);
       }
@@ -209,7 +209,7 @@ export default async function handler(request) {
       }
       case 'g': {
         // 한투 차트: s = symbol, p = period, ct = count
-        const qs = `symbol=${body.s || ''}&period=${body.p || 'D'}${body.ct ? `&count=${body.ct}` : ''}`;
+        const qs = `symbol=${encodeURIComponent(body.s || '')}&period=${encodeURIComponent(body.p || 'D')}${body.ct ? `&count=${encodeURIComponent(body.ct)}` : ''}`;
         return proxyToServerless(baseUrl, `/api/hantoo-chart?${qs}`);
       }
       case 'a': {
