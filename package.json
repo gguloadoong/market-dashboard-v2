@@ -8,11 +8,14 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "review:main": "node scripts/ai-pr-review.mjs --mode=local --base=origin/main",
+    "review:base": "node scripts/ai-pr-review.mjs --mode=local",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
+    "@upstash/redis": "^1.37.0",
     "framer-motion": "^10.18.0",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^1.6.0",
