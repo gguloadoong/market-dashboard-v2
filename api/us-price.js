@@ -82,41 +82,22 @@ async function fetchPolygonBatch(symbols) {
   }).filter(r => r.price > 0);
 }
 
+// 네이버 해외시세 공유 유틸리티 import
+import { NAVER_STOCK_API, NAVER_HEADERS, getExchanges, toNum } from './_naver-shared.js';
+
 // 네이버 해외시세 단일 심볼 조회
-const NAVER_STOCK_API = 'https://api.stock.naver.com/stock';
-const NASDAQ_SYMBOLS = new Set([
-  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'TSLA', 'NVDA', 'NFLX',
-  'AVGO', 'COST', 'PEP', 'ADBE', 'CSCO', 'INTC', 'AMD', 'QCOM', 'TXN',
-  'PYPL', 'SBUX', 'MDLZ', 'ISRG', 'GILD', 'ADP', 'REGN', 'VRTX', 'LRCX',
-  'MU', 'KLAC', 'SNPS', 'CDNS', 'MRVL', 'FTNT', 'PANW', 'ABNB', 'CRWD',
-  'DDOG', 'TEAM', 'ZS', 'MELI', 'WDAY', 'MNST', 'BKNG', 'MAR', 'ORLY',
-  'CPRT', 'PCAR', 'ROST', 'ODFL', 'FAST', 'CTAS', 'PAYX', 'VRSK', 'IDXX',
-  'MCHP', 'ON', 'SMCI', 'ARM', 'PLTR', 'COIN', 'RIVN', 'LCID', 'SOFI',
-  'HOOD', 'IONQ', 'RGTI', 'QUBT', 'SOUN', 'RKLB',
-]);
-
-function getNaverExchanges(symbol) {
-  if (NASDAQ_SYMBOLS.has(symbol)) return ['NASDAQ', 'NYSE', 'AMEX'];
-  return ['NYSE', 'NASDAQ', 'AMEX'];
-}
-
 async function fetchNaverUsSingle(symbol) {
-  const exchanges = getNaverExchanges(symbol);
+  const exchanges = getExchanges(symbol);
   let lastError = null;
   for (const exchange of exchanges) {
     try {
       const url = `${NAVER_STOCK_API}/${exchange}:${symbol}/basic`;
       const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-          'Referer': 'https://m.stock.naver.com/',
-          'Accept': 'application/json',
-        },
+        headers: NAVER_HEADERS,
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) { lastError = new Error(`${exchange}:${symbol} ${res.status}`); continue; }
       const data = await res.json();
-      const toNum = s => parseFloat((s || '').toString().replace(/,/g, '')) || 0;
       const price     = toNum(data.closePrice) || toNum(data.lastPrice);
       const change    = toNum(data.compareToPreviousClosePrice);
       const changePct = toNum(data.fluctuationsRatio);

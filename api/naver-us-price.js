@@ -6,27 +6,8 @@
 // 응답: { results: [ { symbol, price, change, changePct, volume } ] }
 export const config = { runtime: 'edge' };
 
-// 네이버 해외시세 API 베이스
-const NAVER_STOCK_API = 'https://api.stock.naver.com/stock';
-
-// 심볼 → 거래소 매핑 (NYSE/NASDAQ 판별)
-// 주요 NASDAQ 종목 — 나머지는 NYSE 시도 후 실패 시 NASDAQ 재시도
-const NASDAQ_SYMBOLS = new Set([
-  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'TSLA', 'NVDA', 'NFLX',
-  'AVGO', 'COST', 'PEP', 'ADBE', 'CSCO', 'INTC', 'AMD', 'QCOM', 'TXN',
-  'PYPL', 'SBUX', 'MDLZ', 'ISRG', 'GILD', 'ADP', 'REGN', 'VRTX', 'LRCX',
-  'MU', 'KLAC', 'SNPS', 'CDNS', 'MRVL', 'FTNT', 'PANW', 'ABNB', 'CRWD',
-  'DDOG', 'TEAM', 'ZS', 'MELI', 'WDAY', 'MNST', 'BKNG', 'MAR', 'ORLY',
-  'CPRT', 'PCAR', 'ROST', 'ODFL', 'FAST', 'CTAS', 'PAYX', 'VRSK', 'IDXX',
-  'MCHP', 'ON', 'SMCI', 'ARM', 'PLTR', 'COIN', 'RIVN', 'LCID', 'SOFI',
-  'HOOD', 'IONQ', 'RGTI', 'QUBT', 'SOUN', 'RKLB',
-]);
-
-// 거래소 목록 결정: NASDAQ 우선 or NYSE 우선
-function getExchanges(symbol) {
-  if (NASDAQ_SYMBOLS.has(symbol)) return ['NASDAQ', 'NYSE', 'AMEX'];
-  return ['NYSE', 'NASDAQ', 'AMEX'];
-}
+// 네이버 해외시세 공유 유틸리티 import
+import { NAVER_STOCK_API, NAVER_HEADERS, getExchanges, toNum } from './_naver-shared.js';
 
 // 네이버 API 단일 심볼 조회 — 거래소 순서대로 시도
 async function fetchNaverUsSingle(symbol) {
@@ -37,11 +18,7 @@ async function fetchNaverUsSingle(symbol) {
     try {
       const url = `${NAVER_STOCK_API}/${exchange}:${symbol}/basic`;
       const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-          'Referer': 'https://m.stock.naver.com/',
-          'Accept': 'application/json',
-        },
+        headers: NAVER_HEADERS,
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) {
@@ -51,7 +28,6 @@ async function fetchNaverUsSingle(symbol) {
       const data = await res.json();
 
       // 가격 파싱 — 네이버 해외시세 응답 필드
-      const toNum = s => parseFloat((s || '').toString().replace(/,/g, '')) || 0;
       const price     = toNum(data.closePrice) || toNum(data.lastPrice);
       const change    = toNum(data.compareToPreviousClosePrice);
       const changePct = toNum(data.fluctuationsRatio);

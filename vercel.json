@@ -6,5 +6,5 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "regions": ["icn1"],
-  "ignoreCommand": "if [ \"$VERCEL_ENV\" != \"production\" ]; then exit 0; fi"
+  "ignoreCommand": "if [ \"$VERCEL_ENV\" != \"production\" ]; then exit 0; fi; exit 1"
 }
