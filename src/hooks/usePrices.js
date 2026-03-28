@@ -60,6 +60,7 @@ export function usePrices() {
 
       const data = await fetchUsStocksBatch(symbolsToFetch);
       if (data.length > 0) {
+        let mergedUs = null;
         setUsStocks(prev => {
           const map = new Map(prev.map(s => [s.symbol, s]));
           for (const u of data) {
@@ -71,9 +72,11 @@ export function usePrices() {
               map.set(u.symbol, { symbol: u.symbol, name: u.name || u.symbol, market: 'us', sparkline: [], ...u });
             }
           }
-          return [...map.values()];
+          mergedUs = [...map.values()];
+          return mergedUs;
         });
-        savePriceCache(CACHE_KEY_US, data);
+        // merged 전체 저장 — raw data만 저장 시 재방문에서 sector/nameEn 메타 소실
+        if (mergedUs) savePriceCache(CACHE_KEY_US, mergedUs);
         checkAndAlertBatch(data, 'us');
         setDataErrors(prev => ({ ...prev, us: false }));
       } else {
