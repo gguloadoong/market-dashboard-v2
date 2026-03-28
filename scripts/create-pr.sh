@@ -55,27 +55,70 @@ EOF
 
 echo -e "${GREEN}[pr] PR 생성: $PR_URL${NC}"
 
-echo ""
-echo -e "${GREEN}[pr] === 4/4 봇 리뷰 대기 (3분) ===${NC}"
 PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-sleep 180
+REPO="gguloadoong/market-dashboard-v2"
 
-# 봇 리뷰 확인 — API 실패와 리뷰 없음을 분리
-if ! REVIEWS=$(gh api "repos/gguloadoong/market-dashboard-v2/pulls/$PR_NUM/reviews" --jq '.[] | "\(.user.login): \(.state)"' 2>/dev/null); then
-  echo -e "${RED}[pr] 봇 리뷰 조회 실패 (권한/네트워크 오류). 수동 확인 후 머지하세요.${NC}"
-  exit 1
-fi
+echo ""
+echo -e "${GREEN}[pr] === 4/4 봇 리뷰 폴링 (최대 15분) ===${NC}"
+echo -e "${YELLOW}[pr] Gemini·Copilot·CodeRabbit 리뷰 도착까지 대기 중...${NC}"
 
-if [ -z "$REVIEWS" ]; then
-  echo -e "${YELLOW}[pr] 봇 리뷰 미도착 — PR에 '봇 미응답' 기록${NC}"
-  gh pr comment "$PR_NUM" --body "봇 미응답 (3분 대기). 독립 리뷰 결과만으로 머지 가능." 2>/dev/null
-else
-  echo -e "${GREEN}[pr] 봇 리뷰 도착:${NC}"
-  echo "$REVIEWS"
-  echo ""
-  echo -e "${YELLOW}[pr] ⚠️ 봇 리뷰에 응답 코멘트를 남기세요!${NC}"
-  echo -e "${YELLOW}[pr] gh api repos/gguloadoong/market-dashboard-v2/pulls/$PR_NUM/comments 로 상세 확인${NC}"
+# 30초 간격 × 30회 = 최대 15분 폴링
+MAX_ITER=30
+INTERVAL=30
+ARRIVED=0
+
+for i in $(seq 1 $MAX_ITER); do
+  sleep $INTERVAL
+
+  # 리뷰 (Approve/Comment/Request Changes)
+  REVIEW_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUM}/reviews" --jq 'length' 2>/dev/null || echo "0")
+  # CodeRabbit은 issue comment로 오는 경우가 있어 함께 확인
+  CR_COUNT=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" --jq '[.[] | select(.user.login | contains("coderabbit"))] | length' 2>/dev/null || echo "0")
+
+  TOTAL=$((REVIEW_COUNT + CR_COUNT))
+  ELAPSED=$((i * INTERVAL))
+
+  if [ "$TOTAL" -gt 0 ]; then
+    ARRIVED=1
+    echo ""
+    echo -e "${GREEN}[pr] ✅ 봇 리뷰 ${TOTAL}건 도착! (${ELAPSED}s 경과)${NC}"
+    break
+  fi
+
+  echo -e "[pr] 대기 중... ${ELAPSED}s / $((MAX_ITER * INTERVAL))s (리뷰: ${TOTAL}건)"
+done
+
+if [ "$ARRIVED" -eq 0 ]; then
+  echo -e "${YELLOW}[pr] ⏰ 15분 대기 종료 — 봇 미응답${NC}"
+  gh pr comment "$PR_NUM" --body "봇 미응답 (15분 대기 초과). 독립 리뷰 결과만으로 머지 가능." 2>/dev/null || true
+  echo -e "${GREEN}[pr] ✅ PR 생성 완료: $PR_URL${NC}"
+  exit 0
 fi
 
 echo ""
-echo -e "${GREEN}[pr] ✅ PR 생성 완료. 봇 리뷰 응답 후 머지하세요.${NC}"
+echo -e "${GREEN}[pr] ─── 봇 리뷰 상세 내용 ───${NC}"
+
+# Gemini / Copilot 리뷰
+gh api "repos/${REPO}/pulls/${PR_NUM}/reviews" --jq '.[] | "[\(.user.login)] \(.state)\n\(.body | .[0:400])\n---"' 2>/dev/null || true
+
+# CodeRabbit (issue comment)
+gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+  --jq '[.[] | select(.user.login | contains("coderabbit"))] | .[] | "[\(.user.login)]\n\(.body | .[0:600])\n---"' 2>/dev/null || true
+
+# inline 코멘트 요약
+INLINE_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUM}/comments" --jq 'length' 2>/dev/null || echo "0")
+if [ "$INLINE_COUNT" -gt 0 ]; then
+  echo ""
+  echo -e "${YELLOW}[pr] 인라인 코멘트 ${INLINE_COUNT}건:${NC}"
+  gh api "repos/${REPO}/pulls/${PR_NUM}/comments" \
+    --jq '.[] | "[\(.user.login)] \(.path):\(.line // "?") — \(.body | .[0:200])\n---"' 2>/dev/null || true
+fi
+
+echo ""
+echo -e "${RED}[pr] ══════════════════════════════════════════${NC}"
+echo -e "${RED}[pr] ⚠️  봇 리뷰 응답 필수 — 지금 즉시 처리하세요  ⚠️${NC}"
+echo -e "${RED}[pr] ══════════════════════════════════════════${NC}"
+echo -e "${YELLOW}[pr] HIGH/CRITICAL → 코드 수정 후 push${NC}"
+echo -e "${YELLOW}[pr] MEDIUM/LOW → 채택/기각 판단 후 PR 코멘트 작성${NC}"
+echo -e "${YELLOW}[pr] 응답 없이 머지 금지 (CLAUDE.md 규칙)${NC}"
+echo -e "${GREEN}[pr] PR: $PR_URL${NC}"
