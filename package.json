@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "review:gate": "bash scripts/codex-review-gate.sh strict origin/main",
-    "ship": "npm run lint && npm run test && npm run build && npm run review:gate"
+    "ship": "npm run lint && npm run test && npm run build && npm run review:gate",
+    "pr": "bash scripts/create-pr.sh"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",

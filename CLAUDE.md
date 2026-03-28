@@ -101,8 +101,12 @@
 1. gh issue create → Issue 생성 (라벨: ai-generated + 작업 성격)
 2. git checkout -b feature/#이슈번호-설명 (또는 fix/#이슈번호-설명)
 3. 작업 완료 후 커밋 & 푸시
-4. [독립 코드 리뷰 필수] → PR 생성
+4. code-reviewer 에이전트 실행 (독립 리뷰 1단계)
+5. npm run pr "PR 제목" → 빌드 + Codex gate + PR 생성 + 봇 리뷰 대기 자동 실행
 ```
+
+**`gh pr create` 직접 호출 금지. 반드시 `npm run pr`을 사용한다.**
+`npm run pr`이 빌드 확인 → Codex gate → PR 생성 → 봇 리뷰 대기를 자동으로 수행한다.
 
 **배치 고려**: 같은 날 같은 기능 영역의 `fix:` 여러 개가 예상되면 하나의 PR로 묶는다.
 리뷰 봇 할당량 절약. 단, 관련 없는 fix를 억지로 묶지 않는다.

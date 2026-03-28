@@ -35,6 +35,7 @@ export default defineConfig([
   // 브라우저 소스 코드
   {
     files: ['src/**/*.{js,jsx}'],
+    ignores: ['src/**/*.test.{js,jsx}', 'src/__tests__/**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,

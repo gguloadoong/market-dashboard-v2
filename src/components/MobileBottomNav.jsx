@@ -33,7 +33,7 @@ const MobileBottomNav = memo(function MobileBottomNav({ activeTab, onTabChange, 
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="flex">
-        {TABS.map(({ id, label, Icon }) => {
+        {TABS.map(({ id, label, Icon }) => { // eslint-disable-line no-unused-vars -- Icon은 JSX에서 사용
           const active = activeTab === id;
           const surge = hasSurge(id, { krStocks, usStocks, coins });
           return (

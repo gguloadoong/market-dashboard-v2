@@ -134,7 +134,7 @@ export function useKisUsWebSocket(symbols, onQuote) {
 
     if (toRemove.length) sendSubscribe(ws, key, toRemove, '2');
     if (toAdd.length)    sendSubscribe(ws, key, toAdd,    '1');
-  }, [symbols]);  
+  }, [symbols]);
 
   // ── HDFSCNT0 파이프 메시지 파싱 ────────────────────────────────
   // 형식: `0|HDFSCNT0|001|NASDAAPL^1^20250325^153012^225.43^1^1.23^0.55^...`
@@ -266,5 +266,5 @@ export function useKisUsWebSocket(symbols, onQuote) {
         wsRef.current = null;
       }
     };
-  }, []);  
+  }, []);
 }
