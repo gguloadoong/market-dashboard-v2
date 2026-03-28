@@ -1,23 +1,21 @@
-// Fear & Greed 지수 위젯 — 코인(Alternative.me) + 미장(CNN Money)
+// Fear & Greed 지수 위젯 — 코인(Alternative.me) + 미장(CNN Money) + 국장(VKOSPI+외국인)
 // Market Pulse 영역 하단에 표시
 import { useFearGreed, getFgLabel, getFgColor } from '../../../hooks/useFearGreed';
 
-function FgGauge({ score, label, color }) {
+function FgGauge({ score, label, color, sub }) {
   const pct = Math.min(100, Math.max(0, score ?? 0));
   return (
     <div className="flex items-center gap-2.5 min-w-0">
-      {/* 아크 게이지 대신 심플한 수평 바 */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[22px] font-bold tabular-nums font-mono leading-none" style={{ color }}>
+          <span className="text-[20px] font-bold tabular-nums font-mono leading-none" style={{ color }}>
             {score ?? '—'}
           </span>
-          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${color}18`, color }}>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${color}18`, color }}>
             {label}
           </span>
         </div>
         <div className="h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden">
-          {/* 점수 위치에 인디케이터 */}
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{
@@ -26,28 +24,44 @@ function FgGauge({ score, label, color }) {
             }}
           />
         </div>
+        {sub && <div className="text-[9px] text-[#B0B8C1] mt-1 truncate">{sub}</div>}
       </div>
     </div>
   );
 }
 
 function FgSkeleton() {
-  return <div className="h-8 w-20 bg-[#F2F4F6] rounded-lg animate-pulse" />;
+  return <div className="h-8 w-full bg-[#F2F4F6] rounded-lg animate-pulse" />;
+}
+
+// 외국인 순매수 방향 텍스트 (조 단위)
+function formatForeignNet(net) {
+  if (net == null) return null;
+  const t = net / 1e12;
+  const sign = t >= 0 ? '+' : '';
+  return `외국인 ${sign}${t.toFixed(1)}조`;
 }
 
 export default function FearGreedWidget() {
-  const { crypto, us } = useFearGreed();
+  const { crypto, us, kr } = useFearGreed();
 
-  const cryptoScore  = crypto.data?.score;
-  const cryptoLabel  = getFgLabel(cryptoScore);
-  const cryptoColor  = getFgColor(cryptoScore);
+  const cryptoScore = crypto.data?.score;
+  const cryptoLabel = getFgLabel(cryptoScore);
+  const cryptoColor = getFgColor(cryptoScore);
 
-  const usScore  = us.data?.score;
-  const usLabel  = getFgLabel(usScore);
-  const usColor  = getFgColor(usScore);
+  const usScore = us.data?.score;
+  const usLabel = getFgLabel(usScore);
+  const usColor = getFgColor(usScore);
 
-  // 둘 다 로딩 실패 시 숨김
-  if (crypto.isError && us.isError) return null;
+  const krScore = kr.data?.score;
+  const krLabel = getFgLabel(krScore);
+  const krColor = getFgColor(krScore);
+  const krSub   = kr.data?.vkospi != null
+    ? `VKOSPI ${kr.data.vkospi.toFixed(2)}  ${formatForeignNet(kr.data.foreignNet) ?? ''}`
+    : formatForeignNet(kr.data?.foreignNet) ?? null;
+
+  // 셋 다 실패 시 숨김
+  if (crypto.isError && us.isError && kr.isError) return null;
 
   return (
     <div className="bg-white rounded-2xl border border-[#F2F4F6] shadow-sm p-4">
@@ -55,18 +69,18 @@ export default function FearGreedWidget() {
         <span className="text-[13px] font-bold text-[#191F28]">공포 &amp; 탐욕 지수</span>
         <span className="text-[10px] text-[#B0B8C1]">Fear &amp; Greed Index</span>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        {/* 코인 */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* 국장 */}
         <div>
           <div className="flex items-center gap-1 mb-2">
-            <span className="text-[10px] font-bold text-[#8B95A1] uppercase tracking-wide">🪙 코인</span>
-            <span className="text-[9px] text-[#C9CDD2]">Alternative.me</span>
+            <span className="text-[10px] font-bold text-[#8B95A1] uppercase tracking-wide">🇰🇷 국장</span>
+            <span className="text-[9px] text-[#C9CDD2]">VKOSPI</span>
           </div>
-          {crypto.isLoading ? <FgSkeleton /> : (
-            crypto.isError ? (
+          {kr.isLoading ? <FgSkeleton /> : (
+            kr.isError ? (
               <span className="text-[11px] text-[#B0B8C1]">불러오기 실패</span>
             ) : (
-              <FgGauge score={cryptoScore} label={cryptoLabel} color={cryptoColor} />
+              <FgGauge score={krScore} label={krLabel} color={krColor} sub={krSub} />
             )
           )}
         </div>
@@ -81,6 +95,20 @@ export default function FearGreedWidget() {
               <span className="text-[11px] text-[#B0B8C1]">불러오기 실패</span>
             ) : (
               <FgGauge score={usScore} label={usLabel} color={usColor} />
+            )
+          )}
+        </div>
+        {/* 코인 */}
+        <div>
+          <div className="flex items-center gap-1 mb-2">
+            <span className="text-[10px] font-bold text-[#8B95A1] uppercase tracking-wide">🪙 코인</span>
+            <span className="text-[9px] text-[#C9CDD2]">Alternative.me</span>
+          </div>
+          {crypto.isLoading ? <FgSkeleton /> : (
+            crypto.isError ? (
+              <span className="text-[11px] text-[#B0B8C1]">불러오기 실패</span>
+            ) : (
+              <FgGauge score={cryptoScore} label={cryptoLabel} color={cryptoColor} />
             )
           )}
         </div>

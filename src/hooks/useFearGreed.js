@@ -1,8 +1,8 @@
-// 공포탐욕지수 훅 — 코인(Alternative.me) + 미장(CNN Money 프록시)
+// 공포탐욕지수 훅 — 코인(Alternative.me) + 미장(CNN Money) + 국장(VKOSPI + 외국인)
 // Alternative.me: CORS 지원, 직접 호출 가능
-// CNN Money: CORS 차단 → 통합 게이트웨이 /api/d 프록시 경유
+// CNN Money / 국장: CORS 차단 → 통합 게이트웨이 /api/d 프록시 경유
 import { useQuery } from '@tanstack/react-query';
-import { fetchFearGreed as gwFearGreed } from '../api/_gateway.js';
+import { fetchFearGreed as gwFearGreed, fetchKrFearGreed as gwKrFearGreed } from '../api/_gateway.js';
 
 // 점수 → 레이블 매핑
 export function getFgLabel(score) {
@@ -41,6 +41,10 @@ async function fetchUsFG() {
   return gwFearGreed(8000);
 }
 
+async function fetchKrFG() {
+  return gwKrFearGreed(8000);
+}
+
 export function useFearGreed() {
   const crypto = useQuery({
     queryKey: ['fearGreed', 'crypto'],
@@ -58,5 +62,13 @@ export function useFearGreed() {
     retry: 1,
   });
 
-  return { crypto, us };
+  const kr = useQuery({
+    queryKey: ['fearGreed', 'kr'],
+    queryFn: fetchKrFG,
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  return { crypto, us, kr };
 }

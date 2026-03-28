@@ -17,7 +17,8 @@
 //   w  = whale-proxy     (고래 알림)
 //   v  = hantoo-investor (투자자 동향)
 //   m  = hantoo-market-investor (시장 투자자)
-//   f  = fear-greed      (공포탐욕)
+//   f  = fear-greed      (공포탐욕 — 미장/코인)
+//   fk = kr-fear-greed   (국장 공포탐욕 — VKOSPI + 외국인)
 //   g  = hantoo-chart    (한투 차트)
 //   a  = hantoo-ws-approval (WebSocket 인증)
 //   ns = naver-search    (네이버 검색)
@@ -164,9 +165,13 @@ export default async function handler(request) {
         return chartProxyHandler(req);
       }
       case 'f': {
-        // 공포탐욕 지수
+        // 공포탐욕 지수 (미장/코인 — CNN Money)
         const req = makeEdgeRequest(baseUrl, `/api/fear-greed`);
         return fearGreedHandler(req);
+      }
+      case 'fk': {
+        // 국장 공포탐욕 지수 (VKOSPI + 외국인 순매수)
+        return proxyToServerless(baseUrl, `/api/kr-fear-greed`);
       }
       case 'us': {
         // 미국 주식 검색: q = 검색어

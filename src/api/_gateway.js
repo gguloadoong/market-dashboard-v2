@@ -94,6 +94,11 @@ export function fetchFearGreed(timeoutMs = 8000) {
   return gwJson({ t: 'f' }, timeoutMs);
 }
 
+// ─── 국장 공포탐욕 지수 (VKOSPI + 외국인 순매수) ────────────
+export function fetchKrFearGreed(timeoutMs = 8000) {
+  return gwJson({ t: 'fk' }, timeoutMs);
+}
+
 // ─── 한투 차트 ───────────────────────────────────────────────
 export function fetchHantooChart(symbol, period, timeoutMs = 10000) {
   return gwJson({ t: 'g', s: symbol, p: period }, timeoutMs);
