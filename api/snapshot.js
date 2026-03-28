@@ -24,7 +24,6 @@ export default async function handler(request) {
       kr: snaps?.kr ?? [],
       us: snaps?.us ?? [],
       coins: snaps?.coins ?? [],
-      etf: snaps?.etf ?? [],
       ts: Date.now(),
       _fromCache: fromCache,
     };

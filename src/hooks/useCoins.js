@@ -51,7 +51,14 @@ export function useCoins(krwRateRef) {
     (async () => {
       const snap = await fetchSnapshot();
       if (snap?.coins?.length > 0) {
-        setCoins(prev => prev.length === 0 ? snap.coins : prev);
+        setCoins(prev => {
+          if (prev.length === 0) return snap.coins;
+          const map = new Map(prev.map(c => [c.symbol, c]));
+          for (const coin of snap.coins) {
+            map.set(coin.symbol, { ...map.get(coin.symbol), ...coin });
+          }
+          return [...map.values()];
+        });
       }
       setCoinsReady(true);
     })();
@@ -105,6 +112,8 @@ export function useCoins(krwRateRef) {
   useEffect(() => {
     // 마운트 즉시 Upbit REST로 첫 가격 로드 (WS 연결 대기 없이 ~1s 내 실제 가격 표시)
     refreshCoinsQuick();
+    // snapshot/cache 없을 때 즉시 전체 갱신 (60초 대기 없이 빈 코인탭 방지)
+    if (!coinsRef.current.length) refreshCoins();
     const quickId     = setInterval(() => { if (!document.hidden && !wsConnectedRef.current) refreshCoinsQuick(); }, POLLING.FAST);
     const fullId      = setInterval(() => { if (!document.hidden) refreshCoins(); }, POLLING.SLOW);
     const sparklineId = setInterval(() => { if (!document.hidden) refreshSparklines(); }, POLLING.SPARKLINE);

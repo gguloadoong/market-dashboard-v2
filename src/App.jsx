@@ -12,7 +12,6 @@ import HomeDashboard from './components/home';
 import GlobalSearch from './components/GlobalSearch';
 import SectorRotation from './components/SectorRotation';
 
-import { fetchSnapshot } from './api/snapshot';
 import { ETF_LIST } from './data/etfList';
 import { fetchKoreanStocksBatch, fetchEtfPricesBatch } from './api/stocks';
 import { requestNotificationPermission, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
@@ -60,12 +59,6 @@ export default function App() {
   });
   const loadingRef = useRef(false);
 
-  // snapshot에서 ETF 초기화
-  useEffect(() => {
-    fetchSnapshot().then(snap => {
-      if (snap?.etf?.length > 0) setEtfs(snap.etf);
-    });
-  }, []);
 
   // KIS WebSocket — watchlist KR 우선
   const kisSymbols = useMemo(() => {

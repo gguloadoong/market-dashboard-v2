@@ -10,8 +10,9 @@ try {
       token: process.env.KV_REST_API_TOKEN,
     });
   }
-} catch {
-  // Redis 연결 실패 시 graceful degradation — redis = null 유지
+} catch (e) {
+  console.error('[price-cache] Redis 연결 실패:', e);
+  // graceful degradation — redis = null 유지
 }
 
 // Redis 키 — 마켓별 스냅샷
@@ -35,7 +36,8 @@ export async function getSnap(key) {
   if (!redis) return null;
   try {
     return await redis.get(key);
-  } catch {
+  } catch (e) {
+    console.error(`[price-cache] getSnap 실패 (${key}):`, e);
     return null;
   }
 }
@@ -46,23 +48,24 @@ export async function setSnap(key, data, ex) {
   try {
     await redis.set(key, data, { ex });
     return true;
-  } catch {
+  } catch (e) {
+    console.error(`[price-cache] setSnap 실패 (${key}):`, e);
     return false;
   }
 }
 
-// 전체 마켓 스냅샷 일괄 조회
+// 전체 마켓 스냅샷 일괄 조회 (ETF는 cron 없음 — 클라이언트 직접 폴링)
 export async function getAllSnaps() {
   if (!redis) return null;
   try {
-    const [kr, us, coins, etf] = await Promise.all([
+    const [kr, us, coins] = await Promise.all([
       redis.get(SNAP_KEYS.KR),
       redis.get(SNAP_KEYS.US),
       redis.get(SNAP_KEYS.COINS),
-      redis.get(SNAP_KEYS.ETF),
     ]);
-    return { kr, us, coins, etf };
-  } catch {
+    return { kr, us, coins };
+  } catch (e) {
+    console.error('[price-cache] getAllSnaps 실패:', e);
     return null;
   }
 }

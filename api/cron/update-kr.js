@@ -49,7 +49,7 @@ async function fetchKrxMarket(mktId, trdDd) {
 }
 
 // KRX 응답 → 통합 형태로 파싱
-function parseKrxItems(items, market) {
+function parseKrxItems(items, exchange) {
   return items
     .filter((item) => item.ISU_SRT_CD && item.TDD_CLSPRC)
     .map((item) => ({
@@ -59,9 +59,10 @@ function parseKrxItems(items, market) {
       change: parseNum(item.CMPPREVDD_PRC),
       changePct: parseFloat2(item.FLUC_RT),
       volume: parseNum(item.ACC_TRDVOL),
-      // MKTCAP은 억 단위 → 원 단위 변환
+      // MKTCAP은 억 단위(money='1') → 원 단위 변환
       marketCap: parseNum(item.MKTCAP) * 100000000,
-      market,
+      market: 'kr',     // 프론트 market === 'kr' 체크와 일치
+      exchange,         // 'kospi' | 'kosdaq' (정렬/배지용)
     }));
 }
 
@@ -163,7 +164,8 @@ export default async function handler(req, res) {
         items = fallback;
         source = 'hantoo';
       }
-    } catch {
+    } catch (fallbackErr) {
+      console.error('[update-kr] 한투 fallback 실패:', fallbackErr);
       // 한투도 실패 — items 빈 배열 유지
     }
   }

@@ -17,10 +17,13 @@ export function useIndices() {
         setIndices(prev => {
           // 초기 로드 시 prev가 비어있으면 data 그대로 사용
           if (prev.length === 0) return data.map(d => ({ ...d, _lastUpdated: now }));
-          return prev.map(idx => {
+          const prevIds = new Set(prev.map(idx => idx.id));
+          const updated = prev.map(idx => {
             const found = data.find(d => d.id === idx.id);
             return found ? { ...idx, ...found, _lastUpdated: now } : idx;
           });
+          const newItems = data.filter(d => !prevIds.has(d.id)).map(d => ({ ...d, _lastUpdated: now }));
+          return newItems.length > 0 ? [...updated, ...newItems] : updated;
         });
       }
     } catch (e) { console.warn('[지수] 갱신 실패:', e.message); }

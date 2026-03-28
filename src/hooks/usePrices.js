@@ -51,11 +51,8 @@ export function usePrices() {
 
   const refreshUsStocks = useCallback(async () => {
     try {
-      const currentUs = usStocksRef.current;
-      // 현재 목록 없으면 US_STOCK_LIST 전체 심볼 사용
-      const baseSymbols = currentUs.length > 0
-        ? currentUs.map(s => s.symbol)
-        : US_STOCK_LIST.map(s => s.symbol);
+      // 항상 US_STOCK_LIST 전체 심볼 기반 폴링 — snapshot 시드 여부와 무관하게 250개 전체 유지
+      const baseSymbols = US_STOCK_LIST.map(s => s.symbol);
       const baseSet = new Set(baseSymbols);
       const extraSymbols = usSymbolsRef.current.filter(sym => !baseSet.has(sym));
       const symbolsToFetch = [...baseSymbols, ...extraSymbols];
@@ -87,24 +84,16 @@ export function usePrices() {
 
   const refreshKoreanStocks = useCallback(async () => {
     try {
-      const currentKr = krStocksRef.current;
-      const krSymbolSet = new Set(currentKr.map(s => s.symbol));
-      const extraSymbols = krSymbolsRef.current.filter(sym => !krSymbolSet.has(sym));
-
-      let stocksToFetch = [
-        ...currentKr,
-        ...extraSymbols.map(sym => ({ symbol: sym, name: sym, market: 'kr', price: 0, sparkline: [] })),
-      ].filter((s, i, arr) => arr.findIndex(x => x.symbol === s.symbol) === i);
-
-      // snapshot 미수신 시 최소 fallback 심볼로 초기 폴링 보장
-      if (stocksToFetch.length === 0) {
-        stocksToFetch = KR_FALLBACK_SYMBOLS.map(sym => ({
-          symbol: sym, name: sym, market: 'kr', price: 0, sparkline: [],
-        }));
-      }
+      // KR 브라우저 폴링은 fallback + watchlist 소규모로만 — snapshot cron이 전종목 커버
+      const pollSet = new Set([...KR_FALLBACK_SYMBOLS, ...krSymbolsRef.current]);
+      const currentKrMap = new Map(krStocksRef.current.map(s => [s.symbol, s]));
+      const stocksToFetch = [...pollSet].map(sym =>
+        currentKrMap.get(sym) ?? { symbol: sym, name: sym, market: 'kr', price: 0, sparkline: [] }
+      );
 
       const data = await fetchKoreanStocksBatch(stocksToFetch);
       if (data.length > 0) {
+        let mergedKr = null;
         setKrStocks(prev => {
           const map = new Map(prev.map(s => [s.symbol, s]));
           for (const u of data) {
@@ -116,9 +105,11 @@ export function usePrices() {
               map.set(u.symbol, { symbol: u.symbol, name: u.name || u.symbol, market: 'kr', sparkline: [u.price], ...u });
             }
           }
-          return [...map.values()];
+          mergedKr = [...map.values()];
+          return mergedKr;
         });
-        savePriceCache(CACHE_KEY_KR, data);
+        // merged 전체 저장 — 폴링 결과(소규모)만 저장하면 재방문 시 전종목 소실
+        if (mergedKr) savePriceCache(CACHE_KEY_KR, mergedKr);
         checkAndAlertBatch(data, 'kr');
         setDataErrors(prev => ({ ...prev, kr: false }));
       } else {
@@ -143,10 +134,15 @@ export function usePrices() {
       }
       if (snap?.us?.length > 0) {
         setUsStocks(prev => {
-          if (prev.length === 0) return snap.us;
-          const map = new Map(prev.map(s => [s.symbol, s]));
+          // US_STOCK_LIST 메타(sector, nameEn) 보존 — cold load 시 전체 목록 베이스로 시작
+          const metaMap = new Map(US_STOCK_LIST.map(s => [s.symbol, s]));
+          const base = prev.length === 0 ? [...US_STOCK_LIST] : [...prev];
+          const map = new Map(base.map(s => [s.symbol, s]));
           for (const u of snap.us) {
-            if (u?.price > 0) map.set(u.symbol, { ...map.get(u.symbol), ...u });
+            if (u?.price > 0) {
+              const existing = map.get(u.symbol) ?? metaMap.get(u.symbol) ?? {};
+              map.set(u.symbol, { ...existing, ...u });
+            }
           }
           return [...map.values()];
         });
