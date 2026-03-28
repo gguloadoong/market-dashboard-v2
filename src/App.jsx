@@ -32,12 +32,14 @@ export default function App() {
   const krwRateRef                  = useRef(1466);
   useEffect(() => { krwRateRef.current = krwRate; }, [krwRate]);
 
-  const { coins, setCoins: _setCoins, coinError, refreshCoins } = useCoins(krwRateRef);
+  const { coins, setCoins: _setCoins, coinError, refreshCoins, coinsReady } = useCoins(krwRateRef);
   const {
     usStocks, setUsStocks, krStocks, setKrStocks,
     dataErrors, setDataErrors: _setDataErrors,
     krSymbolsRef, usSymbolsRef, refreshUsStocks, refreshKoreanStocks,
+    pricesReady,
   } = usePrices();
+  const initializing = !pricesReady || !coinsReady;
 
   // watchlist 심볼 동기화
   useEffect(() => { krSymbolsRef.current = krSymbols; }, [krSymbols, krSymbolsRef]);
@@ -301,7 +303,7 @@ export default function App() {
               <MarketSummaryBar indices={indices} krwRate={krwRate} loading={loading && indices.every(i => !i.value)} />
               <WatchlistTable
                 key={activeTab} items={tabItems} type={activeTab} krwRate={krwRate}
-                onRowClick={setSelectedItem} loading={loading}
+                onRowClick={setSelectedItem} loading={loading} initializing={initializing}
                 dataError={activeTab === 'kr' ? dataErrors.kr : activeTab === 'us' ? dataErrors.us : activeTab === 'coin' ? coinError : false}
                 onRetry={activeTab === 'kr' ? refreshKoreanStocks : activeTab === 'us' ? refreshUsStocks : activeTab === 'coin' ? refreshCoins : undefined}
               />
