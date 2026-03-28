@@ -264,10 +264,8 @@
 - 제안: snapshot hydration 완료 후 WS 재구독 또는 구독 심볼 동적 추가 지원
 - 우선순위: P2 (발생 시 WebSocket fallback으로 REST polling이 대체)
 
-### [P2-16] 신규 사용자 첫 로딩 blank 화면
-- 문제: localStorage 캐시 없는 신규 사용자 — loading=false + items.length===0 → WatchlistTable 스켈레톤 미표시
-- 제안: 초기 마운트 시 snapshot 로딩 전까지 loading=true 유지 또는 별도 `initializing` 플래그
-- 우선순위: P2 (재방문자는 영향 없음, 신규 사용자만 수백ms 공백)
+### ~~[P2-16] 신규 사용자 첫 로딩 blank 화면~~ ✅ 완료 (PR #206, 2026-03-28)
+- `tabInitializing` 탭별 플래그 + WatchlistTable `initializing` prop으로 스켈레톤 표시
 
 ### [P2-17] Upbit ticker 전체 마켓 일괄 조회 → 배치 처리
 - 문제: update-coins.js가 전체 KRW 마켓(300+)을 단일 URL로 호출 → URL 길이 초과 시 실패 위험
