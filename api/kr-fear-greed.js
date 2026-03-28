@@ -97,8 +97,10 @@ export default async function handler(req, res) {
       + (kosdaqRes.status === 'fulfilled' ? kosdaqRes.value : 0)
       : null;
 
+    // 모두 실패 = 휴장일(주말/공휴일) 또는 전체 API 장애
     if (vkospi == null && !foreignAvailable) {
-      throw new Error('VKOSPI + 외국인 순매수 모두 조회 실패');
+      res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
+      return res.json({ score: null, closed: true });
     }
 
     const vs = vkospi != null ? vkospiToScore(vkospi) : null;

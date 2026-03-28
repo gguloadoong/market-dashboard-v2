@@ -79,6 +79,8 @@ export default function FearGreedWidget() {
           {kr.isLoading ? <FgSkeleton /> : (
             kr.isError ? (
               <span className="text-[11px] text-[#B0B8C1]">불러오기 실패</span>
+            ) : kr.data?.closed ? (
+              <span className="text-[11px] text-[#B0B8C1]">휴장</span>
             ) : (
               <FgGauge score={krScore} label={krLabel} color={krColor} sub={krSub} />
             )
