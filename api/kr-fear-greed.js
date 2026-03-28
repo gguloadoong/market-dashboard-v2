@@ -52,6 +52,10 @@ async function fetchForeignNet(token, iscd, today) {
 }
 
 // ─── 점수 산출 ──────────────────────────────────────────────────
+// 합성 가중치
+const VKOSPI_WEIGHT  = 0.6;
+const FOREIGN_WEIGHT = 0.4;
+
 // VKOSPI → 0-100 (보통 범위 12~37, 낮을수록 탐욕)
 function vkospiToScore(v) {
   return Math.max(0, Math.min(100, Math.round(100 - ((v - 12) / 25) * 100)));
@@ -103,7 +107,7 @@ export default async function handler(req, res) {
     // 합성: VKOSPI 60% + 외국인 40% (한쪽 실패 시 나머지 100%)
     let score;
     if (vs != null && fs != null) {
-      score = Math.round(vs * 0.6 + fs * 0.4);
+      score = Math.round(vs * VKOSPI_WEIGHT + fs * FOREIGN_WEIGHT);
     } else if (vs != null) {
       score = vs;
     } else {
