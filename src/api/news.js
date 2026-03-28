@@ -206,12 +206,6 @@ const IMPACT_EVENT_KW = [
   'earnings','revenue','profit','guidance','shares',
 ];
 
-// 재무/공시 이벤트만 (계약·수주 등 광범위 키워드 제거 → 비금융 기사 유입 방지)
-const LISTED_COMPANY_EVENT_KW = [
-  '실적','매출','영업이익','순이익','적자','흑자','상장','공모','배당','자사주',
-  '유상증자','무상증자','cb','bw','전환사채','m&a','인수','합병','매각',
-  '투자의견','목표주가','호실적','어닝',
-];
 
 const BLOCK_KW = [
   // 스포츠
@@ -241,7 +235,6 @@ export function isFinancialNews(item) {
 
   const hasMarketAnchor = MARKET_ANCHOR_KW.some(k => text.includes(k));
   const hasImpactEvent = IMPACT_EVENT_KW.some(k => text.includes(k));
-  const hasListedCompanyEvent = LISTED_COMPANY_EVENT_KW.some(k => text.includes(k));
 
   if (STRICT_FINANCE_SOURCES.has(item.source)) {
     return hasMarketAnchor || hasImpactEvent;

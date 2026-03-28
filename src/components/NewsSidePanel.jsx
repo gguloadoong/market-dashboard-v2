@@ -100,11 +100,6 @@ function extractKeywordsWeighted(title) {
     });
 }
 
-// 하위 호환 — 단순 키워드 배열 반환
-function extractKeywords(title) {
-  return extractKeywordsWeighted(title).map(k => k.word);
-}
-
 export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelatedClick, onNewsClick }) {
   const { krStocks = [], usStocks = [], coins = [] } = allData || {};
   const { data: allNews = [] } = useAllNewsQuery();

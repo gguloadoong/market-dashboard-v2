@@ -201,6 +201,6 @@ export function useKisWebSocket(symbols, onQuote) {
         wsRef.current = null;
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
   // symbols, onQuote 변경은 ref로 반영 → 재연결 없이 최신값 유지
 }

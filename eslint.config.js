@@ -19,6 +19,19 @@ export default defineConfig([
       'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
+  // 테스트 파일 — vitest 전역 변수 허용
+  {
+    files: ['src/**/*.test.{js,jsx}', 'src/__tests__/**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: { ...globals.browser, ...globals.node, describe: 'readonly', test: 'readonly', expect: 'readonly', it: 'readonly', beforeEach: 'readonly', afterEach: 'readonly', beforeAll: 'readonly', afterAll: 'readonly', vi: 'readonly' },
+      parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+    },
+    rules: {
+      'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
+    },
+  },
   // 브라우저 소스 코드
   {
     files: ['src/**/*.{js,jsx}'],
