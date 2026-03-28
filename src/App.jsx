@@ -39,7 +39,8 @@ export default function App() {
     krSymbolsRef, usSymbolsRef, refreshUsStocks, refreshKoreanStocks,
     pricesReady,
   } = usePrices();
-  const initializing = !pricesReady || !coinsReady;
+  // 탭별 초기 로딩 플래그 — 각 데이터 소스 독립
+  const tabInitializing = { kr: !pricesReady, us: !pricesReady, coin: !coinsReady, etf: false };
 
   // watchlist 심볼 동기화
   useEffect(() => { krSymbolsRef.current = krSymbols; }, [krSymbols, krSymbolsRef]);
@@ -303,7 +304,7 @@ export default function App() {
               <MarketSummaryBar indices={indices} krwRate={krwRate} loading={loading && indices.every(i => !i.value)} />
               <WatchlistTable
                 key={activeTab} items={tabItems} type={activeTab} krwRate={krwRate}
-                onRowClick={setSelectedItem} loading={loading} initializing={initializing}
+                onRowClick={setSelectedItem} loading={loading} initializing={tabInitializing[activeTab] ?? false}
                 dataError={activeTab === 'kr' ? dataErrors.kr : activeTab === 'us' ? dataErrors.us : activeTab === 'coin' ? coinError : false}
                 onRetry={activeTab === 'kr' ? refreshKoreanStocks : activeTab === 'us' ? refreshUsStocks : activeTab === 'coin' ? refreshCoins : undefined}
               />
