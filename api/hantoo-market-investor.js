@@ -11,18 +11,7 @@
 // KIS 키 미설정 시 Naver fallback 사용 (allorigins 경유)
 
 import { getHantooToken, HANTOO_BASE } from './_hantoo-token.js';
-
-// 오늘 날짜 YYYYMMDD 문자열 (서울 시간 기준)
-function todayStr() {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// 숫자 문자열 → 정수 변환 (백만원 단위 × 1,000,000 → 원)
-function toWon(pbmnStr) {
-  const millions = parseInt((pbmnStr || '0').replace(/,/g, ''), 10) || 0;
-  return millions * 1_000_000;
-}
+import { todayStr, toWon } from './_hantoo-utils.js';
 
 // 한투 API로 특정 지수 투자자 동향 조회
 // iscd: '0001'(코스피) | '1001'(코스닥)

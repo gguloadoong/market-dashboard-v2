@@ -4,6 +4,7 @@
 // 외국인 순매수: 양수(순매수) = 탐욕, 음수(순매도) = 공포
 
 import { getHantooToken, HANTOO_BASE } from './_hantoo-token.js';
+import { todayStr, toWon } from './_hantoo-utils.js';
 
 // ─── VKOSPI 조회 ────────────────────────────────────────────────
 async function fetchVkospiNaver() {
@@ -25,17 +26,6 @@ async function fetchVkospiNaver() {
 }
 
 // ─── 외국인 순매수 조회 ─────────────────────────────────────────
-function todayStr() {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-}
-
-// 백만원 단위 문자열 → 원
-function toWon(pbmnStr) {
-  const m = parseInt((pbmnStr || '0').replace(/,/g, ''), 10) || 0;
-  return m * 1_000_000;
-}
-
 async function fetchForeignNet(token, iscd, today) {
   const url = new URL(`${HANTOO_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor`);
   url.searchParams.set('FID_COND_MRKT_DIV_CODE', 'U');
@@ -92,7 +82,10 @@ export default async function handler(req, res) {
     const foreignNet = (kospiRes.status  === 'fulfilled' ? kospiRes.value  : 0)
                      + (kosdaqRes.status === 'fulfilled' ? kosdaqRes.value : 0);
 
-    if (vkospi == null && foreignNet === 0) {
+    const allFailed = vkospiRes.status === 'rejected'
+                   && kospiRes.status  === 'rejected'
+                   && kosdaqRes.status === 'rejected';
+    if (allFailed) {
       throw new Error('VKOSPI + 외국인 순매수 모두 조회 실패');
     }
 

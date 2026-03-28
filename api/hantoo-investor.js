@@ -6,12 +6,7 @@
 // 보안: HANTOO_APP_KEY / HANTOO_APP_SECRET 클라이언트 노출 없음
 
 import { getHantooToken, HANTOO_BASE } from './_hantoo-token.js';
-
-// 오늘 날짜 YYYYMMDD 문자열 (서울 시간 기준)
-function todayStr() {
-  const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-}
+import { todayStr } from './_hantoo-utils.js';
 
 export default async function handler(req, res) {
   if (!process.env.HANTOO_APP_KEY || !process.env.HANTOO_APP_SECRET) {
