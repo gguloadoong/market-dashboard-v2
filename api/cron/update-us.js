@@ -1,5 +1,5 @@
 // api/cron/update-us.js — 미장 가격 갱신 Edge Cron
-// Yahoo Finance v7 배치 API로 미장 종목 가격 갱신 → Redis 저장
+// Yahoo Finance v8 chart per-symbol + query1/query2 rotation → Redis 저장
 export const config = { runtime: 'edge' };
 
 import { SNAP_KEYS, SNAP_TTL, setSnap } from '../_price-cache.js';
@@ -31,33 +31,58 @@ const US_SYMBOLS = [
   'ACN','IBM','CSCO','TXN','NEE','PG','KO','PEP','PM','MO',
 ];
 
-const BATCH_SIZE = 100;
+const CONCURRENCY = 10; // Yahoo v8 동시 요청 수
+const YAHOO_HOSTS = ['query1.finance.yahoo.com', 'query2.finance.yahoo.com'];
+let _hostIdx = 0;
+function nextHost() {
+  return YAHOO_HOSTS[(_hostIdx++) % YAHOO_HOSTS.length];
+}
 
-// Yahoo v7 배치 호출
-async function fetchYahooBatch(symbols) {
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}&fields=symbol,regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,marketCap,shortName,longName`;
+// Yahoo v8 chart 단일 심볼 — v7 batch 대비 Vercel Edge에서 안정적
+async function fetchYahooV8Single(symbol) {
+  const host = nextHost();
+  const url = `https://${host}/v8/finance/chart/${symbol}?interval=1d&range=5d&includePrePost=false`;
   const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible)',
-      'Accept': 'application/json',
-    },
-    signal: AbortSignal.timeout(10000),
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(8000),
   });
+  if (!res.ok) throw new Error(`Yahoo v8 ${symbol} ${res.status}`);
+  const data   = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result?.meta?.regularMarketPrice) throw new Error(`no price: ${symbol}`);
+  const meta   = result.meta;
+  const closes = result.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
+  const price  = meta.regularMarketPrice;
+  let prev     = meta.previousClose;
+  if (!prev || Math.abs(prev - price) / Math.max(Math.abs(price), 1) < 0.0001) {
+    for (let i = closes.length - 2; i >= 0; i--) {
+      if (closes[i] && Math.abs(closes[i] - price) / Math.max(Math.abs(price), 1) >= 0.0001) {
+        prev = closes[i]; break;
+      }
+    }
+  }
+  if (!prev) prev = price;
+  return {
+    symbol:    meta.symbol?.split('.')[0] ?? symbol,
+    price:     parseFloat(price.toFixed(2)),
+    change:    parseFloat((price - prev).toFixed(2)),
+    changePct: parseFloat(((price - prev) / prev * 100).toFixed(2)),
+    volume:    meta.regularMarketVolume ?? 0,
+    marketCap: 0,
+    name:      meta.shortName || meta.longName || symbol,
+    market:    'us',
+  };
+}
 
-  if (res.status === 429) return []; // rate limit → 해당 배치 skip
-  if (!res.ok) throw new Error(`Yahoo v7 HTTP ${res.status}`);
-
-  const data = await res.json();
-  return (data?.quoteResponse?.result || []).map((r) => ({
-    symbol: r.symbol,
-    price: r.regularMarketPrice ?? 0,
-    change: parseFloat((r.regularMarketChange ?? 0).toFixed(2)),
-    changePct: parseFloat((r.regularMarketChangePercent ?? 0).toFixed(2)),
-    volume: r.regularMarketVolume ?? 0,
-    marketCap: r.marketCap ?? 0,
-    name: r.shortName || r.longName || r.symbol,
-    market: 'us',
-  }));
+// 동시성 제한 배치 실행
+async function fetchYahooBatch(symbols) {
+  const results = [];
+  for (let i = 0; i < symbols.length; i += CONCURRENCY) {
+    const chunk = symbols.slice(i, i + CONCURRENCY);
+    const settled = await Promise.allSettled(chunk.map(fetchYahooV8Single));
+    results.push(...settled.filter(r => r.status === 'fulfilled').map(r => r.value));
+  }
+  return results;
 }
 
 export default async function handler(request) {
@@ -79,20 +104,7 @@ export default async function handler(request) {
   }
 
   try {
-    // 배치 분할 (100개씩)
-    const batches = [];
-    for (let i = 0; i < US_SYMBOLS.length; i += BATCH_SIZE) {
-      batches.push(US_SYMBOLS.slice(i, i + BATCH_SIZE));
-    }
-
-    // 최대 6배치 동시 실행
-    const results = await Promise.allSettled(
-      batches.map((batch) => fetchYahooBatch(batch)),
-    );
-
-    const items = results
-      .filter((r) => r.status === 'fulfilled')
-      .flatMap((r) => r.value);
+    const items = await fetchYahooBatch(US_SYMBOLS);
 
     // Redis 저장
     if (items.length > 0) {
