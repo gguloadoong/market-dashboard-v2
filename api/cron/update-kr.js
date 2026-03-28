@@ -37,6 +37,7 @@ async function fetchKrxMarket(mktId, trdDd) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'Mozilla/5.0 (compatible)',
+      'Referer': 'https://data.krx.co.kr/contents/MDC/MDI/mdiStat/tables/MDCSTAT01501.html',
     },
     body: body.toString(),
     signal: AbortSignal.timeout(15000),
@@ -126,11 +127,17 @@ async function fetchHantooFallback() {
 }
 
 export default async function handler(req, res) {
-  // Vercel Cron Bearer 인증
-  const auth = req.headers['authorization'];
+  // Vercel Cron Bearer 인증 — CRON_SECRET 미설정 시 프로덕션 거부
   const secret = process.env.CRON_SECRET;
-  if (secret && auth !== `Bearer ${secret}`) {
-    return res.status(401).json({ error: 'unauthorized' });
+  const isProd = process.env.VERCEL_ENV === 'production';
+  if (isProd && !secret) {
+    return res.status(500).json({ error: 'CRON_SECRET 환경변수 미설정' });
+  }
+  if (secret) {
+    const auth = req.headers['authorization'];
+    if (auth !== `Bearer ${secret}`) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
   }
 
   const trdDd = getTrdDd();

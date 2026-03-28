@@ -6,26 +6,25 @@ import { fetchUsStocksBatch, fetchKoreanStocksBatch } from '../api/stocks';
 import { checkAndAlertBatch } from '../utils/priceAlert';
 import { POLLING } from '../constants/polling';
 
+// snapshot 없을 때 국장 최소 fallback 심볼 (코스피 시총 상위)
+const KR_FALLBACK_SYMBOLS = [
+  '005930','000660','035420','035720','005380','000270',
+  '051910','006400','207940','068270','105560','055550',
+];
+
 // ─── localStorage 가격 캐시 (구조 변경 시 버전 업) ──────────
 const CACHE_KEY_US = 'prices_us_v1';
 const CACHE_KEY_KR = 'prices_kr_v1';
 const CACHE_TTL = 6 * 60 * 60 * 1000; // 6시간
 
-function loadPriceCache(key, defaultData) {
+function loadPriceCache(key) {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return defaultData;
+    if (!raw) return [];
     const { data, ts } = JSON.parse(raw);
-    if (Date.now() - ts > CACHE_TTL) return defaultData; // 만료
-    if (!data?.length) return defaultData;
-    // defaultData가 비어있으면 캐시 데이터 그대로 반환
-    if (defaultData.length === 0) return data;
-    // defaultData의 구조에 캐시 가격을 덮어씌움
-    return defaultData.map(s => {
-      const cached = data.find(c => c.symbol === s.symbol);
-      return cached?.price ? { ...s, ...cached } : s;
-    });
-  } catch { return defaultData; }
+    if (Date.now() - ts > CACHE_TTL || !data?.length) return [];
+    return data;
+  } catch { return []; }
 }
 
 function savePriceCache(key, data) {
@@ -35,25 +34,33 @@ function savePriceCache(key, data) {
 }
 
 export function usePrices() {
-  const [usStocks, setUsStocks]   = useState(() => loadPriceCache(CACHE_KEY_US, []));
-  const [krStocks, setKrStocks]   = useState(() => loadPriceCache(CACHE_KEY_KR, []));
+  const [usStocks, setUsStocks]   = useState(() => loadPriceCache(CACHE_KEY_US));
+  const [krStocks, setKrStocks]   = useState(() => loadPriceCache(CACHE_KEY_KR));
   const [pricesReady, setPricesReady] = useState(false);
   const [dataErrors, setDataErrors] = useState({ kr: false, us: false });
+
+  // ref로 최신 stocks 유지 — useCallback 의존성에서 제외하여 무한 루프 방지
+  const krStocksRef = useRef(krStocks);
+  const usStocksRef = useRef(usStocks);
+  krStocksRef.current = krStocks;
+  usStocksRef.current = usStocks;
+
   // 최신 watchlist 심볼 — 클로저 없이 참조 (App이 주입)
   const krSymbolsRef = useRef([]);
   const usSymbolsRef = useRef([]);
 
   const refreshUsStocks = useCallback(async () => {
     try {
-      // 기본 목록 + watchlist US 심볼 합산
-      const baseSymbols = usStocks.length > 0
-        ? usStocks.map(s => s.symbol)
+      const currentUs = usStocksRef.current;
+      // 현재 목록 없으면 US_STOCK_LIST 전체 심볼 사용
+      const baseSymbols = currentUs.length > 0
+        ? currentUs.map(s => s.symbol)
         : US_STOCK_LIST.map(s => s.symbol);
-      const extraSymbols = usSymbolsRef.current.filter(
-        sym => !baseSymbols.includes(sym)
-      );
+      const baseSet = new Set(baseSymbols);
+      const extraSymbols = usSymbolsRef.current.filter(sym => !baseSet.has(sym));
       const symbolsToFetch = [...baseSymbols, ...extraSymbols];
-      if (symbolsToFetch.length === 0) return; // snapshot 아직 안 왔으면 skip
+      if (symbolsToFetch.length === 0) return;
+
       const data = await fetchUsStocksBatch(symbolsToFetch);
       if (data.length > 0) {
         setUsStocks(prev => {
@@ -64,7 +71,6 @@ export function usePrices() {
               const old = map.get(u.symbol);
               map.set(u.symbol, { ...old, ...u, sparkline: u.sparkline?.length ? u.sparkline : old.sparkline });
             } else {
-              // watchlist에서 새로 추가된 미장 종목
               map.set(u.symbol, { symbol: u.symbol, name: u.name || u.symbol, market: 'us', sparkline: [], ...u });
             }
           }
@@ -77,18 +83,26 @@ export function usePrices() {
         setDataErrors(prev => ({ ...prev, us: true }));
       }
     } catch { setDataErrors(prev => ({ ...prev, us: true })); }
-  }, [usStocks.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // ref 패턴 — stocks 의존성 없음
 
   const refreshKoreanStocks = useCallback(async () => {
     try {
-      const extraSymbols = krSymbolsRef.current.filter(
-        sym => !krStocks.some(s => s.symbol === sym)
-      );
-      const stocksToFetch = [
-        ...(krStocks.length > 0 ? krStocks : []),
+      const currentKr = krStocksRef.current;
+      const krSymbolSet = new Set(currentKr.map(s => s.symbol));
+      const extraSymbols = krSymbolsRef.current.filter(sym => !krSymbolSet.has(sym));
+
+      let stocksToFetch = [
+        ...currentKr,
         ...extraSymbols.map(sym => ({ symbol: sym, name: sym, market: 'kr', price: 0, sparkline: [] })),
       ].filter((s, i, arr) => arr.findIndex(x => x.symbol === s.symbol) === i);
-      if (stocksToFetch.length === 0) return; // snapshot 아직 안 왔으면 skip
+
+      // snapshot 미수신 시 최소 fallback 심볼로 초기 폴링 보장
+      if (stocksToFetch.length === 0) {
+        stocksToFetch = KR_FALLBACK_SYMBOLS.map(sym => ({
+          symbol: sym, name: sym, market: 'kr', price: 0, sparkline: [],
+        }));
+      }
+
       const data = await fetchKoreanStocksBatch(stocksToFetch);
       if (data.length > 0) {
         setKrStocks(prev => {
@@ -111,7 +125,7 @@ export function usePrices() {
         setDataErrors(prev => ({ ...prev, kr: true }));
       }
     } catch { setDataErrors(prev => ({ ...prev, kr: true })); }
-  }, [krStocks]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // ref 패턴 — stocks 의존성 없음
 
   // 마운트 시 snapshot 초기 로드
   useEffect(() => {

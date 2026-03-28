@@ -61,14 +61,21 @@ async function fetchYahooBatch(symbols) {
 }
 
 export default async function handler(request) {
-  // Vercel Cron Bearer 인증 (Edge: request.headers.get)
-  const auth = request.headers.get('authorization');
+  // Vercel Cron Bearer 인증 — CRON_SECRET 미설정 시 프로덕션 거부
   const secret = process.env.CRON_SECRET;
-  if (secret && auth !== `Bearer ${secret}`) {
-    return new Response(JSON.stringify({ error: 'unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
+  const isProd = process.env.VERCEL_ENV === 'production';
+  if (isProd && !secret) {
+    return new Response(JSON.stringify({ error: 'CRON_SECRET 환경변수 미설정' }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
     });
+  }
+  if (secret) {
+    const auth = request.headers.get('authorization');
+    if (auth !== `Bearer ${secret}`) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   try {

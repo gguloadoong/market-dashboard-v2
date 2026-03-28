@@ -13,6 +13,7 @@ import GlobalSearch from './components/GlobalSearch';
 import SectorRotation from './components/SectorRotation';
 
 import { fetchSnapshot } from './api/snapshot';
+import { ETF_LIST } from './data/etfList';
 import { fetchKoreanStocksBatch, fetchEtfPricesBatch } from './api/stocks';
 import { requestNotificationPermission, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
 import { useWatchlist } from './hooks/useWatchlist';
@@ -45,7 +46,7 @@ export default function App() {
 
   const { data: krxEtfs = [] } = useKrxEtf();
   const [activeTab, setActiveTab]       = useState('home');
-  const [etfs, setEtfs]                 = useState([]);
+  const [etfs, setEtfs]                 = useState(ETF_LIST);
   const [lastUpdated, setLastUpdated]   = useState(null);
   const [loading, setLoading]           = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
