@@ -64,38 +64,51 @@ function foreignToScore(net) {
 
 // ─── Handler ────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  if (!process.env.HANTOO_APP_KEY || !process.env.HANTOO_APP_SECRET) {
-    return res.status(503).json({ error: 'HANTOO not configured' });
-  }
+  const hantooReady = !!(process.env.HANTOO_APP_KEY && process.env.HANTOO_APP_SECRET);
 
   try {
     const today = todayStr();
-    const token = await getHantooToken();
 
-    const [vkospiRes, kospiRes, kosdaqRes] = await Promise.allSettled([
-      fetchVkospiNaver(),
-      fetchForeignNet(token, '0001', today),  // KOSPI
-      fetchForeignNet(token, '1001', today),  // KOSDAQ
-    ]);
+    // HANTOO 키가 없으면 외국인 조회 없이 VKOSPI만 사용
+    let vkospiRes, kospiRes, kosdaqRes;
+    if (hantooReady) {
+      const token = await getHantooToken();
+      [vkospiRes, kospiRes, kosdaqRes] = await Promise.allSettled([
+        fetchVkospiNaver(),
+        fetchForeignNet(token, '0001', today),  // KOSPI
+        fetchForeignNet(token, '1001', today),  // KOSDAQ
+      ]);
+    } else {
+      vkospiRes = await Promise.allSettled([fetchVkospiNaver()]).then(r => r[0]);
+      kospiRes  = { status: 'rejected', reason: 'HANTOO not configured' };
+      kosdaqRes = { status: 'rejected', reason: 'HANTOO not configured' };
+    }
 
-    const vkospi    = vkospiRes.status === 'fulfilled' ? vkospiRes.value : null;
-    const foreignNet = (kospiRes.status  === 'fulfilled' ? kospiRes.value  : 0)
-                     + (kosdaqRes.status === 'fulfilled' ? kosdaqRes.value : 0);
+    const vkospi = vkospiRes.status === 'fulfilled' ? vkospiRes.value : null;
 
-    const allFailed = vkospiRes.status === 'rejected'
-                   && kospiRes.status  === 'rejected'
-                   && kosdaqRes.status === 'rejected';
-    if (allFailed) {
+    // 실제로 성공한 외국인 데이터만 합산 (실패는 0으로 대체하지 않음)
+    const foreignAvailable = kospiRes.status === 'fulfilled' || kosdaqRes.status === 'fulfilled';
+    const foreignNet = foreignAvailable
+      ? (kospiRes.status  === 'fulfilled' ? kospiRes.value  : 0)
+      + (kosdaqRes.status === 'fulfilled' ? kosdaqRes.value : 0)
+      : null;
+
+    if (vkospi == null && !foreignAvailable) {
       throw new Error('VKOSPI + 외국인 순매수 모두 조회 실패');
     }
 
     const vs = vkospi != null ? vkospiToScore(vkospi) : null;
-    const fs = foreignToScore(foreignNet);
+    const fs = foreignNet != null ? foreignToScore(foreignNet) : null;
 
-    // 합성: VKOSPI 60% + 외국인 40% (VKOSPI 실패 시 외국인 100%)
-    const score = vs != null
-      ? Math.round(vs * 0.6 + fs * 0.4)
-      : fs;
+    // 합성: VKOSPI 60% + 외국인 40% (한쪽 실패 시 나머지 100%)
+    let score;
+    if (vs != null && fs != null) {
+      score = Math.round(vs * 0.6 + fs * 0.4);
+    } else if (vs != null) {
+      score = vs;
+    } else {
+      score = fs;
+    }
 
     res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=30');
     res.json({
