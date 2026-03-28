@@ -2,7 +2,7 @@
 // 가격: WebSocket(실시간, 우선) + REST fallback(30초)
 // 스파크라인: CoinGecko(5분) — 유일한 소스
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { COINS_INITIAL } from '../data/mock';
+import { fetchSnapshot } from '../api/snapshot';
 import { fetchCoins, fetchCoinsUpbitOnly, fetchUpbitAllSymbols, fetchCoinGecko, getSparklineCache } from '../api/coins';
 import { subscribeCoinPrices, unsubscribeCoinPrices } from '../api/coinWs';
 import { setWhaleBtcKrwPrice } from '../api/whale';
@@ -37,13 +37,25 @@ function saveCoinCache(coins) {
 }
 
 export function useCoins(krwRateRef) {
-  const [coins, setCoins] = useState(() => loadCoinCache() ?? COINS_INITIAL);
+  const [coins, setCoins] = useState(() => loadCoinCache() ?? []);
+  const [coinsReady, setCoinsReady] = useState(false);
   const [coinError, setCoinError] = useState(false);
   const wsTickBufRef  = useRef({});
   const wsFlushTimer  = useRef(null);
   const wsConnectedRef = useRef(false);
   const coinsRef      = useRef(coins);
   coinsRef.current    = coins;
+
+  // 마운트 시 snapshot 초기 로드
+  useEffect(() => {
+    (async () => {
+      const snap = await fetchSnapshot();
+      if (snap?.coins?.length > 0) {
+        setCoins(prev => prev.length === 0 ? snap.coins : prev);
+      }
+      setCoinsReady(true);
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 빠른 갱신 (10초, Upbit만)
   const refreshCoinsQuick = useCallback(async () => {
@@ -146,8 +158,10 @@ export function useCoins(krwRateRef) {
         const symbols = await fetchUpbitAllSymbols();
         if (!cancelled) subscribeCoinPrices(symbols, wsHandler);
       } catch {
-        // Upbit 목록 실패 시 초기 심볼로 fallback
-        if (!cancelled) subscribeCoinPrices(COINS_INITIAL.map(c => c.symbol), wsHandler);
+        // Upbit 목록 실패 시 현재 코인 심볼로 fallback
+        if (!cancelled && coinsRef.current.length > 0) {
+          subscribeCoinPrices(coinsRef.current.map(c => c.symbol), wsHandler);
+        }
       }
     };
     initWs();
@@ -159,5 +173,5 @@ export function useCoins(krwRateRef) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { coins, setCoins, coinError, refreshCoins, refreshCoinsQuick };
+  return { coins, setCoins, coinsReady, coinError, refreshCoins, refreshCoinsQuick };
 }

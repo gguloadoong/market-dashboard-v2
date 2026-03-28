@@ -6,5 +6,10 @@
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "regions": ["icn1"],
-  "ignoreCommand": "if [ \"$VERCEL_ENV\" != \"production\" ]; then exit 0; fi; exit 1"
+  "ignoreCommand": "if [ \"$VERCEL_ENV\" != \"production\" ]; then exit 0; fi; exit 1",
+  "crons": [
+    { "path": "/api/cron/update-kr",    "schedule": "*/1 * * * *" },
+    { "path": "/api/cron/update-us",    "schedule": "*/1 * * * *" },
+    { "path": "/api/cron/update-coins", "schedule": "*/1 * * * *" }
+  ]
 }

@@ -1,11 +1,10 @@
 // 미국·국내 주식 가격 폴링 훅
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { KOREAN_STOCKS, US_STOCKS_INITIAL } from '../data/mock';
+import { US_STOCK_LIST } from '../data/usStockList';
+import { fetchSnapshot } from '../api/snapshot';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch } from '../api/stocks';
 import { checkAndAlertBatch } from '../utils/priceAlert';
 import { POLLING } from '../constants/polling';
-
-const US_SYMBOLS = US_STOCKS_INITIAL.map(s => s.symbol);
 
 // ─── localStorage 가격 캐시 (구조 변경 시 버전 업) ──────────
 const CACHE_KEY_US = 'prices_us_v1';
@@ -18,6 +17,9 @@ function loadPriceCache(key, defaultData) {
     if (!raw) return defaultData;
     const { data, ts } = JSON.parse(raw);
     if (Date.now() - ts > CACHE_TTL) return defaultData; // 만료
+    if (!data?.length) return defaultData;
+    // defaultData가 비어있으면 캐시 데이터 그대로 반환
+    if (defaultData.length === 0) return data;
     // defaultData의 구조에 캐시 가격을 덮어씌움
     return defaultData.map(s => {
       const cached = data.find(c => c.symbol === s.symbol);
@@ -33,8 +35,9 @@ function savePriceCache(key, data) {
 }
 
 export function usePrices() {
-  const [usStocks, setUsStocks]   = useState(() => loadPriceCache(CACHE_KEY_US, US_STOCKS_INITIAL));
-  const [krStocks, setKrStocks]   = useState(() => loadPriceCache(CACHE_KEY_KR, KOREAN_STOCKS));
+  const [usStocks, setUsStocks]   = useState(() => loadPriceCache(CACHE_KEY_US, []));
+  const [krStocks, setKrStocks]   = useState(() => loadPriceCache(CACHE_KEY_KR, []));
+  const [pricesReady, setPricesReady] = useState(false);
   const [dataErrors, setDataErrors] = useState({ kr: false, us: false });
   // 최신 watchlist 심볼 — 클로저 없이 참조 (App이 주입)
   const krSymbolsRef = useRef([]);
@@ -43,10 +46,14 @@ export function usePrices() {
   const refreshUsStocks = useCallback(async () => {
     try {
       // 기본 목록 + watchlist US 심볼 합산
+      const baseSymbols = usStocks.length > 0
+        ? usStocks.map(s => s.symbol)
+        : US_STOCK_LIST.map(s => s.symbol);
       const extraSymbols = usSymbolsRef.current.filter(
-        sym => !US_STOCKS_INITIAL.some(s => s.symbol === sym)
+        sym => !baseSymbols.includes(sym)
       );
-      const symbolsToFetch = [...US_SYMBOLS, ...extraSymbols];
+      const symbolsToFetch = [...baseSymbols, ...extraSymbols];
+      if (symbolsToFetch.length === 0) return; // snapshot 아직 안 왔으면 skip
       const data = await fetchUsStocksBatch(symbolsToFetch);
       if (data.length > 0) {
         setUsStocks(prev => {
@@ -70,17 +77,18 @@ export function usePrices() {
         setDataErrors(prev => ({ ...prev, us: true }));
       }
     } catch { setDataErrors(prev => ({ ...prev, us: true })); }
-  }, []);
+  }, [usStocks.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refreshKoreanStocks = useCallback(async () => {
     try {
       const extraSymbols = krSymbolsRef.current.filter(
-        sym => !KOREAN_STOCKS.some(s => s.symbol === sym)
+        sym => !krStocks.some(s => s.symbol === sym)
       );
       const stocksToFetch = [
-        ...KOREAN_STOCKS,
+        ...(krStocks.length > 0 ? krStocks : []),
         ...extraSymbols.map(sym => ({ symbol: sym, name: sym, market: 'kr', price: 0, sparkline: [] })),
-      ];
+      ].filter((s, i, arr) => arr.findIndex(x => x.symbol === s.symbol) === i);
+      if (stocksToFetch.length === 0) return; // snapshot 아직 안 왔으면 skip
       const data = await fetchKoreanStocksBatch(stocksToFetch);
       if (data.length > 0) {
         setKrStocks(prev => {
@@ -103,7 +111,35 @@ export function usePrices() {
         setDataErrors(prev => ({ ...prev, kr: true }));
       }
     } catch { setDataErrors(prev => ({ ...prev, kr: true })); }
-  }, []);
+  }, [krStocks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 마운트 시 snapshot 초기 로드
+  useEffect(() => {
+    (async () => {
+      const snap = await fetchSnapshot();
+      if (snap?.kr?.length > 0) {
+        setKrStocks(prev => {
+          if (prev.length === 0) return snap.kr;
+          const map = new Map(prev.map(s => [s.symbol, s]));
+          for (const u of snap.kr) {
+            if (u?.price > 0) map.set(u.symbol, { ...map.get(u.symbol), ...u });
+          }
+          return [...map.values()];
+        });
+      }
+      if (snap?.us?.length > 0) {
+        setUsStocks(prev => {
+          if (prev.length === 0) return snap.us;
+          const map = new Map(prev.map(s => [s.symbol, s]));
+          for (const u of snap.us) {
+            if (u?.price > 0) map.set(u.symbol, { ...map.get(u.symbol), ...u });
+          }
+          return [...map.values()];
+        });
+      }
+      setPricesReady(true);
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     refreshUsStocks();
@@ -123,6 +159,7 @@ export function usePrices() {
   return {
     usStocks, setUsStocks,
     krStocks, setKrStocks,
+    pricesReady,
     dataErrors, setDataErrors,
     krSymbolsRef, usSymbolsRef,
     refreshUsStocks, refreshKoreanStocks,

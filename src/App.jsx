@@ -12,7 +12,7 @@ import HomeDashboard from './components/home';
 import GlobalSearch from './components/GlobalSearch';
 import SectorRotation from './components/SectorRotation';
 
-import { ETF_DATA } from './data/mock';
+import { fetchSnapshot } from './api/snapshot';
 import { fetchKoreanStocksBatch, fetchEtfPricesBatch } from './api/stocks';
 import { requestNotificationPermission, getNotificationPermission, setAlertWatchlistIds } from './utils/priceAlert';
 import { useWatchlist } from './hooks/useWatchlist';
@@ -24,7 +24,6 @@ import { useKisUsWebSocket } from './hooks/useKisUsWebSocket';
 import { usePrices } from './hooks/usePrices';
 import { useCoins } from './hooks/useCoins';
 import { useIndices } from './hooks/useIndices';
-import { KOREAN_STOCKS } from './data/mock';
 
 export default function App() {
   const { dark, toggle: toggleDark } = useDarkMode();
@@ -46,7 +45,7 @@ export default function App() {
 
   const { data: krxEtfs = [] } = useKrxEtf();
   const [activeTab, setActiveTab]       = useState('home');
-  const [etfs, setEtfs]                 = useState(ETF_DATA);
+  const [etfs, setEtfs]                 = useState([]);
   const [lastUpdated, setLastUpdated]   = useState(null);
   const [loading, setLoading]           = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -60,11 +59,18 @@ export default function App() {
   });
   const loadingRef = useRef(false);
 
+  // snapshot에서 ETF 초기화
+  useEffect(() => {
+    fetchSnapshot().then(snap => {
+      if (snap?.etf?.length > 0) setEtfs(snap.etf);
+    });
+  }, []);
+
   // KIS WebSocket — watchlist KR 우선
   const kisSymbols = useMemo(() => {
-    const combined = [...new Set([...krSymbols, ...KOREAN_STOCKS.map(s => s.symbol)])];
+    const combined = [...new Set([...krSymbols, ...krStocks.map(s => s.symbol)])];
     return combined.slice(0, 40); // H0STCNT0 세션당 최대 40개
-  }, [krSymbols]);
+  }, [krSymbols, krStocks]);
   useKisWebSocket(kisSymbols, useCallback((quote) => {
     setKrStocks(prev => prev.map(s => s.symbol === quote.symbol ? { ...s, ...quote } : s));
   }, []));
@@ -81,8 +87,8 @@ export default function App() {
   }, []));
 
   // ETF 폴링 (60초)
-  const KR_ETFS         = useMemo(() => ETF_DATA.filter(e => e.market === 'kr'), []);
-  const US_ETF_SYMBOLS  = useMemo(() => ETF_DATA.filter(e => e.market === 'us').map(e => e.symbol), []);
+  const KR_ETFS         = useMemo(() => etfs.filter(e => e.market === 'kr'), [etfs]);
+  const US_ETF_SYMBOLS  = useMemo(() => etfs.filter(e => e.market === 'us').map(e => e.symbol), [etfs]);
   const refreshEtfs = useCallback(async () => {
     const [krResult, usResult] = await Promise.allSettled([
       KR_ETFS.length > 0 ? fetchKoreanStocksBatch(KR_ETFS) : Promise.resolve([]),
@@ -230,7 +236,7 @@ export default function App() {
     history.back();
   }, []);
 
-  // KRX ETF 병합 — 기존 ETF_DATA + KRX 신규 ETF (중복 symbol 제거)
+  // KRX ETF 병합 — snapshot ETF + KRX 신규 ETF (중복 symbol 제거)
   const mergedEtfs = useMemo(() => {
     if (!krxEtfs.length) return etfs;
     const existingSymbols = new Set(etfs.map(e => e.symbol));

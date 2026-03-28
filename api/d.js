@@ -25,6 +25,7 @@
 //   sm = news-summary    (뉴스 요약)
 //   ub = upbit-notices   (업비트 공지)
 //   ke = krx-etf         (KRX ETF)
+//   s  = snapshot        (가격 스냅샷)
 
 export const config = { runtime: 'edge' };
 
@@ -38,6 +39,7 @@ import fearGreedHandler from './fear-greed.js';
 import usStockSearchHandler from './us-stock-search.js';
 import upbitNoticesHandler from './upbit-notices.js';
 import newsSummaryHandler from './news-summary.js';
+import snapshotHandler from './snapshot.js';
 
 // ─── Serverless Function 은 Edge에서 직접 import 불가 ─────────
 // hantoo-price, naver-price, hantoo-indices, hantoo-investor,
@@ -228,6 +230,11 @@ export default async function handler(request) {
       case 'ke': {
         // KRX ETF
         return proxyToServerless(baseUrl, `/api/krx-etf`);
+      }
+      case 's': {
+        // 가격 스냅샷
+        const req = makeEdgeRequest(baseUrl, `/api/snapshot`);
+        return snapshotHandler(req);
       }
 
       default:
