@@ -66,7 +66,7 @@ async function fetchYahooV8Single(symbol) {
     symbol:    meta.symbol?.split('.')[0] ?? symbol,
     price:     parseFloat(price.toFixed(2)),
     change:    parseFloat((price - prev).toFixed(2)),
-    changePct: parseFloat(((price - prev) / prev * 100).toFixed(2)),
+    changePct: prev > 0 ? parseFloat(((price - prev) / prev * 100).toFixed(2)) : 0,
     volume:    meta.regularMarketVolume ?? 0,
     marketCap: 0,
     name:      meta.shortName || meta.longName || symbol,
@@ -77,11 +77,16 @@ async function fetchYahooV8Single(symbol) {
 // 동시성 제한 배치 실행
 async function fetchYahooBatch(symbols) {
   const results = [];
+  let failCount = 0;
   for (let i = 0; i < symbols.length; i += CONCURRENCY) {
     const chunk = symbols.slice(i, i + CONCURRENCY);
     const settled = await Promise.allSettled(chunk.map(fetchYahooV8Single));
-    results.push(...settled.filter(r => r.status === 'fulfilled').map(r => r.value));
+    for (const r of settled) {
+      if (r.status === 'fulfilled') results.push(r.value);
+      else failCount++;
+    }
   }
+  if (failCount > 0) console.warn(`[update-us] Yahoo v8 실패 ${failCount}/${symbols.length}개`);
   return results;
 }
 
