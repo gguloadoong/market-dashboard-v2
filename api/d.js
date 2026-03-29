@@ -236,6 +236,11 @@ export default async function handler(request) {
         // KRX ETF
         return proxyToServerless(baseUrl, `/api/krx-etf`);
       }
+      case 'it': {
+        // 투자자 동향 추이: s = symbol, d = days
+        const qs = `symbol=${encodeURIComponent(body.s || '')}&days=${encodeURIComponent(body.d || 30)}`;
+        return proxyToServerless(baseUrl, `/api/investor-trend?${qs}`);
+      }
       case 's': {
         // 가격 스냅샷
         const req = makeEdgeRequest(baseUrl, `/api/snapshot`);

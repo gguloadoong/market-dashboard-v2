@@ -4,7 +4,7 @@
 //
 // 주의: 국내 주식(코스피/코스닥 종목코드 6자리)만 지원
 //       미장/코인은 Naver API 미지원 → null 반환
-import { fetchHantooInvestor } from './_gateway.js';
+import { fetchHantooInvestor, fetchInvestorTrendGateway } from './_gateway.js';
 
 const PROXY_BASE = 'https://api.allorigins.win/get?url=';
 const TIMEOUT    = 7000;
@@ -156,26 +156,11 @@ export async function fetchInvestorData(symbol) {
 // 5일치 추이 데이터 (차트용)
 // 반환: [ { date, foreign, institution, individual }, ... ] (최신순)
 // ─────────────────────────────────────────────────────────────
-export async function fetchInvestorTrend(symbol, days = 5) {
+export async function fetchInvestorTrend(symbol, days = 30) {
   if (!/^\d{6}$/.test(symbol)) return [];
-
-  // Naver 모바일 /investors 엔드포인트 — 복수형 주의
-  const url  = `https://m.stock.naver.com/api/stock/${symbol}/investors?periodType=DAILY&count=${days}`;
-  const data = await naverProxyFetch(url);
-
-  // 응답이 배열이거나 data.list 형태일 수 있음
-  const list = Array.isArray(data) ? data : (data.list ?? data.investorList ?? []);
-
-  return list.slice(0, days).map(row => ({
-    date:        row.stcTrdDd ?? row.bizday ?? '',
-    foreign:     toNum(row.frgnNetAmt ?? row.frgNetAmt ?? 0),
-    institution: toNum(row.instNetAmt ?? 0),
-    individual:  toNum(row.indvNetAmt ?? 0),
-    // 간략 포맷
-    foreignFmt:     formatNetAmt(toNum(row.frgnNetAmt ?? row.frgNetAmt ?? 0)),
-    institutionFmt: formatNetAmt(toNum(row.instNetAmt ?? 0)),
-    individualFmt:  formatNetAmt(toNum(row.indvNetAmt ?? 0)),
-  }));
+  // 서버사이드 게이트웨이 경유 — allorigins CORS 프록시 제거
+  const result = await fetchInvestorTrendGateway(symbol, days);
+  return Array.isArray(result?.data) ? result.data : [];
 }
 
 // ─────────────────────────────────────────────────────────────

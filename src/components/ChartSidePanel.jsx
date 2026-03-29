@@ -427,19 +427,19 @@ const INV_ROWS = [
   { key: 'individual',  label: '개인', posColor: '#F04452', negColor: '#1764ED' },
 ];
 
-// ─── 강화된 투자자 동향 섹션 (국내주식 전용) — 오늘 + 5일 경향성 ──
+// ─── 강화된 투자자 동향 섹션 (국내주식 전용) — 오늘 + 5일 테이블 + 30일 바 차트 ──
 function InvestorFlowEnhanced({ symbol }) {
   const [data,    setData]    = useState(null);
   const [trend,   setTrend]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState('today'); // 'today' | 'trend'
+  const [tab,     setTab]     = useState('today'); // 'today' | '5d' | '30d'
 
   useEffect(() => {
     if (!symbol || !/^\d{6}$/.test(symbol)) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
       fetchInvestorDataSafe(symbol),
-      fetchInvestorTrendSafe(symbol, 5),
+      fetchInvestorTrendSafe(symbol, 30), // 30일 전체 — 5일 슬라이스도 여기서
     ]).then(([d, t]) => {
       setData(d);
       setTrend(Array.isArray(t) ? t : []);
@@ -488,12 +488,12 @@ function InvestorFlowEnhanced({ symbol }) {
           )}
         </div>
         <div className="flex gap-1">
-          {['today', 'trend'].map(t => (
-            <button key={t} onClick={() => setTab(t)}
+          {[['today','오늘'], ['5d','5일'], ['30d','30일']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${
-                tab === t ? 'bg-[#3182F6] text-white' : 'text-[#B0B8C1] hover:text-[#4E5968]'
+                tab === key ? 'bg-[#3182F6] text-white' : 'text-[#B0B8C1] hover:text-[#4E5968]'
               }`}>
-              {t === 'today' ? '오늘' : '5일'}
+              {label}
             </button>
           ))}
         </div>
@@ -521,20 +521,19 @@ function InvestorFlowEnhanced({ symbol }) {
             );
           })}
         </div>
-      ) : (
+      ) : tab === '5d' ? (
         /* 5일 경향성 테이블 */
         trend.length === 0 ? (
           <div className="px-4 py-4 text-center text-[12px] text-[#B0B8C1]">경향성 데이터 없음</div>
         ) : (
           <div>
-            {/* 테이블 헤더 */}
             <div className="flex items-center px-4 py-1.5 bg-[#FAFBFC] border-b border-[#F2F4F6]">
               <span className="text-[10px] text-[#B0B8C1] w-16 flex-shrink-0">날짜</span>
               <span className="text-[10px] text-[#B0B8C1] flex-1 text-center">외인</span>
               <span className="text-[10px] text-[#B0B8C1] flex-1 text-center">기관</span>
               <span className="text-[10px] text-[#B0B8C1] flex-1 text-center">개인</span>
             </div>
-            {trend.map((row, i) => {
+            {trend.slice(0, 5).map((row, i) => {
               const fColor = row.foreign     > 0 ? '#F04452' : row.foreign     < 0 ? '#1764ED' : '#B0B8C1';
               const iColor = row.institution > 0 ? '#F04452' : row.institution < 0 ? '#1764ED' : '#B0B8C1';
               const pColor = row.individual  > 0 ? '#F04452' : row.individual  < 0 ? '#1764ED' : '#B0B8C1';
@@ -556,6 +555,62 @@ function InvestorFlowEnhanced({ symbol }) {
             })}
           </div>
         )
+      ) : (
+        /* 30일 외인/기관 바 차트 */
+        trend.length === 0 ? (
+          <div className="px-4 py-4 text-center text-[12px] text-[#B0B8C1]">경향성 데이터 없음</div>
+        ) : (() => {
+          const rows30 = [...trend].reverse(); // 날짜 오름차순
+          const maxAbs = Math.max(...rows30.flatMap(r => [Math.abs(r.foreign), Math.abs(r.institution)]), 1);
+          return (
+            <div className="px-3 pt-3 pb-2">
+              {/* 범례 */}
+              <div className="flex items-center gap-3 mb-2">
+                <span className="flex items-center gap-1 text-[10px] text-[#8B95A1]">
+                  <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#F04452' }} />외인
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-[#8B95A1]">
+                  <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#3182F6' }} />기관
+                </span>
+              </div>
+              {/* 바 차트 */}
+              <div className="space-y-1.5">
+                {rows30.map((row, i) => {
+                  const dateStr = row.date ? `${row.date.slice(4,6)}/${row.date.slice(6,8)}` : '';
+                  const fPct = (Math.abs(row.foreign) / maxAbs) * 100;
+                  const iPct = (Math.abs(row.institution) / maxAbs) * 100;
+                  const fColor = row.foreign > 0 ? '#F04452' : '#1764ED';
+                  const iColor = row.institution > 0 ? '#F04452' : '#3182F6';
+                  return (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="text-[9px] text-[#B0B8C1] w-10 flex-shrink-0 text-right">{dateStr}</span>
+                      <div className="flex-1 flex flex-col gap-0.5">
+                        {/* 외인 */}
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1 h-2 bg-[#F2F4F6] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${fPct}%`, background: fColor, opacity: 0.85 }} />
+                          </div>
+                          <span className="text-[9px] font-mono w-12 text-right flex-shrink-0" style={{ color: fColor }}>
+                            {row.foreignFmt}
+                          </span>
+                        </div>
+                        {/* 기관 */}
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1 h-2 bg-[#F2F4F6] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${iPct}%`, background: iColor, opacity: 0.85 }} />
+                          </div>
+                          <span className="text-[9px] font-mono w-12 text-right flex-shrink-0" style={{ color: iColor }}>
+                            {row.institutionFmt}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()
       )}
     </div>
   );

@@ -133,3 +133,8 @@ export function fetchUpbitNotices(timeoutMs = 5000) {
 export function fetchKrxEtf(timeoutMs = 8000) {
   return gwJson({ t: 'ke' }, timeoutMs);
 }
+
+// ─── 투자자 동향 추이 (N일) ──────────────────────────────────
+export function fetchInvestorTrendGateway(symbol, days = 30, timeoutMs = 10000) {
+  return gwJson({ t: 'it', s: symbol, d: days }, timeoutMs);
+}
