@@ -37,6 +37,34 @@ async function fetchVkospiKis(token) {
   return val;
 }
 
+// ─── Naver 증권 VKOSPI fallback (장 마감/주말에도 전일 종가 반환) ─
+async function fetchVkospiNaver() {
+  const res = await fetch('https://m.stock.naver.com/api/index/VKOSPI/basic', {
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://m.stock.naver.com/' },
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) throw new Error(`Naver VKOSPI HTTP ${res.status}`);
+  const data = await res.json();
+  const val = parseFloat(data.closePrice ?? data.indexNowVal ?? '0');
+  if (!val || val <= 0) throw new Error('Naver VKOSPI 값 없음');
+  return val;
+}
+
+// ─── Naver 외국인 순매수 fallback ────────────────────────────────
+async function fetchForeignNetNaver() {
+  const res = await fetch('https://m.stock.naver.com/api/index/KOSPI/investorTrend', {
+    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://m.stock.naver.com/' },
+    signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) throw new Error(`Naver KOSPI investor HTTP ${res.status}`);
+  const data = await res.json();
+  const list = Array.isArray(data) ? data : (data.list ?? []);
+  const latest = list[0];
+  if (!latest) return null;
+  const amt = parseFloat(String(latest.foreignNetBuyAmount ?? latest.frgnNetAmt ?? '0').replace(/,/g, ''));
+  return isNaN(amt) ? null : amt * 100_000_000; // 억 → 원
+}
+
 // ─── 외국인 순매수 조회 ─────────────────────────────────────────
 async function fetchForeignNet(token, iscd, today) {
   const url = new URL(`${HANTOO_BASE}/uapi/domestic-stock/v1/quotations/inquire-investor`);
@@ -109,8 +137,27 @@ export default async function handler(req, res) {
       + (kosdaqRes.status === 'fulfilled' ? kosdaqRes.value : 0)
       : null;
 
-    // 모두 실패 = 휴장일(주말/공휴일) 또는 전체 API 장애 → Redis 캐시 반환
-    if (vkospi == null && !foreignAvailable) {
+    // 한투 실패 시 Naver fallback (장 마감/주말에도 전일 종가 반환)
+    let vkospiFinal = vkospi;
+    let foreignNetFinal = foreignNet;
+    let foreignAvailableFinal = foreignAvailable;
+
+    if (vkospiFinal == null || !foreignAvailableFinal) {
+      const [naverVkospiRes, naverForeignRes] = await Promise.allSettled([
+        vkospiFinal == null ? fetchVkospiNaver() : Promise.resolve(vkospiFinal),
+        !foreignAvailableFinal ? fetchForeignNetNaver() : Promise.resolve(foreignNet),
+      ]);
+      if (vkospiFinal == null && naverVkospiRes.status === 'fulfilled') {
+        vkospiFinal = naverVkospiRes.value;
+      }
+      if (!foreignAvailableFinal && naverForeignRes.status === 'fulfilled' && naverForeignRes.value != null) {
+        foreignNetFinal = naverForeignRes.value;
+        foreignAvailableFinal = true;
+      }
+    }
+
+    // 모두 실패 = Redis 캐시 → 그것도 없으면 closed
+    if (vkospiFinal == null && !foreignAvailableFinal) {
       const cached = await getSnap(CACHE_KEY);
       if (cached) {
         res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
@@ -120,8 +167,8 @@ export default async function handler(req, res) {
       return res.json({ score: null, closed: true });
     }
 
-    const vs = vkospi != null ? vkospiToScore(vkospi) : null;
-    const fs = foreignNet != null ? foreignToScore(foreignNet) : null;
+    const vs = vkospiFinal != null ? vkospiToScore(vkospiFinal) : null;
+    const fs = foreignNetFinal != null ? foreignToScore(foreignNetFinal) : null;
 
     // 합성: VKOSPI 60% + 외국인 40% (한쪽 실패 시 나머지 100%)
     let score;
@@ -133,7 +180,7 @@ export default async function handler(req, res) {
       score = fs;
     }
 
-    const payload = { score, vkospi, vkospiScore: vs, foreignNet, foreignScore: fs };
+    const payload = { score, vkospi: vkospiFinal, vkospiScore: vs, foreignNet: foreignNetFinal, foreignScore: fs };
     // 성공 시 Redis에 저장 (48시간 — 주말/공휴일 대비)
     await setSnap(CACHE_KEY, payload, CACHE_TTL);
 
