@@ -156,13 +156,16 @@ export default async function handler(req, res) {
     const kosdaqParsed = parseKrxItems(kosdaq, 'kosdaq');
     items = [...kospiParsed, ...kosdaqParsed];
     source = 'krx';
-  } catch {
+  } catch (krxErr) {
     // KRX 실패 → 한투 fallback
+    console.warn('[update-kr] KRX 조회 실패, 한투 fallback 시도:', krxErr.message);
     try {
       const fallback = await fetchHantooFallback();
       if (fallback) {
         items = fallback;
         source = 'hantoo';
+      } else {
+        console.error('[update-kr] 한투 fallback 빈 응답 — items 비어있음');
       }
     } catch (fallbackErr) {
       console.error('[update-kr] 한투 fallback 실패:', fallbackErr);

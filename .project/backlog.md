@@ -268,10 +268,8 @@
 ### ~~[P2-17] Upbit ticker 전체 마켓 일괄 조회 → 배치 처리~~ ✅ 완료 (PR #208, 2026-03-29)
 - `TICKER_BATCH_SIZE=100` 청크 분할 + `Promise.allSettled` 부분 실패 허용
 
-### [P3-1] update-kr.js fallback 에러 로깅
-- 문제: KRX→한투 fallback 실패 시 조용히 넘어감 → 운영 문제 파악 지연
-- 제안: fallback catch에 console.error 추가
-- 우선순위: P3 (기능 영향 없음, 디버깅 편의성)
+### ~~[P3-1] update-kr.js fallback 에러 로깅~~ ✅ 완료 (2026-03-29)
+- KRX 실패 시 `console.warn` + fallback 빈 응답 시 `console.error` 추가
 
 ---
 
