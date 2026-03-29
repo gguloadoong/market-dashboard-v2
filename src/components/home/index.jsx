@@ -10,7 +10,6 @@ import FearGreedWidget from './widgets/FearGreedWidget';
 import NotableMoversSection from './NotableMoversSection';
 import MarketInvestorSection from './MarketInvestorSection';
 import EventTicker from './EventTicker';
-import CoinListingSection from './CoinListingSection';
 
 // ─── 섹터 미니 위젯 (HOT 3 + COLD 3 칩 → 섹터 탭 유도) ──
 function SectorMiniWidget({ krStocks, usStocks, coins, onTabChange }) {
@@ -186,10 +185,6 @@ export default function HomeDashboard({
         <MarketInvestorSection />
       </div>
 
-      {/* ─── 코인 거래소 공지 (모바일 숨김) ────────────────── */}
-      <div className="hidden md:block">
-        <CoinListingSection />
-      </div>
     </div>
   );
 }

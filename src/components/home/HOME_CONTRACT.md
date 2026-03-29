@@ -19,7 +19,6 @@
 7. FearGreedWidget      — Fear & Greed 지수
 8. NotableMoversSection — 수급 이상 종목
 9. MarketInvestorSection— 외국인/기관 수급
-10. CoinListingSection  — 신규 코인 상장
 ```
 
 ---
@@ -33,6 +32,7 @@
 | `DexHotSection` | DEX 데이터 소스 불안정, 실사용 없음 | #180 (2026-03-26) |
 | `InsightsSection` | TopMoversWidget + NewsFeedWidget으로 기능 통합 | #180 (2026-03-26) |
 | `SurgeSection` | TopMoversWidget으로 통합 | #180 (2026-03-26) |
+| `CoinListingSection` | 거래소 상장 공지 섹션 — 사용자 요청으로 제거 | #213 (2026-03-29) |
 
 > ⚠️ 위 목록의 파일이 `src/` 어딘가에 남아있으면 즉시 삭제하라. 파일 존재 = 살아있는 기능으로 오인.
 
@@ -57,7 +57,7 @@
 | `EventTicker.jsx` | 경제 이벤트 롤링 | ✅ 활성 (롤링만. 섹션 X) |
 | `NotableMoversSection.jsx` | 수급 이상 종목 | ✅ 활성 |
 | `MarketInvestorSection.jsx` | 외국인/기관 수급 | ✅ 활성 |
-| `CoinListingSection.jsx` | 신규 코인 상장 | ✅ 활성 |
+| `CoinListingSection.jsx` | 신규 코인 상장 | ❌ 삭제됨 |
 | `HotListSection.jsx` | HotList UI (TopMoversWidget의 서브컴포넌트) | ✅ 활성 (직접 렌더 X) |
 | `MarketIndexSection.jsx` | 지수 UI (MarketPulseWidget의 서브컴포넌트) | ✅ 활성 (직접 렌더 X) |
 
