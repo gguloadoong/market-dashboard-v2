@@ -23,6 +23,11 @@ function loadPriceCache(key) {
     if (!raw) return [];
     const { data, ts } = JSON.parse(raw);
     if (Date.now() - ts > CACHE_TTL || !data?.length) return [];
+    // KR 캐시 오염 감지 — name === symbol 인 항목이 50% 초과면 버림
+    if (key === CACHE_KEY_KR) {
+      const badCount = data.filter(s => s.name === s.symbol).length;
+      if (badCount / data.length > 0.5) return [];
+    }
     return data;
   } catch { return []; }
 }
@@ -103,9 +108,12 @@ export function usePrices() {
             if (!u?.price) continue;
             if (map.has(u.symbol)) {
               const old = map.get(u.symbol);
-              map.set(u.symbol, { ...old, ...u, sparkline: [...(old.sparkline?.slice(1) ?? []), u.price] });
+              // 빈 name으로 기존 good name 덮어쓰기 방지
+              const name = (u.name && u.name !== u.symbol) ? u.name : old.name || u.symbol;
+              map.set(u.symbol, { ...old, ...u, name, sparkline: [...(old.sparkline?.slice(1) ?? []), u.price] });
             } else {
-              map.set(u.symbol, { symbol: u.symbol, name: u.name || u.symbol, market: 'kr', sparkline: [u.price], ...u });
+              const name = (u.name && u.name !== u.symbol) ? u.name : u.symbol;
+              map.set(u.symbol, { ...u, symbol: u.symbol, name, market: 'kr', sparkline: [u.price] });
             }
           }
           mergedKr = [...map.values()];
@@ -130,7 +138,12 @@ export function usePrices() {
           if (prev.length === 0) return snap.kr;
           const map = new Map(prev.map(s => [s.symbol, s]));
           for (const u of snap.kr) {
-            if (u?.price > 0) map.set(u.symbol, { ...map.get(u.symbol), ...u });
+            if (u?.price > 0) {
+              const old = map.get(u.symbol) ?? {};
+              // 빈 name 또는 name===symbol 이면 기존 good name 유지
+              const name = (u.name && u.name !== u.symbol) ? u.name : (old.name && old.name !== u.symbol ? old.name : u.name);
+              map.set(u.symbol, { ...old, ...u, name });
+            }
           }
           return [...map.values()];
         });

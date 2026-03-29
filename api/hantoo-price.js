@@ -54,6 +54,7 @@ async function fetchSinglePrice(symbol, token) {
 
   return {
     symbol,
+    name:      (o.hts_kor_isnm || '').trim(),
     price,
     change,
     changePct: parseFloat(o.prdy_ctrt || '0'),
