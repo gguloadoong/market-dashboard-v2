@@ -63,7 +63,7 @@ export const NEWS_TOPIC_MAP = [
       'bitcoin','btc','ethereum','eth','crypto','cryptocurrency','blockchain',
       'defi','stablecoin','digital asset','web3','altcoin','token',
       // 규제/법안 (clarity act, fit21, sec/cftc 등 반복 미표시 패턴 대응)
-      'clarity act','clarity','fit21','crypto bill','crypto regulation',
+      'clarity act','fit21','crypto bill','crypto regulation',
       'digital assets act','stablecoin bill','crypto law',
       'sec crypto','cftc crypto','암호화폐 법안','암호화폐 규제','가상자산법',
       '디지털자산법','코인 규제','코인 법안',

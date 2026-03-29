@@ -220,9 +220,9 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
     const TOPIC_TO_ASSET_SECTORS = {
       '암호화폐': ['비트코인', '이더리움', '알트코인', '밈코인', 'DeFi', '레이어2'],
       '반도체':   ['반도체'],
-      'AI':      ['AI', 'IT소프트웨어'],
-      '은행':    ['은행', '금융'],
-      '바이오':  ['바이오', '제약'],
+      'AI':      ['빅테크', '소프트웨어', '클라우드'],
+      '은행':    ['금융'],
+      '바이오':  ['바이오', '제약', '헬스케어'],
     };
     const titleTopicSectors = detectNewsSectors(`${news.title || ''} ${news.description || ''}`);
     for (const ts of titleTopicSectors) {
