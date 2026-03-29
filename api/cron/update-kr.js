@@ -158,7 +158,7 @@ export default async function handler(req, res) {
     source = 'krx';
   } catch (krxErr) {
     // KRX 실패 → 한투 fallback
-    console.warn('[update-kr] KRX 조회 실패, 한투 fallback 시도:', krxErr.message);
+    console.warn('[update-kr] KRX 조회 실패, 한투 fallback 시도:', krxErr instanceof Error ? krxErr.message : String(krxErr));
     try {
       const fallback = await fetchHantooFallback();
       if (fallback) {
