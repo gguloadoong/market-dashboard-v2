@@ -210,13 +210,18 @@ export default async function handler(req, res) {
 
     let krxItems = [...parseKrxItems(kospi, 'kospi'), ...parseKrxItems(kosdaq, 'kosdaq')];
 
-    // 비거래일(공휴일) 대응: 오늘 빈 응답이면 전일로 1회 재시도
-    // 주말은 getTrdDd()에서 이미 금요일로 보정되므로 여기선 평일 공휴일만 해당
+    // 비거래일(공휴일) 대응: 빈 응답이면 직전 영업일(주말 건너뜀)로 1회 재시도
+    // 주말은 getTrdDd()에서 이미 금요일로 보정 → 여기선 평일 공휴일만 해당
+    // 월요일 공휴일: -1일 → 일요일(빈 배열) 방지를 위해 주말을 건너뜀
     if (krxItems.length === 0) {
       const prevDate = new Date(`${trdDd.slice(0, 4)}-${trdDd.slice(4, 6)}-${trdDd.slice(6, 8)}`);
       prevDate.setDate(prevDate.getDate() - 1);
+      // 주말 건너뛰기: 일요일 → 금요일, 토요일 → 금요일
+      const prevDay = prevDate.getDay();
+      if (prevDay === 0) prevDate.setDate(prevDate.getDate() - 2);
+      else if (prevDay === 6) prevDate.setDate(prevDate.getDate() - 1);
       const prevDd = prevDate.toISOString().slice(0, 10).replace(/-/g, '');
-      console.info(`[update-kr] KRX 비거래일(${trdDd}) — ${prevDd}로 재시도`);
+      console.info(`[update-kr] KRX 비거래일(${trdDd}) — 직전 영업일(${prevDd})로 재시도`);
       const [kp2, kq2] = await Promise.all([
         fetchKrxMarket('STK', prevDd),
         fetchKrxMarket('KSQ', prevDd),
