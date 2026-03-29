@@ -3,8 +3,11 @@
 //
 // KRX 실패 시 한투 API fallback
 
+import { createRequire } from 'module';
 import { SNAP_KEYS, SNAP_TTL, setSnap } from '../_price-cache.js';
-import KR_STOCK_NAMES from '../kr-stock-names.json' assert { type: 'json' };
+
+const require = createRequire(import.meta.url);
+const KR_STOCK_NAMES = require('../kr-stock-names.json');
 
 // KRX ISU_ABBRV가 비거나 symbol과 같으면 정적 테이블로 보완
 function resolveKrName(symbol, apiName) {
