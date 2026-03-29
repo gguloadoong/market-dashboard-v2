@@ -103,12 +103,8 @@ async function fetchHantooFallback() {
   if (!token) return null;
 
   // 주요 종목만 조회 (전종목 불가 — 한투는 개별 API)
-  const majorSymbols = [
-    '005930', '000660', '035420', '035720', '051910',
-    '006400', '068270', '028260', '105560', '055550',
-    '003670', '096770', '034730', '032830', '012330',
-    '066570', '003550', '015760', '017670', '316140',
-  ];
+  // HANTOO_NAME_MAP에서 파생 — 단일 소스, 종목 추가·삭제 시 맵만 수정
+  const majorSymbols = Object.keys(HANTOO_NAME_MAP);
 
   const results = await Promise.allSettled(
     majorSymbols.map(async (symbol) => {
