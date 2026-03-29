@@ -2,7 +2,9 @@
 import { useMemo, useEffect, useState } from 'react';
 
 // AI 요약 클라이언트 캐시 — 페이지 생존 기간 동안 동일 기사 재열람 시 즉시 표시
+// 최대 50개 보관 (Map 삽입 순서 보장 → 초과 시 가장 오래된 항목 제거)
 const _summaryCache = new Map();
+const _CACHE_MAX = 50;
 import { buildStockKeywords, matchesKeywords } from '../utils/newsAlias';
 import { RELATED_ASSETS } from '../data/relatedAssets';
 import { detectNewsSectors } from '../utils/newsTopicMap';
@@ -142,6 +144,9 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
     fetchNewsSummary(news.link, news.title || '', rssDesc)
       .then(d => {
         if (d.summary) {
+          if (_summaryCache.size >= _CACHE_MAX) {
+            _summaryCache.delete(_summaryCache.keys().next().value);
+          }
           _summaryCache.set(news.link, d.summary);
           setAiSummary(d.summary);
         }
