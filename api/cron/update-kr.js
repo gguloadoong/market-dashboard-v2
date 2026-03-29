@@ -221,24 +221,16 @@ async function fetchNaverFullMarket() {
       .filter((s) => s.price > 0);
   }
 
-  // KOSPI + KOSDAQ 독립 수집 — 한 시장 실패해도 나머지 데이터 보존
-  const [kospiResult, kosdaqResult] = await Promise.allSettled([
+  // KOSPI + KOSDAQ 동시 수집 — 두 시장 모두 성공해야 Redis 저장 허용
+  // 한 시장이라도 실패하면 throw → 불완전 snapshot으로 전체 캐시 덮어쓰기 방지
+  const [kospiItems, kosdaqItems] = await Promise.all([
     fetchAllPages('KOSPI', 'kospi'),
     fetchAllPages('KOSDAQ', 'kosdaq'),
   ]);
 
-  const kospiItems  = kospiResult.status  === 'fulfilled' ? (kospiResult.value  ?? []) : [];
-  const kosdaqItems = kosdaqResult.status === 'fulfilled' ? (kosdaqResult.value ?? []) : [];
-
-  if (kospiResult.status  === 'rejected') console.warn('[update-kr] KOSPI 수집 실패:', kospiResult.reason?.message);
-  if (kosdaqResult.status === 'rejected') console.warn('[update-kr] KOSDAQ 수집 실패:', kosdaqResult.reason?.message);
-
-  // 두 시장 모두 실패 시 null 반환 → 다음 fallback
-  if (kospiItems.length === 0 && kosdaqItems.length === 0) return null;
-
   const allItems = [...kospiItems, ...kosdaqItems];
   console.info(`[update-kr] Naver 전종목: KOSPI ${kospiItems.length} + KOSDAQ ${kosdaqItems.length} = ${allItems.length}종목`);
-  return allItems;
+  return allItems.length > 0 ? allItems : null;
 }
 
 // 네이버 증권 모바일 API 개별 fallback — 주요 20종목 (최후 수단)
