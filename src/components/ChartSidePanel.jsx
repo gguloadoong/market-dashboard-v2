@@ -539,7 +539,7 @@ function InvestorFlowEnhanced({ symbol }) {
               const pColor = row.individual  > 0 ? '#F04452' : row.individual  < 0 ? '#1764ED' : '#B0B8C1';
               const dateStr = row.date ? `${row.date.slice(4,6)}/${row.date.slice(6,8)}` : `${i + 1}일전`;
               return (
-                <div key={i} className="flex items-center px-4 py-2 border-b border-[#F2F4F6] last:border-0">
+                <div key={row.date || i} className="flex items-center px-4 py-2 border-b border-[#F2F4F6] last:border-0">
                   <span className="text-[11px] text-[#8B95A1] w-16 flex-shrink-0">{dateStr}</span>
                   <span className="text-[11px] font-bold font-mono flex-1 text-center" style={{ color: fColor }}>
                     {row.foreignFmt || formatNetAmt(row.foreign)}
@@ -564,14 +564,15 @@ function InvestorFlowEnhanced({ symbol }) {
           const maxAbs = Math.max(...rows30.flatMap(r => [Math.abs(r.foreign), Math.abs(r.institution)]), 1);
           return (
             <div className="px-3 pt-3 pb-2">
-              {/* 범례 */}
+              {/* 범례 — 색상은 방향(순매수/순매도)을 의미, 투자 주체 아님 */}
               <div className="flex items-center gap-3 mb-2">
                 <span className="flex items-center gap-1 text-[10px] text-[#8B95A1]">
-                  <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#F04452' }} />외인
+                  <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#F04452' }} />순매수
                 </span>
                 <span className="flex items-center gap-1 text-[10px] text-[#8B95A1]">
-                  <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#3182F6' }} />기관
+                  <span className="w-2 h-2 rounded-sm inline-block" style={{ background: '#1764ED' }} />순매도
                 </span>
+                <span className="text-[10px] text-[#B0B8C1]">위=외인 · 아래=기관</span>
               </div>
               {/* 바 차트 */}
               <div className="space-y-1.5">
@@ -580,9 +581,9 @@ function InvestorFlowEnhanced({ symbol }) {
                   const fPct = (Math.abs(row.foreign) / maxAbs) * 100;
                   const iPct = (Math.abs(row.institution) / maxAbs) * 100;
                   const fColor = row.foreign > 0 ? '#F04452' : '#1764ED';
-                  const iColor = row.institution > 0 ? '#F04452' : '#3182F6';
+                  const iColor = row.institution > 0 ? '#F04452' : '#1764ED';
                   return (
-                    <div key={i} className="flex items-center gap-1.5">
+                    <div key={row.date || i} className="flex items-center gap-1.5">
                       <span className="text-[9px] text-[#B0B8C1] w-10 flex-shrink-0 text-right">{dateStr}</span>
                       <div className="flex-1 flex flex-col gap-0.5">
                         {/* 외인 */}
