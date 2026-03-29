@@ -78,7 +78,7 @@ async function summarize(text, isFullArticle = false) {
     ? `다음 뉴스 기사 본문을 투자자 관점에서 핵심만 3문장 이내로 한국어 요약해주세요. 구체적 수치, 종목명, 영향(상승/하락 요인)을 반드시 포함하세요. 제목을 반복하지 마세요:\n\n${text}`
     : `다음은 뉴스 제목과 요약입니다. 이 정보만으로 투자자에게 유용한 핵심 분석을 2~3문장으로 작성해주세요. 시장 영향, 관련 섹터, 투자 시사점을 포함하세요. 제목을 그대로 반복하지 말고 새로운 인사이트를 제공하세요:\n\n${text}`;
 
-  let lastError;
+  let lastError = new Error('Gemini 모델 목록 비어있음');
   for (const modelUrl of GEMINI_MODELS) {
     const res = await fetch(`${modelUrl}?key=${GEMINI_KEY}`, {
       method: 'POST',
