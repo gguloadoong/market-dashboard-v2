@@ -59,9 +59,9 @@ export const NEWS_TOPIC_MAP = [
       // 한국어
       '비트코인','이더리움','암호화폐','가상자산','블록체인','코인거래소',
       '디지털자산','스테이블코인','디파이','가상화폐','크립토',
-      // 영어 (대소문자 무관 — detectNewsSectors가 toLowerCase 처리)
-      'bitcoin','btc','ethereum','eth','crypto','cryptocurrency','blockchain',
-      'defi','stablecoin','digital asset','web3','altcoin','token',
+      // 영어 (키워드는 모두 소문자로 유지 — detectNewsSectors가 newsTitle만 toLowerCase 처리)
+      'bitcoin','btc','ethereum','crypto','cryptocurrency','blockchain',
+      'stablecoin','digital asset','web3','altcoin',
       // 규제/법안 (clarity act, fit21, sec/cftc 등 반복 미표시 패턴 대응)
       'clarity act','fit21','crypto bill','crypto regulation',
       'digital assets act','stablecoin bill','crypto law',
