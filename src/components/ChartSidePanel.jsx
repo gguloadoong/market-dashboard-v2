@@ -1113,7 +1113,8 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                     href={n.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0 transition-colors"
+                    onClick={e => { e.preventDefault(); e.stopPropagation(); if (n.link) window.open(n.link, '_blank', 'noopener,noreferrer'); }}
+                    className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0 transition-colors cursor-pointer"
                   >
                     {/* 메타 행: 시간 + 시그널 라벨 */}
                     <div className="flex items-center gap-1.5 mb-0.5">

@@ -410,7 +410,8 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
               href={news.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-[#E5E8EB] text-[13px] font-medium text-[#4E5968] hover:bg-[#F7F8FA] transition-colors"
+              onClick={e => { e.preventDefault(); e.stopPropagation(); if (news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-[#E5E8EB] text-[13px] font-medium text-[#4E5968] hover:bg-[#F7F8FA] transition-colors cursor-pointer"
             >
               원문 보기
               <span className="text-[11px]">↗</span>

@@ -378,7 +378,8 @@ const InsightCard = memo(function InsightCard({ mover, news, onMoverClick }) {
       href={news.link}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex-shrink-0 w-[260px] block rounded-xl border p-3 hover:opacity-90 transition-opacity"
+      onClick={e => { e.preventDefault(); e.stopPropagation(); if (news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
+      className="flex-shrink-0 w-[260px] block rounded-xl border p-3 hover:opacity-90 transition-opacity cursor-pointer"
       style={{ background: bgColor, borderColor }}
     >
       <div className="flex items-center gap-1.5 mb-2">
