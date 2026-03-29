@@ -406,16 +406,16 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
         {/* 하단: 원문 보기 */}
         {news.link && (
           <div className="flex-shrink-0 px-4 py-4 border-t border-[#F2F4F6]">
-            <a
-              href={news.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={e => { e.preventDefault(); e.stopPropagation(); if (news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={e => { e.stopPropagation(); if (news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
+              onKeyDown={e => { if (e.key === 'Enter' && news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
               className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-[#E5E8EB] text-[13px] font-medium text-[#4E5968] hover:bg-[#F7F8FA] transition-colors cursor-pointer"
             >
               원문 보기
               <span className="text-[11px]">↗</span>
-            </a>
+            </div>
           </div>
         )}
       </div>

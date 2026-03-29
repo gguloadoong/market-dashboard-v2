@@ -1125,12 +1125,12 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
               visibleNews.map((n, i) => {
                 const signal = extractSignalLabel(n.title);
                 return (
-                  <a
+                  <div
                     key={n.id || i}
-                    href={n.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); if (n.link) window.open(n.link, '_blank', 'noopener,noreferrer'); }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={e => { e.stopPropagation(); if (n.link) window.open(n.link, '_blank', 'noopener,noreferrer'); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); if (n.link) window.open(n.link, '_blank', 'noopener,noreferrer'); } }}
                     className="block px-4 py-2.5 hover:bg-[#FAFBFC] border-b border-[#F2F4F6] last:border-0 transition-colors cursor-pointer"
                   >
                     {/* 메타 행: 시간 + 시그널 라벨 */}
@@ -1150,7 +1150,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
                     <div className="text-[12px] text-[#191F28] font-medium leading-snug line-clamp-2">
                       {n.title}
                     </div>
-                  </a>
+                  </div>
                 );
               })
             )}

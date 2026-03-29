@@ -374,17 +374,17 @@ const InsightCard = memo(function InsightCard({ mover, news, onMoverClick }) {
   const borderColor = isUp ? '#FFE8E8' : '#DCE9FF';
 
   return (
-    <a
-      href={news.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={e => { e.preventDefault(); e.stopPropagation(); if (news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => { if (news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
+      onKeyDown={e => { if (e.key === 'Enter' && news.link) window.open(news.link, '_blank', 'noopener,noreferrer'); }}
       className="flex-shrink-0 w-[260px] block rounded-xl border p-3 hover:opacity-90 transition-opacity cursor-pointer"
       style={{ background: bgColor, borderColor }}
     >
       <div className="flex items-center gap-1.5 mb-2">
         <button
-          onClick={e => { e.preventDefault(); onMoverClick?.(mover); }}
+          onClick={e => { e.stopPropagation(); onMoverClick?.(mover); }}
           className="flex items-center gap-1 hover:opacity-75 flex-shrink-0"
         >
           <span className="text-[12px] font-bold text-[#191F28]">{mover.name}</span>
@@ -412,7 +412,7 @@ const InsightCard = memo(function InsightCard({ mover, news, onMoverClick }) {
       <div className="text-[12px] text-[#4E5968] leading-snug line-clamp-2">
         {news.title}
       </div>
-    </a>
+    </div>
   );
 });
 
