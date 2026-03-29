@@ -5,9 +5,13 @@
 
 import { SNAP_KEYS, SNAP_TTL, setSnap } from '../_price-cache.js';
 
-// KST 기준 오늘 날짜 (YYYYMMDD)
+// KST 기준 마지막 거래일 날짜 (YYYYMMDD)
+// 주말이면 직전 금요일을 반환 — KRX는 비거래일에 빈 배열을 주므로 사전 보정
 function getTrdDd() {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const day = kst.getDay(); // 0=일, 6=토
+  if (day === 0) kst.setDate(kst.getDate() - 2); // 일 → 금
+  else if (day === 6) kst.setDate(kst.getDate() - 1); // 토 → 금
   return kst.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
@@ -204,11 +208,23 @@ export default async function handler(req, res) {
       fetchKrxMarket('KSQ', trdDd),
     ]);
 
-    const kospiParsed = parseKrxItems(kospi, 'kospi');
-    const kosdaqParsed = parseKrxItems(kosdaq, 'kosdaq');
-    const krxItems = [...kospiParsed, ...kosdaqParsed];
-    // 비거래일에 KRX는 HTTP 200 + 빈 배열 반환 → fallback 체인 진입
-    if (krxItems.length === 0) throw new Error('KRX 비거래일 빈 응답');
+    let krxItems = [...parseKrxItems(kospi, 'kospi'), ...parseKrxItems(kosdaq, 'kosdaq')];
+
+    // 비거래일(공휴일) 대응: 오늘 빈 응답이면 전일로 1회 재시도
+    // 주말은 getTrdDd()에서 이미 금요일로 보정되므로 여기선 평일 공휴일만 해당
+    if (krxItems.length === 0) {
+      const prevDate = new Date(`${trdDd.slice(0, 4)}-${trdDd.slice(4, 6)}-${trdDd.slice(6, 8)}`);
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevDd = prevDate.toISOString().slice(0, 10).replace(/-/g, '');
+      console.info(`[update-kr] KRX 비거래일(${trdDd}) — ${prevDd}로 재시도`);
+      const [kp2, kq2] = await Promise.all([
+        fetchKrxMarket('STK', prevDd),
+        fetchKrxMarket('KSQ', prevDd),
+      ]);
+      krxItems = [...parseKrxItems(kp2, 'kospi'), ...parseKrxItems(kq2, 'kosdaq')];
+    }
+
+    if (krxItems.length === 0) throw new Error('KRX 2일 연속 빈 응답');
     items = krxItems;
     source = 'krx';
   } catch (krxErr) {
