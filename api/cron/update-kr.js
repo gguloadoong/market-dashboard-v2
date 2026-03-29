@@ -358,7 +358,7 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({
-    ok: true,
+    ok: items.length > 0,
     count: items.length,
     source,
   });
