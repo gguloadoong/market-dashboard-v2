@@ -625,6 +625,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
   const [chartType, setChartType] = useState('candle');
   const [showMoreNews, setShowMoreNews] = useState(false); // "더 보기" 상태
   const [isFav, setIsFav]         = useState(false);       // 관심 종목 토글 (UI 전용)
+  const [chartFallbackMsg, setChartFallbackMsg] = useState(null); // 분봉 실패 알림
 
   // 뉴스 맥락 기반 관련종목 — newsContext가 있으면 키워드→섹터→종목 추출
   const newsBasedItems = useMemo(() => {
@@ -720,15 +721,15 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     if (!item) return;
     setChartLoading(true);
     setCandles([]);
+    setChartFallbackMsg(null);
     fetchCandles(item, period)
       .then(data => setCandles(data))
       .catch(() => {
         const isIntraday = PERIOD_CONFIG[period]?.isIntraday ?? false;
-        // intraday 실패 시 — 일별 fallback으로 전환해도 포맷 불일치 발생 → 빈 차트 대신 '일' 데이터 재요청
+        // intraday 실패 시 — 일봉 탭으로 자동 전환 + 안내 메시지
         if (isIntraday) {
-          fetchCandles(item, '일')
-            .then(data => setCandles(data))
-            .catch(() => setCandles([]));
+          setChartFallbackMsg(`${period} 데이터를 불러올 수 없어 일봉으로 전환했습니다.`);
+          setPeriod('일');
           return;
         }
         const spark = item.sparkline ?? [];
@@ -933,7 +934,7 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
           <div className="flex items-center justify-between px-4 py-2.5 gap-2">
             {/* 타임프레임 탭 */}
             <div className="flex-shrink-1 min-w-0 overflow-hidden">
-              <SimpleTabs tabs={PERIOD_TABS} activeTab={period} onChange={setPeriod} />
+              <SimpleTabs tabs={PERIOD_TABS} activeTab={period} onChange={p => { setPeriod(p); setChartFallbackMsg(null); }} />
             </div>
             {/* 캔들/라인 토글 */}
             <div className="flex gap-1 flex-shrink-0 bg-[#F2F4F6] p-0.5 rounded-xl">
@@ -950,6 +951,14 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
               ))}
             </div>
           </div>
+
+          {/* ── 분봉 fallback 안내 ────────────────────────────────── */}
+          {chartFallbackMsg && (
+            <div className="mx-4 mb-1 px-3 py-1.5 rounded-lg bg-[#FFF8E6] border border-[#FFE4A0] flex items-center justify-between">
+              <span className="text-[11px] text-[#B07A00]">{chartFallbackMsg}</span>
+              <button onClick={() => setChartFallbackMsg(null)} className="text-[#B07A00] text-[13px] ml-2">✕</button>
+            </div>
+          )}
 
           {/* ── 차트 — ErrorBoundary 크래시 격리 ──────────────────── */}
           <div className="px-4 pb-2">
