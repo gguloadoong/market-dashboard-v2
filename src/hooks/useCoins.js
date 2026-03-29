@@ -40,8 +40,9 @@ export function useCoins(krwRateRef) {
   const [coins, setCoins] = useState(() => loadCoinCache() ?? []);
   const [coinsReady, setCoinsReady] = useState(false);
   const [coinError, setCoinError] = useState(false);
-  const wsTickBufRef  = useRef({});
-  const wsFlushTimer  = useRef(null);
+  const wsTickBufRef   = useRef({});
+  const wsFlushTimer   = useRef(null);
+  const wsRetryTimer   = useRef(null);
   const wsConnectedRef = useRef(false);
   const coinsRef      = useRef(coins);
   coinsRef.current    = coins;
@@ -170,6 +171,13 @@ export function useCoins(krwRateRef) {
         // Upbit 목록 실패 시 현재 코인 심볼로 fallback
         if (!cancelled && coinsRef.current.length > 0) {
           subscribeCoinPrices(coinsRef.current.map(c => c.symbol), wsHandler);
+        } else if (!cancelled) {
+          // 신규 유저: snapshot 로드 대기 후 재시도 (최대 1회, 8초)
+          wsRetryTimer.current = setTimeout(() => {
+            if (!cancelled && coinsRef.current.length > 0) {
+              subscribeCoinPrices(coinsRef.current.map(c => c.symbol), wsHandler);
+            }
+          }, 8000);
         }
       }
     };
@@ -177,7 +185,9 @@ export function useCoins(krwRateRef) {
     return () => {
       cancelled = true;
       clearTimeout(wsFlushTimer.current);
+      clearTimeout(wsRetryTimer.current);
       wsFlushTimer.current = null;
+      wsRetryTimer.current = null;
       unsubscribeCoinPrices();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
