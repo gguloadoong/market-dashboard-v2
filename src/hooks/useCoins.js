@@ -40,9 +40,11 @@ export function useCoins(krwRateRef) {
   const [coins, setCoins] = useState(() => loadCoinCache() ?? []);
   const [coinsReady, setCoinsReady] = useState(false);
   const [coinError, setCoinError] = useState(false);
-  const wsTickBufRef  = useRef({});
-  const wsFlushTimer  = useRef(null);
-  const wsConnectedRef = useRef(false);
+  const wsTickBufRef    = useRef({});
+  const wsFlushTimer    = useRef(null);
+  const wsHandlerRef    = useRef(null);   // WS handler ref (coinsReady effect에서 재사용)
+  const wsSubscribedRef = useRef(false);  // 구독 성공 여부
+  const wsConnectedRef  = useRef(false);
   const coinsRef      = useRef(coins);
   coinsRef.current    = coins;
 
@@ -161,16 +163,22 @@ export function useCoins(krwRateRef) {
       wsTickBufRef.current[tick.symbol] = tick;
       if (!wsFlushTimer.current) wsFlushTimer.current = setTimeout(flushTicks, 200);
     };
+    wsHandlerRef.current = wsHandler;
     // 전체 심볼 목록으로 한 번만 구독 (이중 구독 방지)
     const initWs = async () => {
       try {
         const symbols = await fetchUpbitAllSymbols();
-        if (!cancelled) subscribeCoinPrices(symbols, wsHandler);
+        if (!cancelled) {
+          subscribeCoinPrices(symbols, wsHandler);
+          wsSubscribedRef.current = true;
+        }
       } catch {
         // Upbit 목록 실패 시 현재 코인 심볼로 fallback
         if (!cancelled && coinsRef.current.length > 0) {
           subscribeCoinPrices(coinsRef.current.map(c => c.symbol), wsHandler);
+          wsSubscribedRef.current = true;
         }
+        // 신규 유저(coinsRef 빈 경우): wsSubscribedRef=false 유지 → coinsReady effect에서 재시도
       }
     };
     initWs();
@@ -181,6 +189,15 @@ export function useCoins(krwRateRef) {
       unsubscribeCoinPrices();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // snapshot 로드 완료 후 WS 미구독 상태면 재시도
+  // (fetchUpbitAllSymbols 실패 + 신규 유저 캐시 없음 케이스 대비)
+  useEffect(() => {
+    if (!coinsReady || wsSubscribedRef.current || !wsHandlerRef.current) return;
+    if (coinsRef.current.length === 0) return;
+    subscribeCoinPrices(coinsRef.current.map(c => c.symbol), wsHandlerRef.current);
+    wsSubscribedRef.current = true;
+  }, [coinsReady]);
 
   return { coins, setCoins, coinsReady, coinError, refreshCoins, refreshCoinsQuick };
 }
