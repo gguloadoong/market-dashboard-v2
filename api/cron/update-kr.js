@@ -1,7 +1,6 @@
 // api/cron/update-kr.js — 국장 가격 갱신 Serverless Cron
-// KRX 정보데이터시스템에서 KOSPI + KOSDAQ 전종목 시세를 배치로 가져와 Redis 저장
-//
-// KRX 실패 시 한투 API fallback
+// KRX(전종목) → Naver 전종목 페이징 → 한투(주요 20) → Naver 개별(주요 20) 순 fallback
+// Vercel 서버에서 KRX LOGOUT 시 Naver marketValue API로 KOSPI+KOSDAQ ~4000종목 수집
 
 import { createRequire } from 'module';
 import { SNAP_KEYS, SNAP_TTL, setSnap } from '../_price-cache.js';
@@ -161,7 +160,72 @@ async function fetchHantooFallback() {
   return items.length > 0 ? items : null;
 }
 
-// 네이버 증권 모바일 API fallback — 주말 포함 24/7 전일 종가 제공
+// 네이버 증권 marketValue API — KOSPI/KOSDAQ 전종목 페이징 수집
+// 주말·공휴일 포함 24/7 전일 종가 + 등락 제공, Vercel 서버에서 접근 가능
+async function fetchNaverFullMarket() {
+  const NAVER_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+    'Referer': 'https://m.stock.naver.com/',
+    'Accept': 'application/json',
+  };
+  const PAGE_SIZE = 100;
+
+  // 단일 시장 전체 페이지 수집 — page=1로 totalCount 파악 후 나머지 병렬 요청
+  async function fetchAllPages(market, exchange) {
+    const firstUrl = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=1&pageSize=${PAGE_SIZE}`;
+    const firstRes = await fetch(firstUrl, { headers: NAVER_HEADERS, signal: AbortSignal.timeout(10000) });
+    if (!firstRes.ok) throw new Error(`Naver ${market} HTTP ${firstRes.status}`);
+    const firstData = await firstRes.json();
+
+    const stocks = firstData.stocks ?? firstData.list ?? [];
+    const totalCount = firstData.totalCount ?? firstData.total ?? stocks.length;
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
+    // 나머지 페이지 병렬 요청 (최대 50페이지 캡 — 5000종목 상한)
+    const extraPages = Array.from({ length: Math.min(totalPages - 1, 49) }, (_, i) => i + 2);
+    const extraResults = await Promise.allSettled(
+      extraPages.map(async (page) => {
+        const url = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=${page}&pageSize=${PAGE_SIZE}`;
+        const res = await fetch(url, { headers: NAVER_HEADERS, signal: AbortSignal.timeout(10000) });
+        if (!res.ok) return [];
+        const d = await res.json();
+        return d.stocks ?? d.list ?? [];
+      }),
+    );
+
+    const allStocks = [
+      ...stocks,
+      ...extraResults.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])),
+    ];
+
+    return allStocks
+      .filter((s) => s.itemCode && s.closePrice)
+      .map((s) => ({
+        symbol:     s.itemCode,
+        name:       resolveKrName(s.itemCode, (s.stockName || '').trim()),
+        price:      parseFloat2(s.closePrice),
+        change:     parseFloat2(s.compareToPreviousClosePrice),
+        changePct:  parseFloat2(s.fluctuationsRatio),
+        volume:     parseNum(s.accumulatedTradingVolume ?? s.totalVolume ?? '0'),
+        marketCap:  parseNum(s.marketValue ?? '0') * 100_000_000, // Naver는 억 단위
+        market:     'kr',
+        exchange,
+      }))
+      .filter((s) => s.price > 0);
+  }
+
+  // KOSPI + KOSDAQ 동시 수집
+  const [kospiItems, kosdaqItems] = await Promise.all([
+    fetchAllPages('KOSPI', 'kospi'),
+    fetchAllPages('KOSDAQ', 'kosdaq'),
+  ]);
+
+  const allItems = [...kospiItems, ...kosdaqItems];
+  console.info(`[update-kr] Naver 전종목: KOSPI ${kospiItems.length} + KOSDAQ ${kosdaqItems.length} = ${allItems.length}종목`);
+  return allItems.length > 0 ? allItems : null;
+}
+
+// 네이버 증권 모바일 API 개별 fallback — 주요 20종목 (최후 수단)
 async function fetchNaverFallback() {
   const symbols = Object.keys(HANTOO_NAME_MAP);
   const results = await Promise.allSettled(
@@ -179,7 +243,7 @@ async function fetchNaverFallback() {
       if (!price) return null;
       return {
         symbol,
-        name: (data.stockName || '').trim() || HANTOO_NAME_MAP[symbol] || symbol,
+        name: resolveKrName(symbol, (data.stockName || '').trim()),
         price,
         change: parseFloat2(data.compareToPreviousClosePrice),
         changePct: parseFloat2(data.fluctuationsRatio),
@@ -244,29 +308,41 @@ export default async function handler(req, res) {
     items = krxItems;
     source = 'krx';
   } catch (krxErr) {
-    // KRX 실패/비거래일 → 한투 fallback
-    console.warn('[update-kr] KRX 조회 실패, 한투 fallback 시도:', krxErr.message);
+    // KRX 실패 → Naver 전종목 fallback (KOSPI+KOSDAQ ~4000종목)
+    console.warn('[update-kr] KRX 조회 실패, Naver 전종목 fallback 시도:', krxErr.message);
     try {
-      const hantooItems = await fetchHantooFallback();
-      if (hantooItems) {
-        items = hantooItems;
-        source = 'hantoo';
+      const naverFullItems = await fetchNaverFullMarket();
+      if (naverFullItems) {
+        items = naverFullItems;
+        source = 'naver-full';
       } else {
-        throw new Error('한투 fallback 빈 응답');
+        throw new Error('Naver 전종목 빈 응답');
       }
-    } catch (hantooErr) {
-      // 한투 실패 → 네이버 fallback
-      console.warn('[update-kr] 한투 fallback 실패, 네이버 fallback 시도:', hantooErr.message);
+    } catch (naverFullErr) {
+      // Naver 전종목 실패 → 한투 fallback (주요 20종목)
+      console.warn('[update-kr] Naver 전종목 실패, 한투 fallback 시도:', naverFullErr.message);
       try {
-        const naverItems = await fetchNaverFallback();
-        if (naverItems) {
-          items = naverItems;
-          source = 'naver';
+        const hantooItems = await fetchHantooFallback();
+        if (hantooItems) {
+          items = hantooItems;
+          source = 'hantoo';
         } else {
-          console.error('[update-kr] 네이버 fallback 빈 응답 — 모든 소스 실패');
+          throw new Error('한투 fallback 빈 응답');
         }
-      } catch (naverErr) {
-        console.error('[update-kr] 네이버 fallback 실패:', naverErr.message);
+      } catch (hantooErr) {
+        // 한투 실패 → 네이버 개별 fallback (주요 20종목 — 최후 수단)
+        console.warn('[update-kr] 한투 fallback 실패, 네이버 개별 fallback 시도:', hantooErr.message);
+        try {
+          const naverItems = await fetchNaverFallback();
+          if (naverItems) {
+            items = naverItems;
+            source = 'naver';
+          } else {
+            console.error('[update-kr] 모든 소스 실패 — Redis 갱신 건너뜀');
+          }
+        } catch (naverErr) {
+          console.error('[update-kr] 네이버 개별 fallback 실패:', naverErr.message);
+        }
       }
     }
   }
