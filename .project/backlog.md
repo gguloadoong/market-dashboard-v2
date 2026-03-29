@@ -267,10 +267,8 @@
 ### ~~[P2-16] 신규 사용자 첫 로딩 blank 화면~~ ✅ 완료 (PR #206, 2026-03-28)
 - `tabInitializing` 탭별 플래그 + WatchlistTable `initializing` prop으로 스켈레톤 표시
 
-### [P2-17] Upbit ticker 전체 마켓 일괄 조회 → 배치 처리
-- 문제: update-coins.js가 전체 KRW 마켓(300+)을 단일 URL로 호출 → URL 길이 초과 시 실패 위험
-- 제안: 100개씩 청크 분할 후 순차/병렬 호출 (프론트 fetchUpbitAllSymbols와 동일 방식)
-- 우선순위: P2 (현재 count=243 정상 동작 확인, 마켓 수 증가 시 위험)
+### ~~[P2-17] Upbit ticker 전체 마켓 일괄 조회 → 배치 처리~~ ✅ 완료 (PR #208, 2026-03-29)
+- `TICKER_BATCH_SIZE=100` 청크 분할 + `Promise.allSettled` 부분 실패 허용
 
 ### [P3-1] update-kr.js fallback 에러 로깅
 - 문제: KRX→한투 fallback 실패 시 조용히 넘어감 → 운영 문제 파악 지연
