@@ -29,7 +29,7 @@ function SimpleTabs({ tabs, activeTab, onChange }) {
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
-          className={`flex-1 text-[12px] font-medium py-1 px-2 rounded-md transition-colors ${
+          className={`flex-1 whitespace-nowrap text-[12px] font-medium py-1 px-1.5 rounded-md transition-colors ${
             activeTab === tab.id
               ? 'bg-white text-[#191F28] shadow-sm'
               : 'text-[#8B95A1] hover:text-[#191F28]'
@@ -723,6 +723,14 @@ export default function ChartSidePanel({ item, krwRate = 1466, onClose, onRelate
     fetchCandles(item, period)
       .then(data => setCandles(data))
       .catch(() => {
+        const isIntraday = PERIOD_CONFIG[period]?.isIntraday ?? false;
+        // intraday 실패 시 — 일별 fallback으로 전환해도 포맷 불일치 발생 → 빈 차트 대신 '일' 데이터 재요청
+        if (isIntraday) {
+          fetchCandles(item, '일')
+            .then(data => setCandles(data))
+            .catch(() => setCandles([]));
+          return;
+        }
         const spark = item.sparkline ?? [];
         const today = new Date();
         const fake  = spark.map((close, i) => {
