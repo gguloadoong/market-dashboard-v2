@@ -21,48 +21,9 @@ export default async function handler(req) {
     });
   }
 
-  const results = [];
-
-  // 1) Yahoo v7 배치 (커버리지 우수, ETF 최적)
-  try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(7000),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const quotes = data?.quoteResponse?.result ?? [];
-      for (const q of quotes) {
-        if (q.regularMarketPrice > 0) {
-          const price     = q.regularMarketPrice;
-          const change    = q.regularMarketChange ?? 0;
-          // Yahoo가 소형 ETF에서 regularMarketChangePercent를 null로 반환하는 경우
-          // change/prevClose로 직접 계산 (prevClose = price - change)
-          const prevClose = price - change;
-          const changePct = q.regularMarketChangePercent != null
-            ? q.regularMarketChangePercent
-            : (change !== 0 && prevClose > 0
-                ? parseFloat((change / prevClose * 100).toFixed(2))
-                : 0);
-          results.push({
-            symbol:    q.symbol,
-            price,
-            change:    parseFloat(change.toFixed(2)),
-            changePct: parseFloat(changePct.toFixed(2)),
-            volume:    q.regularMarketVolume ?? 0,
-          });
-        }
-      }
-    }
-  } catch {}
-
-  // 2) Yahoo v8 개별 chart fallback — v7에서 누락된 소형 ETF 항상 실행
-  const found = new Set(results.map(r => r.symbol));
-  const missing = symbols.filter(s => !found.has(s));
-
+  // Yahoo v8 chart — 병렬 배치 (v7는 2026-03 Unauthorized 차단으로 제거)
   const settled = await Promise.allSettled(
-    missing.map(async (symbol) => {
+    symbols.map(async (symbol) => {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible)', 'Accept': 'application/json' },
@@ -96,9 +57,7 @@ export default async function handler(req) {
     })
   );
 
-  for (const r of settled) {
-    if (r.status === 'fulfilled') results.push(r.value);
-  }
+  const results = settled.filter(r => r.status === 'fulfilled').map(r => r.value);
 
   return new Response(JSON.stringify({ results }), {
     headers: {
