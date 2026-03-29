@@ -23,11 +23,6 @@ function loadPriceCache(key) {
     if (!raw) return [];
     const { data, ts } = JSON.parse(raw);
     if (Date.now() - ts > CACHE_TTL || !data?.length) return [];
-    // KR 캐시 오염 감지 — name === symbol 인 항목이 50% 초과면 버림
-    if (key === CACHE_KEY_KR) {
-      const badCount = data.filter(s => s.name === s.symbol).length;
-      if (badCount / data.length > 0.5) return [];
-    }
     return data;
   } catch { return []; }
 }
