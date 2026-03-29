@@ -195,16 +195,15 @@ async function fetchNaverFullMarket() {
       }),
     );
 
-    // 페이지 수집 실패율 10% 초과 시 불완전 데이터 Redis 덮어쓰기 방지 — 다음 fallback으로 넘김
-    const failedPages = extraResults.filter((r) => r.status === 'rejected').length;
-    if (failedPages > 0 && failedPages / Math.max(extraPages.length, 1) > 0.1) {
-      throw new Error(`${market} 페이지 ${failedPages}/${extraPages.length} 실패 — 불완전 데이터 거부`);
-    }
-
     const allStocks = [
       ...stocks,
       ...extraResults.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])),
     ];
+
+    // 수집 종목 수가 totalCount의 90% 미달 시 불완전 데이터 Redis 덮어쓰기 방지
+    if (totalCount > 0 && allStocks.length < totalCount * 0.9) {
+      throw new Error(`${market} 수집 ${allStocks.length}/${totalCount} — 90% 미달, 불완전 데이터 거부`);
+    }
 
     return allStocks
       .filter((s) => s.itemCode && s.closePrice)
@@ -222,15 +221,24 @@ async function fetchNaverFullMarket() {
       .filter((s) => s.price > 0);
   }
 
-  // KOSPI + KOSDAQ 동시 수집
-  const [kospiItems, kosdaqItems] = await Promise.all([
+  // KOSPI + KOSDAQ 독립 수집 — 한 시장 실패해도 나머지 데이터 보존
+  const [kospiResult, kosdaqResult] = await Promise.allSettled([
     fetchAllPages('KOSPI', 'kospi'),
     fetchAllPages('KOSDAQ', 'kosdaq'),
   ]);
 
+  const kospiItems  = kospiResult.status  === 'fulfilled' ? (kospiResult.value  ?? []) : [];
+  const kosdaqItems = kosdaqResult.status === 'fulfilled' ? (kosdaqResult.value ?? []) : [];
+
+  if (kospiResult.status  === 'rejected') console.warn('[update-kr] KOSPI 수집 실패:', kospiResult.reason?.message);
+  if (kosdaqResult.status === 'rejected') console.warn('[update-kr] KOSDAQ 수집 실패:', kosdaqResult.reason?.message);
+
+  // 두 시장 모두 실패 시 null 반환 → 다음 fallback
+  if (kospiItems.length === 0 && kosdaqItems.length === 0) return null;
+
   const allItems = [...kospiItems, ...kosdaqItems];
   console.info(`[update-kr] Naver 전종목: KOSPI ${kospiItems.length} + KOSDAQ ${kosdaqItems.length} = ${allItems.length}종목`);
-  return allItems.length > 0 ? allItems : null;
+  return allItems;
 }
 
 // 네이버 증권 모바일 API 개별 fallback — 주요 20종목 (최후 수단)
