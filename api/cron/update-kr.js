@@ -27,7 +27,7 @@ function parseFloat2(str) {
 }
 
 // KRX API에서 전종목 시세 조회
-async function fetchKrxMarket(mktId, trdDd) {
+async function fetchKrxMarket(mktId, trdDd, timeoutMs = 15000) {
   const body = new URLSearchParams({
     bld: 'dbms/MDC/STAT/standard/MDCSTAT01501',
     mktId,
@@ -44,7 +44,7 @@ async function fetchKrxMarket(mktId, trdDd) {
       'Referer': 'https://data.krx.co.kr/contents/MDC/MDI/mdiStat/tables/MDCSTAT01501.html',
     },
     body: body.toString(),
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!res.ok) throw new Error(`KRX ${mktId} HTTP ${res.status}`);
@@ -223,8 +223,8 @@ export default async function handler(req, res) {
         const retryDd = retryBase.toISOString().slice(0, 10).replace(/-/g, '');
         console.info(`[update-kr] KRX 비거래일(${trdDd}) — ${retryDd}로 재시도 (${attempt}번째)`);
         const [kp2, kq2] = await Promise.all([
-          fetchKrxMarket('STK', retryDd),
-          fetchKrxMarket('KSQ', retryDd),
+          fetchKrxMarket('STK', retryDd, 5000),
+          fetchKrxMarket('KSQ', retryDd, 5000),
         ]);
         krxItems = [...parseKrxItems(kp2, 'kospi'), ...parseKrxItems(kq2, 'kosdaq')];
       }

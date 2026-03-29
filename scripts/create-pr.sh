@@ -88,7 +88,10 @@ if command -v codex &>/dev/null; then
 
     CODEX_STATUS="PASS (지적사항 처리: ${CODEX_ISSUES_DECISION})"
   else
-    CODEX_STATUS="PASS"
+    # SKIP_CODEX_REVIEW=1 우회 상태를 덮어쓰지 않도록 — 이미 우회 기록이 있으면 유지
+    if [[ "$CODEX_STATUS" != *"우회"* ]]; then
+      CODEX_STATUS="PASS"
+    fi
   fi
 else
   echo -e "${YELLOW}[pr] Codex CLI 미설치 — 스킵${NC}"
