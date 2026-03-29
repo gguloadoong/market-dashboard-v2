@@ -147,6 +147,38 @@ async function fetchHantooFallback() {
   return items.length > 0 ? items : null;
 }
 
+// 네이버 증권 모바일 API fallback — 주말 포함 24/7 전일 종가 제공
+async function fetchNaverFallback() {
+  const symbols = Object.keys(HANTOO_NAME_MAP);
+  const results = await Promise.allSettled(
+    symbols.map(async (symbol) => {
+      const res = await fetch(`https://m.stock.naver.com/api/stock/${symbol}/basic`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+          'Referer': 'https://m.stock.naver.com/',
+        },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const price = parseFloat2(data.closePrice);
+      if (!price) return null;
+      return {
+        symbol,
+        name: (data.stockName || '').trim() || HANTOO_NAME_MAP[symbol] || symbol,
+        price,
+        change: parseFloat2(data.compareToPreviousClosePrice),
+        changePct: parseFloat2(data.fluctuationsRatio),
+        volume: parseFloat2(data.accumulatedTradingVolume),
+        marketCap: 0,
+        market: 'kr',
+      };
+    }),
+  );
+  const fetched = results.filter((r) => r.status === 'fulfilled' && r.value).map((r) => r.value);
+  return fetched.length > 0 ? fetched : null;
+}
+
 export default async function handler(req, res) {
   // Vercel Cron Bearer 인증 — CRON_SECRET 미설정 시 프로덕션 거부
   const secret = process.env.CRON_SECRET;
@@ -174,22 +206,36 @@ export default async function handler(req, res) {
 
     const kospiParsed = parseKrxItems(kospi, 'kospi');
     const kosdaqParsed = parseKrxItems(kosdaq, 'kosdaq');
-    items = [...kospiParsed, ...kosdaqParsed];
+    const krxItems = [...kospiParsed, ...kosdaqParsed];
+    // 비거래일에 KRX는 HTTP 200 + 빈 배열 반환 → fallback 체인 진입
+    if (krxItems.length === 0) throw new Error('KRX 비거래일 빈 응답');
+    items = krxItems;
     source = 'krx';
   } catch (krxErr) {
-    // KRX 실패 → 한투 fallback
-    console.warn('[update-kr] KRX 조회 실패, 한투 fallback 시도:', krxErr);
+    // KRX 실패/비거래일 → 한투 fallback
+    console.warn('[update-kr] KRX 조회 실패, 한투 fallback 시도:', krxErr.message);
     try {
-      const fallback = await fetchHantooFallback();
-      if (fallback) {
-        items = fallback;
+      const hantooItems = await fetchHantooFallback();
+      if (hantooItems) {
+        items = hantooItems;
         source = 'hantoo';
       } else {
-        console.error('[update-kr] 한투 fallback 빈 응답 — items 비어있음');
+        throw new Error('한투 fallback 빈 응답');
       }
-    } catch (fallbackErr) {
-      console.error('[update-kr] 한투 fallback 실패:', fallbackErr);
-      // 한투도 실패 — items 빈 배열 유지
+    } catch (hantooErr) {
+      // 한투 실패 → 네이버 fallback
+      console.warn('[update-kr] 한투 fallback 실패, 네이버 fallback 시도:', hantooErr.message);
+      try {
+        const naverItems = await fetchNaverFallback();
+        if (naverItems) {
+          items = naverItems;
+          source = 'naver';
+        } else {
+          console.error('[update-kr] 네이버 fallback 빈 응답 — 모든 소스 실패');
+        }
+      } catch (naverErr) {
+        console.error('[update-kr] 네이버 fallback 실패:', naverErr.message);
+      }
     }
   }
 
