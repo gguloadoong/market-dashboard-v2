@@ -8,7 +8,7 @@ import { fetchNewsSummary } from '../api/_gateway.js';
 
 // newsTopicMap 섹터('암호화폐') → RELATED_ASSETS 실제 섹터명 매핑
 const TOPIC_TO_ASSET_SECTORS = {
-  '암호화폐': ['비트코인', '이더리움', '알트코인', '밈코인', 'DeFi', '레이어2'],
+  '암호화폐': ['비트코인', '이더리움', '알트코인', '밈코인', 'DeFi', '레이어2', '암호화폐기업'],
   '반도체':   ['반도체'],
   'AI':      ['빅테크', '소프트웨어', '클라우드'],
   '은행':    ['금융'],

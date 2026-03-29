@@ -917,6 +917,25 @@ export const RELATED_ASSETS = {
       { symbol: 'XLE',  type: 'etf',    reason: '에너지 섹터 ETF',     market: 'US' },
     ],
   },
+
+  // ── 암호화폐 기업 (규제 뉴스 — CLARITY Act, SEC, CFTC 등에 영향받는 종목) ──
+  COIN: {
+    label: '코인베이스',
+    sector: '암호화폐기업',
+    related: [
+      { symbol: 'MSTR', type: 'stock', reason: 'BTC 최대 보유 기업, 규제 동조화',  market: 'US' },
+      { symbol: 'BTC',  type: 'coin',  reason: '거래소 수익 핵심 자산',             market: 'COIN' },
+      { symbol: 'ETH',  type: 'coin',  reason: '이더리움 스테이킹 수익',            market: 'COIN' },
+    ],
+  },
+  MSTR: {
+    label: 'Strategy(MicroStrategy)',
+    sector: '암호화폐기업',
+    related: [
+      { symbol: 'COIN', type: 'stock', reason: '코인베이스, 암호화폐 기업 동조화', market: 'US' },
+      { symbol: 'BTC',  type: 'coin',  reason: 'BTC 대량 보유 (핵심 자산)',        market: 'COIN' },
+    ],
+  },
 };
 
 // ─── 헬퍼 함수 ────────────────────────────────────────────────
