@@ -259,10 +259,8 @@
 - 해결: v8 chart per-symbol + query1/query2 rotation (us-price.js 동일 패턴)
 - 완료 기준: update-us cron count > 0 정상 반환
 
-### [P2-15] 코인 WS cold load 구독 지연
-- 문제: Upbit WebSocket 구독이 마운트 직후 실행되어 snapshot 로드 전에 symbols 비어있을 수 있음 → WS 구독 없이 실시간 가격 미수신
-- 제안: snapshot hydration 완료 후 WS 재구독 또는 구독 심볼 동적 추가 지원
-- 우선순위: P2 (발생 시 WebSocket fallback으로 REST polling이 대체)
+### ~~[P2-15] 코인 WS cold load 구독 지연~~ ✅ 완료 (PR #210, 2026-03-29)
+- `wsHandlerRef`/`wsSubscribedRef` 추가 + `coinsReady` reactive effect로 미구독 시 즉시 재구독
 
 ### ~~[P2-16] 신규 사용자 첫 로딩 blank 화면~~ ✅ 완료 (PR #206, 2026-03-28)
 - `tabInitializing` 탭별 플래그 + WatchlistTable `initializing` prop으로 스켈레톤 표시
