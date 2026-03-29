@@ -133,7 +133,7 @@ async function fetchHantooFallback() {
       const change = (sign === '4' || sign === '5') ? -changeAbs : changeAbs;
       return {
         symbol,
-        name: o.hts_kor_isnm || HANTOO_NAME_MAP[symbol] || symbol,
+        name: (o.hts_kor_isnm || '').trim() || HANTOO_NAME_MAP[symbol] || symbol,
         price,
         change,
         changePct: parseFloat((o.prdy_ctrt || '0').replace(/,/g, '')) || 0,
