@@ -210,26 +210,27 @@ export default async function handler(req, res) {
 
     let krxItems = [...parseKrxItems(kospi, 'kospi'), ...parseKrxItems(kosdaq, 'kosdaq')];
 
-    // 비거래일(공휴일) 대응: 빈 응답이면 직전 영업일(주말 건너뜀)로 1회 재시도
-    // 주말은 getTrdDd()에서 이미 금요일로 보정 → 여기선 평일 공휴일만 해당
-    // 월요일 공휴일: -1일 → 일요일(빈 배열) 방지를 위해 주말을 건너뜀
+    // 비거래일(공휴일/연휴) 대응: 빈 응답이면 직전 영업일로 최대 5회 재시도
+    // 주말은 getTrdDd()에서 이미 보정 → 여기선 평일 공휴일·연휴(추석 등) 대응
     if (krxItems.length === 0) {
-      const prevDate = new Date(`${trdDd.slice(0, 4)}-${trdDd.slice(4, 6)}-${trdDd.slice(6, 8)}`);
-      prevDate.setDate(prevDate.getDate() - 1);
-      // 주말 건너뛰기: 일요일 → 금요일, 토요일 → 금요일
-      const prevDay = prevDate.getDay();
-      if (prevDay === 0) prevDate.setDate(prevDate.getDate() - 2);
-      else if (prevDay === 6) prevDate.setDate(prevDate.getDate() - 1);
-      const prevDd = prevDate.toISOString().slice(0, 10).replace(/-/g, '');
-      console.info(`[update-kr] KRX 비거래일(${trdDd}) — 직전 영업일(${prevDd})로 재시도`);
-      const [kp2, kq2] = await Promise.all([
-        fetchKrxMarket('STK', prevDd),
-        fetchKrxMarket('KSQ', prevDd),
-      ]);
-      krxItems = [...parseKrxItems(kp2, 'kospi'), ...parseKrxItems(kq2, 'kosdaq')];
+      const retryBase = new Date(`${trdDd.slice(0, 4)}-${trdDd.slice(4, 6)}-${trdDd.slice(6, 8)}`);
+      for (let attempt = 1; attempt <= 5 && krxItems.length === 0; attempt++) {
+        retryBase.setDate(retryBase.getDate() - 1);
+        // 주말 건너뛰기 — 일요일/토요일이면 계속 -1
+        while ([0, 6].includes(retryBase.getDay())) {
+          retryBase.setDate(retryBase.getDate() - 1);
+        }
+        const retryDd = retryBase.toISOString().slice(0, 10).replace(/-/g, '');
+        console.info(`[update-kr] KRX 비거래일(${trdDd}) — ${retryDd}로 재시도 (${attempt}번째)`);
+        const [kp2, kq2] = await Promise.all([
+          fetchKrxMarket('STK', retryDd),
+          fetchKrxMarket('KSQ', retryDd),
+        ]);
+        krxItems = [...parseKrxItems(kp2, 'kospi'), ...parseKrxItems(kq2, 'kosdaq')];
+      }
     }
 
-    if (krxItems.length === 0) throw new Error('KRX 2일 연속 빈 응답');
+    if (krxItems.length === 0) throw new Error('KRX 5영업일 내 데이터 없음');
     items = krxItems;
     source = 'krx';
   } catch (krxErr) {
@@ -273,8 +274,8 @@ export default async function handler(req, res) {
       await setSnap(SNAP_KEYS.KR, existing, SNAP_TTL.KR);
       console.warn(`[update-kr] fallback(${items.length}개) — 기존 전종목(${existing.length}개) TTL 연장`);
     } else {
-      await setSnap(SNAP_KEYS.KR, items, SNAP_TTL.KR);
-      console.warn(`[update-kr] fallback(${items.length}개) — 기존 스냅샷 없음, 부분 데이터 저장`);
+      // 기존 전종목 없음 — 부분 데이터로 snap:kr 오염 방지, 갱신 안 함
+      console.warn(`[update-kr] fallback(${items.length}개) — 기존 전종목 없음, snap:kr 미갱신`);
     }
   }
 
