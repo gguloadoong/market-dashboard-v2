@@ -3,7 +3,11 @@
 export const config = { runtime: 'edge' };
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
+// primary: gemini-2.5-flash-lite, fallback: gemini-1.5-flash (rate limit 시 재시도)
+const GEMINI_MODELS = [
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+];
 
 // HTML 엔티티 디코딩 + 공백 정리
 function cleanText(s) {
@@ -68,29 +72,33 @@ async function fetchArticleText(url) {
   return fullText.slice(0, 3000);
 }
 
-// Gemini로 요약
+// Gemini로 요약 — 429 rate limit 시 fallback 모델로 재시도
 async function summarize(text, isFullArticle = false) {
   const prompt = isFullArticle
     ? `다음 뉴스 기사 본문을 투자자 관점에서 핵심만 3문장 이내로 한국어 요약해주세요. 구체적 수치, 종목명, 영향(상승/하락 요인)을 반드시 포함하세요. 제목을 반복하지 마세요:\n\n${text}`
     : `다음은 뉴스 제목과 요약입니다. 이 정보만으로 투자자에게 유용한 핵심 분석을 2~3문장으로 작성해주세요. 시장 영향, 관련 섹터, 투자 시사점을 포함하세요. 제목을 그대로 반복하지 말고 새로운 인사이트를 제공하세요:\n\n${text}`;
 
-  const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{ text: prompt }],
-      }],
-      generationConfig: { maxOutputTokens: 300, temperature: 0.3 },
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) {
+  let lastError;
+  for (const modelUrl of GEMINI_MODELS) {
+    const res = await fetch(`${modelUrl}?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 300, temperature: 0.3 },
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+    }
     const errBody = await res.text().catch(() => '');
-    throw new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
+    lastError = new Error(`Gemini ${res.status}: ${errBody.slice(0, 200)}`);
+    // 429(rate limit) / 503(과부하)만 fallback — 그 외(400, 401 등)는 즉시 실패
+    if (res.status !== 429 && res.status !== 503) break;
   }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? null;
+  throw lastError;
 }
 
 export default async function handler(req) {

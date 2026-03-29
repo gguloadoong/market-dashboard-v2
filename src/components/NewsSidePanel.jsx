@@ -157,7 +157,9 @@ export default function NewsSidePanel({ news, allData, krwRate, onClose, onRelat
       .filter(n => {
         if (n._score === 0) return false;
         const sameCat = n.category === newsCategory;
-        return sameCat ? n._score >= 3 : n._score >= 5;
+        // 동일 카테고리: score≥2 (3에서 완화 — 한국어 금융 뉴스 STOPWORDS로 키워드 부족)
+        // 교차 카테고리: score≥5 유지 (오염 방지)
+        return sameCat ? n._score >= 2 : n._score >= 5;
       })
       .sort((a, b) => {
         // 동일 카테고리 우선, 그 다음 score 순
