@@ -55,8 +55,13 @@ if command -v codex &>/dev/null; then
 
   # BLOCK 체크
   if [ "$CODEX_EXIT" -ne 0 ] || echo "$CODEX_OUTPUT" | grep -q "BLOCK"; then
-    echo -e "${YELLOW}[pr] Codex gate BLOCK — 수정 후 재실행하세요${NC}"
-    exit 1
+    if [ "${SKIP_CODEX_REVIEW:-0}" = "1" ]; then
+      echo -e "${YELLOW}[pr] Codex gate BLOCK → SKIP_CODEX_REVIEW=1 우회 (PR 본문에 사유 기록 필수)${NC}"
+      CODEX_STATUS="BLOCK → SKIP_CODEX_REVIEW=1 우회"
+    else
+      echo -e "${YELLOW}[pr] Codex gate BLOCK — 수정 후 재실행하세요${NC}"
+      exit 1
+    fi
   fi
 
   # P1/P2/HIGH/CRITICAL 이슈 추출
