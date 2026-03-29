@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
     return res.status(200).json({ data });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('[investor-trend]', symbol, err.message);
+    return res.status(500).json({ error: '투자자 동향 데이터를 가져오지 못했습니다.' });
   }
 }
