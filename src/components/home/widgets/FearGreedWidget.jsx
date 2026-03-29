@@ -56,9 +56,10 @@ export default function FearGreedWidget() {
   const krScore = kr.data?.score;
   const krLabel = getFgLabel(krScore);
   const krColor = getFgColor(krScore);
+  const krCached = kr.data?.cached === true;
   const krSub   = kr.data?.vkospi != null
-    ? `VKOSPI ${kr.data.vkospi.toFixed(2)}  ${formatForeignNet(kr.data.foreignNet) ?? ''}`
-    : formatForeignNet(kr.data?.foreignNet) ?? null;
+    ? `${krCached ? '전일 · ' : ''}VKOSPI ${kr.data.vkospi.toFixed(2)}  ${formatForeignNet(kr.data.foreignNet) ?? ''}`
+    : krCached ? '전일 데이터' : (formatForeignNet(kr.data?.foreignNet) ?? null);
 
   // 셋 다 실패 시 숨김
   if (crypto.isError && us.isError && kr.isError) return null;

@@ -5,6 +5,10 @@
 
 import { getHantooToken, HANTOO_BASE } from './_hantoo-token.js';
 import { todayStr, toWon } from './_hantoo-utils.js';
+import { getSnap, setSnap } from './_price-cache.js';
+
+const CACHE_KEY = 'snap:kr-fear-greed';
+const CACHE_TTL = 48 * 60 * 60; // 48시간 — 주말/공휴일 전날 데이터 보존
 
 // ─── VKOSPI 조회 (한투 업종현재가 TR) ──────────────────────────
 // FID_INPUT_ISCD='4' = VKOSPI 파생 업종코드 (TR: FHPUP02100000)
@@ -105,8 +109,13 @@ export default async function handler(req, res) {
       + (kosdaqRes.status === 'fulfilled' ? kosdaqRes.value : 0)
       : null;
 
-    // 모두 실패 = 휴장일(주말/공휴일) 또는 전체 API 장애
+    // 모두 실패 = 휴장일(주말/공휴일) 또는 전체 API 장애 → Redis 캐시 반환
     if (vkospi == null && !foreignAvailable) {
+      const cached = await getSnap(CACHE_KEY);
+      if (cached) {
+        res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
+        return res.json({ ...cached, cached: true });
+      }
       res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
       return res.json({ score: null, closed: true });
     }
@@ -124,14 +133,12 @@ export default async function handler(req, res) {
       score = fs;
     }
 
+    const payload = { score, vkospi, vkospiScore: vs, foreignNet, foreignScore: fs };
+    // 성공 시 Redis에 저장 (48시간 — 주말/공휴일 대비)
+    await setSnap(CACHE_KEY, payload, CACHE_TTL);
+
     res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=30');
-    res.json({
-      score,
-      vkospi,
-      vkospiScore:  vs,
-      foreignNet,
-      foreignScore: fs,
-    });
+    res.json(payload);
   } catch (e) {
     console.error('[kr-fear-greed]', e.message);
     res.status(500).json({ error: e.message });
