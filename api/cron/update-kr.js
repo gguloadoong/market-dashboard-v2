@@ -4,6 +4,13 @@
 // KRX 실패 시 한투 API fallback
 
 import { SNAP_KEYS, SNAP_TTL, setSnap } from '../_price-cache.js';
+import KR_STOCK_NAMES from '../kr-stock-names.json' assert { type: 'json' };
+
+// KRX ISU_ABBRV가 비거나 symbol과 같으면 정적 테이블로 보완
+function resolveKrName(symbol, apiName) {
+  if (apiName && apiName !== symbol) return apiName;
+  return KR_STOCK_NAMES[symbol] || symbol;
+}
 
 // KST 기준 마지막 거래일 날짜 (YYYYMMDD)
 // 주말이면 직전 금요일을 반환 — KRX는 비거래일에 빈 배열을 주므로 사전 보정
@@ -58,7 +65,7 @@ function parseKrxItems(items, exchange) {
     .filter((item) => item.ISU_SRT_CD && item.TDD_CLSPRC)
     .map((item) => ({
       symbol: item.ISU_SRT_CD,
-      name: item.ISU_ABBRV || '',
+      name: resolveKrName(item.ISU_SRT_CD, item.ISU_ABBRV),
       price: parseNum(item.TDD_CLSPRC),
       change: parseNum(item.CMPPREVDD_PRC),
       changePct: parseFloat2(item.FLUC_RT),

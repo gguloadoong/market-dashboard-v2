@@ -1,10 +1,17 @@
 // 미국·국내 주식 가격 폴링 훅
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { US_STOCK_LIST } from '../data/usStockList';
+import KR_STOCK_NAMES from '../data/krStockNames.json';
 import { fetchSnapshot } from '../api/snapshot';
 import { fetchUsStocksBatch, fetchKoreanStocksBatch } from '../api/stocks';
 import { checkAndAlertBatch } from '../utils/priceAlert';
 import { POLLING } from '../constants/polling';
+
+// KR 종목명 룩업 — API name이 없거나 symbol과 같으면 정적 테이블로 보완
+function resolveKrName(symbol, apiName) {
+  if (apiName && apiName !== symbol) return apiName;
+  return KR_STOCK_NAMES[symbol] || apiName || symbol;
+}
 
 // snapshot 없을 때 국장 최소 fallback 심볼 (코스피 시총 상위)
 const KR_FALLBACK_SYMBOLS = [
@@ -103,11 +110,10 @@ export function usePrices() {
             if (!u?.price) continue;
             if (map.has(u.symbol)) {
               const old = map.get(u.symbol);
-              // 빈 name으로 기존 good name 덮어쓰기 방지
-              const name = (u.name && u.name !== u.symbol) ? u.name : old.name || u.symbol;
+              const name = resolveKrName(u.symbol, u.name) || old.name || u.symbol;
               map.set(u.symbol, { ...old, ...u, name, sparkline: [...(old.sparkline?.slice(1) ?? []), u.price] });
             } else {
-              const name = (u.name && u.name !== u.symbol) ? u.name : u.symbol;
+              const name = resolveKrName(u.symbol, u.name);
               map.set(u.symbol, { ...u, symbol: u.symbol, name, market: 'kr', sparkline: [u.price] });
             }
           }
@@ -135,8 +141,7 @@ export function usePrices() {
           for (const u of snap.kr) {
             if (u?.price > 0) {
               const old = map.get(u.symbol) ?? {};
-              // 빈 name 또는 name===symbol 이면 기존 good name 유지
-              const name = (u.name && u.name !== u.symbol) ? u.name : (old.name && old.name !== u.symbol ? old.name : u.name);
+              const name = resolveKrName(u.symbol, u.name) || old.name || u.symbol;
               map.set(u.symbol, { ...old, ...u, name });
             }
           }
