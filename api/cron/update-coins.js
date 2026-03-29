@@ -25,7 +25,7 @@ async function fetchUpbitTickers(markets) {
     chunks.push(markets.slice(i, i + TICKER_BATCH_SIZE));
   }
 
-  const results = await Promise.all(
+  const settled = await Promise.allSettled(
     chunks.map(async (chunk) => {
       const marketStr = chunk.map((m) => m.market).join(',');
       const res = await fetch(`https://api.upbit.com/v1/ticker?markets=${marketStr}`, {
@@ -37,6 +37,12 @@ async function fetchUpbitTickers(markets) {
     }),
   );
 
+  // 성공한 청크만 병합 — 부분 실패 시 성공 데이터 보존
+  const results = settled
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value);
+
+  if (results.length === 0) throw new Error('Upbit ticker: 모든 청크 실패');
   return results.flat();
 }
 
