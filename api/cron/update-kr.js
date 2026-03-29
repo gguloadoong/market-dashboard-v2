@@ -3,7 +3,7 @@
 //
 // KRX 실패 시 한투 API fallback
 
-import { SNAP_KEYS, SNAP_TTL, setSnap } from '../_price-cache.js';
+import { SNAP_KEYS, SNAP_TTL, getSnap, setSnap } from '../_price-cache.js';
 
 // KST 기준 마지막 거래일 날짜 (YYYYMMDD)
 // 주말이면 직전 금요일을 반환 — KRX는 비거래일에 빈 배열을 주므로 사전 보정
@@ -260,13 +260,22 @@ export default async function handler(req, res) {
     }
   }
 
-  // Redis 저장 — 전종목 규모 미만(fallback 20개 등)이면 기존 스냅샷 보존
-  // KRX 전종목은 수백 개 이상. 20개 부분 데이터로 덮어쓰면 cold-start 시 KR 탭 파괴.
+  // Redis 저장
+  // - 전종목 규모(>=100): 정상 저장
+  // - fallback 부분 데이터(<100): 기존 전종목 스냅샷이 있으면 TTL 연장(내용 보존)
+  //                               기존 없으면 부분 데이터라도 저장(데이터 없음보다 낫다)
   const MIN_FULL_MARKET_SIZE = 100;
   if (items.length >= MIN_FULL_MARKET_SIZE) {
     await setSnap(SNAP_KEYS.KR, items, SNAP_TTL.KR);
   } else if (items.length > 0) {
-    console.warn(`[update-kr] fallback 데이터(${items.length}개) — 전종목 스냅샷 보존, Redis 미갱신`);
+    const existing = await getSnap(SNAP_KEYS.KR);
+    if (existing && Array.isArray(existing) && existing.length >= MIN_FULL_MARKET_SIZE) {
+      await setSnap(SNAP_KEYS.KR, existing, SNAP_TTL.KR);
+      console.warn(`[update-kr] fallback(${items.length}개) — 기존 전종목(${existing.length}개) TTL 연장`);
+    } else {
+      await setSnap(SNAP_KEYS.KR, items, SNAP_TTL.KR);
+      console.warn(`[update-kr] fallback(${items.length}개) — 기존 스냅샷 없음, 부분 데이터 저장`);
+    }
   }
 
   return res.status(200).json({
