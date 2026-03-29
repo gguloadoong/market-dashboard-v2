@@ -260,9 +260,13 @@ export default async function handler(req, res) {
     }
   }
 
-  // Redis 저장
-  if (items.length > 0) {
+  // Redis 저장 — 전종목 규모 미만(fallback 20개 등)이면 기존 스냅샷 보존
+  // KRX 전종목은 수백 개 이상. 20개 부분 데이터로 덮어쓰면 cold-start 시 KR 탭 파괴.
+  const MIN_FULL_MARKET_SIZE = 100;
+  if (items.length >= MIN_FULL_MARKET_SIZE) {
     await setSnap(SNAP_KEYS.KR, items, SNAP_TTL.KR);
+  } else if (items.length > 0) {
+    console.warn(`[update-kr] fallback 데이터(${items.length}개) — 전종목 스냅샷 보존, Redis 미갱신`);
   }
 
   return res.status(200).json({
