@@ -187,11 +187,17 @@ async function fetchNaverFullMarket() {
       extraPages.map(async (page) => {
         const url = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=${page}&pageSize=${PAGE_SIZE}`;
         const res = await fetch(url, { headers: NAVER_HEADERS, signal: AbortSignal.timeout(10000) });
-        if (!res.ok) return [];
+        if (!res.ok) throw new Error(`page ${page} HTTP ${res.status}`);
         const d = await res.json();
         return d.stocks ?? d.list ?? [];
       }),
     );
+
+    // 페이지 수집 실패율 10% 초과 시 불완전 데이터 Redis 덮어쓰기 방지 — 다음 fallback으로 넘김
+    const failedPages = extraResults.filter((r) => r.status === 'rejected').length;
+    if (failedPages > 0 && failedPages / Math.max(extraPages.length, 1) > 0.1) {
+      throw new Error(`${market} 페이지 ${failedPages}/${extraPages.length} 실패 — 불완전 데이터 거부`);
+    }
 
     const allStocks = [
       ...stocks,
