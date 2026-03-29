@@ -143,8 +143,7 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
     if (!allItems.length) return [];
 
     // 시장 상태 확인 — 휴장 시장도 포함하되 _isClosed 플래그로 구분
-    const krOpen = getKoreanMarketStatus().status === 'open';
-    const usOpen = getUsMarketStatus().status === 'open';
+    // krOpen/usOpen은 컴포넌트 본문에서 전달받아 의존성 배열에 포함
     const activeItems = allItems.map(item => {
       if (item._market === 'KR' && !krOpen) return { ...item, _isClosed: true };
       if (item._market === 'US' && !usOpen) return { ...item, _isClosed: true };
@@ -201,25 +200,28 @@ export default function NotableMoversSection({ allItems = [], recentNews = [], k
       .filter(i => i._totalScore >= 3)
       .sort((a, b) => b._totalScore - a._totalScore)
       .slice(0, 7);
-  }, [allItems, recentNews]);
+  }, [allItems, recentNews, krOpen, usOpen]);
 
   // 최소 2개 보장 — 점수 부족하면 변동폭 기준 fallback
   const displayed = useMemo(() => {
     if (notables.length >= 2) return notables;
+    // fallback도 _isClosed 플래그 부여 (휴장 종목 오인 방지)
     const fallback = [...allItems]
       .sort((a, b) => Math.abs(getPct(b)) - Math.abs(getPct(a)))
       .slice(0, 2)
       .map(i => {
+        const isClosed = (i._market === 'KR' && !krOpen) || (i._market === 'US' && !usOpen);
         const relatedNews = findRelatedNews(i, recentNews);
         return {
           ...i,
+          _isClosed: isClosed,
           _totalScore: 0, _newsCount: 0, _volRank: 999,
           _newsTitle: relatedNews?.title || null,
           _newsSource: relatedNews?.source || null,
         };
       });
     return fallback;
-  }, [notables, allItems, recentNews]);
+  }, [notables, allItems, recentNews, krOpen, usOpen]);
 
   if (!displayed.length) return null;
 
