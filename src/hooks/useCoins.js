@@ -168,7 +168,10 @@ export function useCoins(krwRateRef) {
     const initWs = async () => {
       try {
         const symbols = await fetchUpbitAllSymbols();
-        if (!cancelled) { subscribeCoinPrices(symbols, wsHandler); wsSubscribedRef.current = true; }
+        if (!cancelled) {
+          subscribeCoinPrices(symbols, wsHandler);
+          wsSubscribedRef.current = true;
+        }
       } catch {
         // Upbit 목록 실패 시 현재 코인 심볼로 fallback
         if (!cancelled && coinsRef.current.length > 0) {
