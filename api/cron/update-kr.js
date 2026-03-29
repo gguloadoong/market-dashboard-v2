@@ -160,20 +160,22 @@ async function fetchHantooFallback() {
   return items.length > 0 ? items : null;
 }
 
+// Naver 모바일 공통 헤더 — fetchNaverFullMarket / fetchNaverFallback 공유
+const NAVER_MOBILE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+  'Referer': 'https://m.stock.naver.com/',
+  'Accept': 'application/json',
+};
+
 // 네이버 증권 marketValue API — KOSPI/KOSDAQ 전종목 페이징 수집
 // 주말·공휴일 포함 24/7 전일 종가 + 등락 제공, Vercel 서버에서 접근 가능
 async function fetchNaverFullMarket() {
-  const NAVER_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-    'Referer': 'https://m.stock.naver.com/',
-    'Accept': 'application/json',
-  };
   const PAGE_SIZE = 100;
 
   // 단일 시장 전체 페이지 수집 — page=1로 totalCount 파악 후 나머지 병렬 요청
   async function fetchAllPages(market, exchange) {
     const firstUrl = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=1&pageSize=${PAGE_SIZE}`;
-    const firstRes = await fetch(firstUrl, { headers: NAVER_HEADERS, signal: AbortSignal.timeout(10000) });
+    const firstRes = await fetch(firstUrl, { headers: NAVER_MOBILE_HEADERS, signal: AbortSignal.timeout(10000) });
     if (!firstRes.ok) throw new Error(`Naver ${market} HTTP ${firstRes.status}`);
     const firstData = await firstRes.json();
 
@@ -186,7 +188,7 @@ async function fetchNaverFullMarket() {
     const extraResults = await Promise.allSettled(
       extraPages.map(async (page) => {
         const url = `https://m.stock.naver.com/api/stocks/marketValue/${market}?page=${page}&pageSize=${PAGE_SIZE}`;
-        const res = await fetch(url, { headers: NAVER_HEADERS, signal: AbortSignal.timeout(10000) });
+        const res = await fetch(url, { headers: NAVER_MOBILE_HEADERS, signal: AbortSignal.timeout(10000) });
         if (!res.ok) throw new Error(`page ${page} HTTP ${res.status}`);
         const d = await res.json();
         return d.stocks ?? d.list ?? [];
@@ -237,10 +239,7 @@ async function fetchNaverFallback() {
   const results = await Promise.allSettled(
     symbols.map(async (symbol) => {
       const res = await fetch(`https://m.stock.naver.com/api/stock/${symbol}/basic`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-          'Referer': 'https://m.stock.naver.com/',
-        },
+        headers: NAVER_MOBILE_HEADERS,
         signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) return null;
