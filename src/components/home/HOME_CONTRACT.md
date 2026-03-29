@@ -5,7 +5,7 @@
 
 ---
 
-## 현재 활성 렌더 구조 (2026-03-26 기준)
+## 현재 활성 렌더 구조 (2026-03-29 기준)
 
 `src/components/home/index.jsx`의 `HomeDashboard` 렌더 순서:
 
@@ -57,7 +57,6 @@
 | `EventTicker.jsx` | 경제 이벤트 롤링 | ✅ 활성 (롤링만. 섹션 X) |
 | `NotableMoversSection.jsx` | 수급 이상 종목 | ✅ 활성 |
 | `MarketInvestorSection.jsx` | 외국인/기관 수급 | ✅ 활성 |
-| `CoinListingSection.jsx` | 신규 코인 상장 | ❌ 삭제됨 |
 | `HotListSection.jsx` | HotList UI (TopMoversWidget의 서브컴포넌트) | ✅ 활성 (직접 렌더 X) |
 | `MarketIndexSection.jsx` | 지수 UI (MarketPulseWidget의 서브컴포넌트) | ✅ 활성 (직접 렌더 X) |
 
