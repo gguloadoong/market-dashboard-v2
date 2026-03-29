@@ -16,15 +16,28 @@ async function fetchUpbitMarkets() {
   return data.filter((m) => m.market.startsWith('KRW-'));
 }
 
-// Upbit 티커 배치 조회
+// Upbit 티커 배치 조회 — 100개씩 청크 분할 (URL 길이 제한 대비)
+const TICKER_BATCH_SIZE = 100;
+
 async function fetchUpbitTickers(markets) {
-  const marketStr = markets.map((m) => m.market).join(',');
-  const res = await fetch(`https://api.upbit.com/v1/ticker?markets=${marketStr}`, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`Upbit ticker HTTP ${res.status}`);
-  return res.json();
+  const chunks = [];
+  for (let i = 0; i < markets.length; i += TICKER_BATCH_SIZE) {
+    chunks.push(markets.slice(i, i + TICKER_BATCH_SIZE));
+  }
+
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      const marketStr = chunk.map((m) => m.market).join(',');
+      const res = await fetch(`https://api.upbit.com/v1/ticker?markets=${marketStr}`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`Upbit ticker HTTP ${res.status}`);
+      return res.json();
+    }),
+  );
+
+  return results.flat();
 }
 
 // CoinPaprika 글로벌 시세 조회 (USD + KRW)
