@@ -8,9 +8,10 @@ import { checkAndAlertBatch } from '../utils/priceAlert';
 import { POLLING } from '../constants/polling';
 
 // KR 종목명 룩업 — API name이 없거나 symbol과 같으면 정적 테이블로 보완
+// null 반환 시 call site에서 old.name 등 상위 fallback이 동작할 수 있도록 symbol 반환 제거
 function resolveKrName(symbol, apiName) {
   if (apiName && apiName !== symbol) return apiName;
-  return KR_STOCK_NAMES[symbol] || apiName || symbol;
+  return KR_STOCK_NAMES[symbol] || null;
 }
 
 // snapshot 없을 때 국장 최소 fallback 심볼 (코스피 시총 상위)
@@ -113,7 +114,7 @@ export function usePrices() {
               const name = resolveKrName(u.symbol, u.name) || old.name || u.symbol;
               map.set(u.symbol, { ...old, ...u, name, sparkline: [...(old.sparkline?.slice(1) ?? []), u.price] });
             } else {
-              const name = resolveKrName(u.symbol, u.name);
+              const name = resolveKrName(u.symbol, u.name) || u.symbol;
               map.set(u.symbol, { ...u, symbol: u.symbol, name, market: 'kr', sparkline: [u.price] });
             }
           }
