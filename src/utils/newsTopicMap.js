@@ -55,7 +55,19 @@ export const NEWS_TOPIC_MAP = [
   },
   {
     id: 'crypto',
-    keywords: ['비트코인','이더리움','암호화폐','가상자산','블록체인','코인거래소'],
+    keywords: [
+      // 한국어
+      '비트코인','이더리움','암호화폐','가상자산','블록체인','코인거래소',
+      '디지털자산','스테이블코인','디파이','가상화폐','크립토',
+      // 영어 (대소문자 무관 — detectNewsSectors가 toLowerCase 처리)
+      'bitcoin','btc','ethereum','eth','crypto','cryptocurrency','blockchain',
+      'defi','stablecoin','digital asset','web3','altcoin','token',
+      // 규제/법안 (clarity act, fit21, sec/cftc 등 반복 미표시 패턴 대응)
+      'clarity act','clarity','fit21','crypto bill','crypto regulation',
+      'digital assets act','stablecoin bill','crypto law',
+      'sec crypto','cftc crypto','암호화폐 법안','암호화폐 규제','가상자산법',
+      '디지털자산법','코인 규제','코인 법안',
+    ],
     sectors: ['암호화폐'],
   },
   {
