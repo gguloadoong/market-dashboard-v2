@@ -1,27 +1,35 @@
 // api/kr-fear-greed.js — 국장 공포탐욕지수
-// VKOSPI (네이버 API, 한투 fallback) + 외국인 순매수 (한투 API) 합성 지수
+// VKOSPI (한투 inquire-index-price, 업종코드='4') + 외국인 순매수 (한투 API) 합성 지수
 // VKOSPI: 낮을수록 탐욕, 높을수록 공포 (VIX 동일 방향)
 // 외국인 순매수: 양수(순매수) = 탐욕, 음수(순매도) = 공포
 
 import { getHantooToken, HANTOO_BASE } from './_hantoo-token.js';
 import { todayStr, toWon } from './_hantoo-utils.js';
 
-// ─── VKOSPI 조회 ────────────────────────────────────────────────
-async function fetchVkospiNaver() {
-  const res = await fetch('https://m.stock.naver.com/api/index/VKOSPI/basic', {
+// ─── VKOSPI 조회 (한투 업종현재가 TR) ──────────────────────────
+// FID_INPUT_ISCD='4' = VKOSPI 파생 업종코드 (TR: FHPUP02100000)
+// 동일 패턴: hantoo-indices.js (KOSPI=0001, KOSDAQ=1001)
+async function fetchVkospiKis(token) {
+  const url = new URL(`${HANTOO_BASE}/uapi/domestic-stock/v1/quotations/inquire-index-price`);
+  url.searchParams.set('FID_COND_MRKT_DIV_CODE', 'U');
+  url.searchParams.set('FID_INPUT_ISCD', '4');
+
+  const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible)',
-      'Accept':     'application/json',
-      'Referer':    'https://m.stock.naver.com/',
+      Authorization: `Bearer ${token}`,
+      appkey:        process.env.HANTOO_APP_KEY,
+      appsecret:     process.env.HANTOO_APP_SECRET,
+      tr_id:         'FHPUP02100000',
+      custtype:      'P',
     },
     signal: AbortSignal.timeout(6000),
   });
-  if (!res.ok) throw new Error(`Naver VKOSPI ${res.status}`);
+  if (!res.ok) throw new Error(`KIS VKOSPI HTTP ${res.status}`);
   const data = await res.json();
-  // Naver 지수 API 응답 필드 (KOSPI 동일 구조)
-  const raw = data.closePrice ?? data.nowVal ?? data.indexValue;
-  const val = parseFloat(String(raw || '').replace(/,/g, ''));
-  if (!val || val <= 0) throw new Error('VKOSPI 값 없음');
+  if (data.rt_cd !== '0') throw new Error(data.msg1 || `rt_cd ${data.rt_cd}`);
+
+  const val = parseFloat(data.output?.bstp_nmix_prpr || '0');
+  if (!val || val <= 0) throw new Error('VKOSPI 값 없음 (장 마감 또는 코드 불일치)');
   return val;
 }
 
@@ -73,17 +81,17 @@ export default async function handler(req, res) {
   try {
     const today = todayStr();
 
-    // HANTOO 키가 없으면 외국인 조회 없이 VKOSPI만 사용
+    // HANTOO 키 없으면 전체 불가 (VKOSPI + 외국인 모두 한투 의존)
     let vkospiRes, kospiRes, kosdaqRes;
     if (hantooReady) {
       const token = await getHantooToken();
       [vkospiRes, kospiRes, kosdaqRes] = await Promise.allSettled([
-        fetchVkospiNaver(),
+        fetchVkospiKis(token),
         fetchForeignNet(token, '0001', today),  // KOSPI
         fetchForeignNet(token, '1001', today),  // KOSDAQ
       ]);
     } else {
-      vkospiRes = await Promise.allSettled([fetchVkospiNaver()]).then(r => r[0]);
+      vkospiRes = { status: 'rejected', reason: 'HANTOO not configured' };
       kospiRes  = { status: 'rejected', reason: 'HANTOO not configured' };
       kosdaqRes = { status: 'rejected', reason: 'HANTOO not configured' };
     }
