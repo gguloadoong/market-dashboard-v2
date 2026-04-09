@@ -54,7 +54,7 @@ function cleanDesc(raw) {
 
 function NewsItem({ item, onNewsClick, relatedCount = 0 }) {
   const cat = CAT_COLOR[item.category] || { bg: '#F2F4F6', color: '#6B7684', label: 'NEWS' };
-  // 시그널 태그 추출 — pubDate 전달하여 속보(🔴 속보) 자동 감지, 최대 2개
+  // 시그널 태그 추출, 최대 2개
   const signals = extractNewsSignals(item.title);
   const impact = getNewsImpact(item.title);
   const impactType = getNewsImpactType(item.title);

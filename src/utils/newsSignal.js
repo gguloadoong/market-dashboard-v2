@@ -10,10 +10,10 @@ const URGENT_KW = [
   '강제청산','마진콜','뱅크런','bank run',
 ];
 
-// 30분 이내 + 매칭 시 속보
+// 중요도 점수용 영향도 키워드 (getNewsImportanceScore에서 +3점)
 const IMPACT_BREAKING_KW = [
   '실적 발표','어닝 서프라이즈','어닝 쇼크','깜짝 실적',
-  '인수','합병','매각','상장','ipo','공모가',
+  '인수합병','매각','신규상장','ipo','공모가',
   '목표주가 상향','목표주가 하향','투자의견 변경',
   'cpi 발표','ppi 발표','gdp 발표','실업률 발표','nfp',
   '현물 etf 승인','비트코인 etf',
@@ -30,34 +30,6 @@ const TWO_HOURS = 2 * 3600000;
 const THIRTY_MIN = 1800000;
 const ONE_HOUR = 3600000;
 
-/**
- * isBreakingNews(title, pubDate)
- * 속보 여부 판단 — 시간 + 긴급성/중요도/시장영향도 조합
- * @param {string} title
- * @param {string|null} pubDate
- * @returns {boolean}
- */
-export function isBreakingNews(title, pubDate) {
-  if (!title || !pubDate) return false;
-  const pubMs = new Date(pubDate).getTime();
-  if (isNaN(pubMs)) return false;
-  const age = Date.now() - pubMs;
-  if (age < 0) return false;
-
-  const lower = title.toLowerCase();
-
-  // 2시간 이내 + 긴급 키워드 매칭
-  if (age < TWO_HOURS && URGENT_KW.some(kw => lower.includes(kw))) {
-    return true;
-  }
-
-  // 30분 이내 + 영향도 키워드 매칭
-  if (age < THIRTY_MIN && IMPACT_BREAKING_KW.some(kw => lower.includes(kw))) {
-    return true;
-  }
-
-  return false;
-}
 
 /**
  * getNewsImportanceScore(item)
@@ -116,7 +88,7 @@ export function getNewsImpactType(title) {
   }
 
   // 공시 (상장/M&A/증자 등)
-  const disclosureKw = ['상장','ipo','인수합병','m&a','증자','분할','공시','매각','지분','자사주','상장폐지'];
+  const disclosureKw = ['신규상장','ipo','인수합병','m&a','증자','분할','공시','매각','지분','자사주','상장폐지'];
   if (disclosureKw.some(kw => lower.includes(kw))) {
     return { label: '🏢 공시', bg: '#F5F3FF', color: '#8B5CF6' };
   }
