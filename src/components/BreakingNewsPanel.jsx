@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNewsAutoRefetch, useCategoryNewsQuery } from '../hooks/useNewsQuery';
 import WhalePanel from './WhalePanel';
 import { subscribeLatestWhale } from '../state/whaleBus';
-import { extractNewsSignals, getNewsImpact, isBreakingNews, getNewsImpactType } from '../utils/newsSignal';
+import { extractNewsSignals, getNewsImpact, getNewsImpactType, getNewsImportanceScore } from '../utils/newsSignal';
 import { clusterNews } from '../utils/newsCluster';
 
 // ─── 종목 태그 추출 — 뉴스 제목에서 주요 종목명 감지 ──────────
@@ -51,22 +51,13 @@ function cleanDesc(raw) {
     .replace(/\s+/g, ' ').trim();
 }
 
-// 속보 시간 감쇠 — 1시간 경과 시 "주요"로 전환
-function getBreakingBadge(title, pubDate) {
-  if (!isBreakingNews(title, pubDate)) return null;
-  const ageMs = Date.now() - new Date(pubDate).getTime();
-  if (ageMs > 3600000) return { label: '주요', bg: '#FFF4E6', color: '#FF9500' }; // 1시간+ → 주요
-  return { label: '속보', bg: '#FFF0F1', color: '#F04452' };
-}
 
 function NewsItem({ item, onNewsClick, relatedCount = 0 }) {
   const cat = CAT_COLOR[item.category] || { bg: '#F2F4F6', color: '#6B7684', label: 'NEWS' };
   // 시그널 태그 추출 — pubDate 전달하여 속보(🔴 속보) 자동 감지, 최대 2개
-  const signals = extractNewsSignals(item.title, item.pubDate);
+  const signals = extractNewsSignals(item.title);
   const impact = getNewsImpact(item.title);
-  const impactType = getNewsImpactType(item.title, item.pubDate);
-  // 속보 시간 감쇠 배지
-  const breakingBadge = getBreakingBadge(item.title, item.pubDate);
+  const impactType = getNewsImpactType(item.title);
   // 뉴스 제목에서 종목 태그 추출
   const stockTags = extractStockTags(item.title);
   // RSS description 1줄 미리보기
@@ -78,14 +69,6 @@ function NewsItem({ item, onNewsClick, relatedCount = 0 }) {
       className="block px-4 py-3 border-b border-[#F2F4F6] hover:bg-[#FAFBFC] transition-colors cursor-pointer"
     >
       <div className="flex items-center gap-1.5 mb-1.5">
-        {breakingBadge && (
-          <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-            style={{ background: breakingBadge.bg, color: breakingBadge.color }}
-          >
-            {breakingBadge.label}
-          </span>
-        )}
         <span
           className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0"
           style={{ background: cat.bg, color: cat.color }}
@@ -166,17 +149,16 @@ function useTabNews(activeTab) {
   return allQuery;
 }
 
-// 속보(긴급성+중요도+시장영향도)를 상단에 핀 — 속보 내에서도 최신순, 일반 뉴스도 최신순
-function sortWithBreakingFirst(items) {
-  const getMs = (i) => {
-    const ms = i.pubDate ? new Date(i.pubDate).getTime() : 0;
-    return isNaN(ms) ? 0 : ms;
-  };
-  const breaking = items.filter(i => isBreakingNews(i.title, i.pubDate))
-    .sort((a, b) => getMs(b) - getMs(a));
-  const normal = items.filter(i => !isBreakingNews(i.title, i.pubDate))
-    .sort((a, b) => getMs(b) - getMs(a));
-  return [...breaking, ...normal];
+// 중요도 점수 내림차순 정렬 — 동점이면 최신순
+function sortByImportance(items) {
+  return [...items].sort((a, b) => {
+    const scoreA = getNewsImportanceScore(a);
+    const scoreB = getNewsImportanceScore(b);
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    const msA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+    const msB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+    return (isNaN(msB) ? 0 : msB) - (isNaN(msA) ? 0 : msA);
+  });
 }
 
 // 금액 포맷 (고래 핀용)
@@ -231,7 +213,7 @@ export default function BreakingNewsPanel({ coins = [], onItemClick, onNewsClick
   }, [activeTab]);
 
   // 전체 탭은 최대 30건, 카테고리 탭은 전체 — 속보는 상단 핀 정렬
-  const sortedNews = sortWithBreakingFirst(activeTab === 'all' ? rawNews.slice(0, 30) : rawNews);
+  const sortedNews = sortByImportance(activeTab === 'all' ? rawNews.slice(0, 30) : rawNews);
 
   // 클러스터링 적용 — 중복 뉴스 제거, 대표 1건 + 관련 보도 N건 접기
   const clusteredNews = useMemo(() => {

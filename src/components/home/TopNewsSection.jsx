@@ -11,7 +11,7 @@ function computeTimeAgo(pubDate) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   return `${Math.floor(diff / 86400)}일 전`;
 }
-import { extractNewsSignals, getNewsImpact, getNewsImportanceScore, isBreakingNews } from '../../utils/newsSignal';
+import { extractNewsSignals, getNewsImpact, getNewsImportanceScore } from '../../utils/newsSignal';
 import { buildStockKeywords, matchesKeywords, getMatchConfidence } from '../../utils/newsAlias';
 
 const CAT_BADGE = {
@@ -98,7 +98,7 @@ export default function TopNewsSection({ allNews = [], onNewsClick, onItemClick,
 
     return recent
       .map(n => {
-        const signals = extractNewsSignals(n.title, n.pubDate);
+        const signals = extractNewsSignals(n.title);
         const impact = getNewsImpact(n.title);
         const importanceScore = getNewsImportanceScore(n);
         // 종목 실제 움직임 점수 (연결된 종목의 변동폭 합산)
@@ -135,8 +135,6 @@ export default function TopNewsSection({ allNews = [], onNewsClick, onItemClick,
 
       {topNews.map((item, i) => {
         const cat = CAT_BADGE[item.category] || { bg: '#F2F4F6', color: '#8B95A1', label: 'NEWS' };
-        const isBreaking = isBreakingNews(item.title, item.pubDate);
-
         return (
           <div
             key={item.id || i}
@@ -148,11 +146,6 @@ export default function TopNewsSection({ allNews = [], onNewsClick, onItemClick,
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                {isBreaking && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FFF0F1] text-[#F04452] flex-shrink-0">
-                    속보
-                  </span>
-                )}
                 <span
                   className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
                   style={{ background: cat.bg, color: cat.color }}
