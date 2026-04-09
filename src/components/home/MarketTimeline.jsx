@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useSignals } from '../../hooks/useSignals';
 import { useAllNewsQuery } from '../../hooks/useNewsQuery';
-import { isBreakingNews } from '../../utils/newsSignal';
+import { getNewsImportanceScore } from '../../utils/newsSignal';
 
 // 타임라인 아이템 타입별 스타일
 const TYPE_STYLE = {
@@ -25,7 +25,7 @@ function buildTimelineItems(signals, breakingNews) {
     });
   }
 
-  // 속보 뉴스
+  // 주요 뉴스
   for (const news of breakingNews) {
     items.push({
       time: new Date(news.pubDate).getTime(),
@@ -42,7 +42,7 @@ export default function MarketTimeline() {
   const signals = useSignals();
   const { data: allNews = [] } = useAllNewsQuery();
 
-  // 오늘 속보 뉴스 필터
+  // 오늘 주요 뉴스 필터 (중요도 점수 5점 이상)
   const breakingNews = useMemo(() => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -50,7 +50,7 @@ export default function MarketTimeline() {
       if (!n.pubDate) return false;
       try {
         const pubMs = new Date(n.pubDate).getTime();
-        return pubMs >= todayStart.getTime() && isBreakingNews(n.title, n.pubDate);
+        return pubMs >= todayStart.getTime() && getNewsImportanceScore(n) >= 5;
       } catch { return false; }
     });
   }, [allNews]);
