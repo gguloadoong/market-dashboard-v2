@@ -2,14 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  "redirects": [
+    { "source": "/(.*)", "destination": "https://market-dashboard-v5.vercel.app/$1", "permanent": true }
   ],
   "regions": ["icn1"],
-  "ignoreCommand": "exit 0",
-  "crons": [
-    { "path": "/api/cron/update-kr",    "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/update-us",    "schedule": "*/2 * * * *" },
-    { "path": "/api/cron/update-coins", "schedule": "*/1 * * * *" }
-  ]
+  "ignoreCommand": "exit 0"
 }
