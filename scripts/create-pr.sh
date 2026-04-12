@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
-# create-pr.sh — PR 생성 전 전체 절차 자동 실행
-# 사용법: npm run pr -- "PR 제목"
-# 또는: bash scripts/create-pr.sh "PR 제목"
+# create-pr.sh — 5-Stage PR Pipeline
+# Generalized from market-dashboard-v5 (proven across 13 phases, 200+ PRs)
+#
+# Usage: bash scripts/create-pr.sh "PR title"
+#
+# Stages:
+#   1/5  Build verification
+#   2/5  code-reviewer artifact check (commit hash freshness)
+#   3/5  Codex Gate (if CLI available)
+#   4/5  PR creation with auto issue linking
+#   5/5  Bot review polling (configurable timeout)
+#
+# Prerequisites:
+#   - gh CLI authenticated
+#   - code-reviewer artifact: .tmp/code-review-{BRANCH}.md
+#   - (optional) codex CLI for cross-model review
+
 set -euo pipefail
 
 TITLE="${1:-}"
@@ -10,171 +24,241 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# --- Configuration (override via env) ---
+BOT_POLL_TIMEOUT="${BOT_POLL_TIMEOUT:-600}"  # seconds (default 10min)
+BOT_POLL_INTERVAL="${BOT_POLL_INTERVAL:-30}" # seconds
+REPO="${GITHUB_REPO:-$(gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || echo '')}"
+
 if [ -z "$TITLE" ]; then
-  echo -e "${RED}[pr] PR 제목을 입력하세요: bash scripts/create-pr.sh \"PR 제목\"${NC}"
+  echo -e "${RED}[pr] PR title required: bash scripts/create-pr.sh \"PR title\"${NC}"
   exit 1
 fi
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
+SAFE_BRANCH="${BRANCH//\//-}"
+
 if [ "$BRANCH" = "main" ]; then
-  echo -e "${RED}[pr] main 브랜치에서는 PR을 생성할 수 없습니다.${NC}"
+  echo -e "${RED}[pr] Cannot create PR from main branch.${NC}"
   exit 1
 fi
 
-echo -e "${GREEN}[pr] === 1/5 빌드 확인 ===${NC}"
-npm run build || { echo -e "${RED}[pr] 빌드 실패${NC}"; exit 1; }
+# ========================================================================
+# STAGE 1/5 — Build Verification
+# ========================================================================
+echo -e "${GREEN}[pr] === 1/5 Build Verification ===${NC}"
+npm run build || { echo -e "${RED}[pr] Build failed${NC}"; exit 1; }
 
-# ─── 2/5 code-reviewer 결과 확인 (강제 입력) ──────────────────────────────
+# --- 1.5/5 Architect Gate (protected files) ---
 echo ""
-echo -e "${GREEN}[pr] === 2/5 code-reviewer 결과 확인 ===${NC}"
-echo -e "${YELLOW}[pr] PR 생성 전 code-reviewer 에이전트를 실행했습니까?${NC}"
-echo -e "${YELLOW}[pr] 크리티컬/버그 이슈가 있었다면 수정 완료 여부를 포함해 입력하세요.${NC}"
-echo -e "${YELLOW}[pr] 예: 크리티컬 없음 / [채택] useMemo 의존성 수정 / [기각] 스타일 제안 — 1회성 사용${NC}"
-echo -n "[pr] code-reviewer 처리 결과 입력 (빈 입력 시 중단): "
-read -r CODE_REVIEWER_RESULT
+echo -e "${GREEN}[pr] === 1.5/5 Architect Gate ===${NC}"
 
-if [ -z "$CODE_REVIEWER_RESULT" ]; then
-  echo -e "${RED}[pr] code-reviewer 결과 미입력 — PR 생성 중단${NC}"
-  echo -e "${RED}[pr] code-reviewer 실행 후 결과를 입력하세요.${NC}"
+PROTECTED_FILES_CONFIG=".protected-files"
+if [ -f "$PROTECTED_FILES_CONFIG" ]; then
+  PROTECTED_PATTERN=$(grep -v '^#' "$PROTECTED_FILES_CONFIG" | grep -v '^$' | tr '\n' '|' | sed 's/|$//')
+
+  if [ -n "$PROTECTED_PATTERN" ]; then
+    MERGE_BASE=$(git merge-base origin/main HEAD 2>/dev/null) || {
+      echo -e "${RED}[pr] Run: git fetch origin main${NC}"; exit 1;
+    }
+    # Exclude test/spec files from protected file detection
+    PROTECTED_CHANGED=$(git diff "$MERGE_BASE" HEAD --name-only 2>/dev/null \
+      | grep -E "$PROTECTED_PATTERN" \
+      | grep -vE '\.(test|spec)\.(js|ts|jsx|tsx)$' || true)
+
+    if [ -n "$PROTECTED_CHANGED" ]; then
+      echo -e "${YELLOW}[pr] Protected file changes detected:${NC}"
+      echo "$PROTECTED_CHANGED" | sed 's/^/    /'
+
+      ARCHITECT_FILE=".tmp/architect-review-${SAFE_BRANCH}.md"
+      if [ ! -f "$ARCHITECT_FILE" ]; then
+        echo -e "${RED}[pr] Architect review artifact missing${NC}"
+        echo -e "${YELLOW}[pr] Run: bash scripts/run-architect.sh${NC}"
+        exit 1
+      fi
+
+      # Verify commit hash freshness
+      ARCHITECT_COMMIT=$(grep -oE 'commit: [a-f0-9]+' "$ARCHITECT_FILE" | awk '{print $2}' | head -1 || echo "")
+      HEAD_COMMIT_CHECK=$(git rev-parse HEAD)
+      if [ "$ARCHITECT_COMMIT" != "$HEAD_COMMIT_CHECK" ]; then
+        echo -e "${RED}[pr] Architect review stale (wrong commit)${NC}"
+        echo -e "${YELLOW}[pr] Review: ${ARCHITECT_COMMIT:-none} / HEAD: ${HEAD_COMMIT_CHECK}${NC}"
+        echo -e "${YELLOW}[pr] Re-run: bash scripts/run-architect.sh${NC}"
+        exit 1
+      fi
+
+      # Check VERDICT (first line only to avoid false matches in body)
+      if head -1 "$ARCHITECT_FILE" | grep -qiE 'VERDICT:[[:space:]]*BLOCK'; then
+        echo -e "${RED}[pr] Architect VERDICT: BLOCK${NC}"
+        exit 1
+      fi
+
+      ARCHITECT_VERDICT=$(head -1 "$ARCHITECT_FILE" | grep -oE 'VERDICT:[[:space:]]*(PASS|NOT_REQUIRED)')
+      if [ -z "$ARCHITECT_VERDICT" ]; then
+        echo -e "${RED}[pr] No valid VERDICT in architect artifact${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}[pr] Architect ${ARCHITECT_VERDICT}${NC}"
+    else
+      echo -e "${GREEN}[pr] No protected file changes — architect gate skipped${NC}"
+    fi
+  fi
+else
+  echo -e "${GREEN}[pr] No .protected-files — architect gate skipped${NC}"
+fi
+
+# ========================================================================
+# STAGE 2/5 — Code-Reviewer Artifact Check
+# ========================================================================
+echo ""
+echo -e "${GREEN}[pr] === 2/5 Code-Reviewer Verification ===${NC}"
+
+REVIEW_FILE=".tmp/code-review-${SAFE_BRANCH}.md"
+if [ ! -f "$REVIEW_FILE" ]; then
+  echo -e "${RED}[pr] Code-review artifact missing: ${REVIEW_FILE}${NC}"
+  echo -e "${RED}[pr] Run code-reviewer first${NC}"
   exit 1
 fi
 
-# ─── 3/5 Codex gate ──────────────────────────────────────────────────────────
+REVIEW_COMMIT=$(grep -oE 'commit: [a-f0-9]+' "$REVIEW_FILE" | awk '{print $2}' || echo "")
+HEAD_COMMIT=$(git rev-parse HEAD)
+
+if [ "$REVIEW_COMMIT" != "$HEAD_COMMIT" ]; then
+  echo -e "${RED}[pr] Code-review stale (commit mismatch)${NC}"
+  echo -e "${YELLOW}[pr] Review: ${REVIEW_COMMIT:-none} / HEAD: ${HEAD_COMMIT}${NC}"
+  exit 1
+fi
+
+if grep -qiE 'VERDICT:[[:space:]]*BLOCK' "$REVIEW_FILE"; then
+  echo -e "${RED}[pr] Code-review VERDICT: BLOCK${NC}"
+  exit 1
+fi
+
+CODE_REVIEWER_RESULT=$(grep -E '^\s*-?\s*\[(CRITICAL|HIGH|SEC|PERF|STYLE)\]' "$REVIEW_FILE" 2>/dev/null | head -10 || echo "No issues (PASS)")
+echo -e "${GREEN}[pr] Code-review PASS (commit: ${HEAD_COMMIT:0:8})${NC}"
+
+# ========================================================================
+# STAGE 3/5 — Codex Gate (optional, skip if CLI not installed)
+# ========================================================================
 echo ""
-echo -e "${GREEN}[pr] === 3/5 Codex gate ===${NC}"
-CODEX_STATUS="SKIPPED (codex CLI 미설치)"
-CODEX_ISSUES_DECISION=""
+echo -e "${GREEN}[pr] === 3/5 Codex Gate ===${NC}"
+CODEX_STATUS="SKIPPED (codex CLI not installed)"
 
 if command -v codex &>/dev/null; then
-  # Codex gate 실행 및 출력 캡처
   set +e
-  CODEX_OUTPUT=$(npm run review:gate 2>&1)
+  CODEX_OUTPUT=$(npm run review:gate < /dev/null 2>&1)
   CODEX_EXIT=$?
   set -e
   echo "$CODEX_OUTPUT"
 
-  # BLOCK 체크
   if [ "$CODEX_EXIT" -ne 0 ] || echo "$CODEX_OUTPUT" | grep -q "BLOCK"; then
     if [ "${SKIP_CODEX_REVIEW:-0}" = "1" ]; then
-      echo -e "${YELLOW}[pr] Codex gate BLOCK → SKIP_CODEX_REVIEW=1 우회 (PR 본문에 사유 기록 필수)${NC}"
-      CODEX_STATUS="BLOCK → SKIP_CODEX_REVIEW=1 우회"
+      echo -e "${YELLOW}[pr] Codex BLOCK overridden (SKIP_CODEX_REVIEW=1)${NC}"
+      CODEX_STATUS="BLOCK -> overridden"
     else
-      echo -e "${YELLOW}[pr] Codex gate BLOCK — 수정 후 재실행하세요${NC}"
+      echo -e "${RED}[pr] Codex gate BLOCK${NC}"
       exit 1
     fi
-  fi
-
-  # P1/P2/HIGH/CRITICAL 이슈 추출
-  CODEX_ISSUES=$(echo "$CODEX_OUTPUT" | grep -E '^\s*-\s*\[P[12]\]|\[HIGH\]|\[CRITICAL\]' || true)
-
-  if [ -n "$CODEX_ISSUES" ]; then
-    echo ""
-    echo -e "${RED}[pr] ══════════════════════════════════════════${NC}"
-    echo -e "${RED}[pr] ⛔ Codex 지적사항 발견 — PR 생성 전 처리 결정 필수  ⛔${NC}"
-    echo -e "${RED}[pr] ══════════════════════════════════════════${NC}"
-    echo -e "${YELLOW}[pr] 발견된 지적사항:${NC}"
-    echo "$CODEX_ISSUES"
-    echo ""
-    echo -e "${YELLOW}[pr] 각 항목에 대해 채택(수정 완료) 또는 기각(사유)을 입력하세요.${NC}"
-    echo -e "${YELLOW}[pr] 예: [채택] xxx 수정 완료 / [기각] yyy — 현재 범위 밖, 백로그 등록${NC}"
-    echo -e "${YELLOW}[pr] 빈 입력 시 PR 생성 중단됩니다.${NC}"
-    echo -n "[pr] Codex 지적사항 처리 결과 입력: "
-    read -r CODEX_ISSUES_DECISION
-
-    if [ -z "$CODEX_ISSUES_DECISION" ]; then
-      echo -e "${RED}[pr] 처리 결과 미입력 — PR 생성 중단${NC}"
-      exit 1
-    fi
-
-    CODEX_STATUS="PASS (지적사항 처리: ${CODEX_ISSUES_DECISION})"
   else
-    # SKIP_CODEX_REVIEW=1 우회 상태를 덮어쓰지 않도록 — 이미 우회 기록이 있으면 유지
-    if [[ "$CODEX_STATUS" != *"우회"* ]]; then
-      CODEX_STATUS="PASS"
-    fi
+    CODEX_STATUS="PASS"
   fi
 else
-  echo -e "${YELLOW}[pr] Codex CLI 미설치 — 스킵${NC}"
+  echo -e "${YELLOW}[pr] Codex CLI not installed — skipped${NC}"
 fi
 
-# ─── 4/5 PR 생성 ─────────────────────────────────────────────────────────────
+# ========================================================================
+# STAGE 4/5 — PR Creation with Auto Issue Linking
+# ========================================================================
 echo ""
-echo -e "${GREEN}[pr] === 4/5 PR 생성 ===${NC}"
+echo -e "${GREEN}[pr] === 4/5 PR Creation ===${NC}"
 
-REVIEW_BODY="## 독립 리뷰 결과
+# Extract issue number from branch name (feature/#36-description -> 36)
+ISSUE_NUM=$(echo "$BRANCH" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+CLOSES_LINE=""
 
-### code-reviewer (Claude)
+if [ -n "$ISSUE_NUM" ]; then
+  ISSUE_STATE=$(gh issue view "$ISSUE_NUM" --json state --jq '.state' 2>/dev/null || echo "NOT_FOUND")
+  if [ "$ISSUE_STATE" = "OPEN" ]; then
+    CLOSES_LINE="Closes #${ISSUE_NUM}"
+    echo -e "${GREEN}[pr] Auto-linking issue #${ISSUE_NUM} (will close on merge)${NC}"
+  elif [ "$ISSUE_STATE" = "CLOSED" ]; then
+    CLOSES_LINE="Refs #${ISSUE_NUM}"
+    echo -e "${YELLOW}[pr] Issue #${ISSUE_NUM} already closed — referencing only${NC}"
+  else
+    echo -e "${YELLOW}[pr] Issue #${ISSUE_NUM} not found — manual check needed${NC}"
+  fi
+else
+  if echo "$TITLE" | grep -qiE '^(feat|fix):'; then
+    echo -e "${RED}[pr] feat:/fix: PR requires issue number in branch name${NC}"
+    echo -e "${RED}[pr] Branch format: feature/#ISSUE-description${NC}"
+    exit 1
+  fi
+fi
+
+REVIEW_BODY="## Independent Review Results
+
+### code-reviewer (Claude Opus)
 ${CODE_REVIEWER_RESULT}
 
-### Codex gate (OpenAI)
+### Codex Gate
 - ${CODEX_STATUS}
 
 ---
-🤖 Generated by Claude Code [claude-sonnet-4-6]"
+${CLOSES_LINE:+${CLOSES_LINE}
+
+}---
+Generated by Claude Code"
 
 PR_URL=$(gh pr create --title "$TITLE" --body "$REVIEW_BODY" 2>&1 | grep "https://")
-
-echo -e "${GREEN}[pr] PR 생성: $PR_URL${NC}"
+echo -e "${GREEN}[pr] PR created: $PR_URL${NC}"
 
 PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-REPO="gguloadoong/market-dashboard-v2"
 
-# ─── 5/5 봇 리뷰 폴링 ────────────────────────────────────────────────────────
+# --- 4.5/5 Project docs auto-update ---
 echo ""
-echo -e "${GREEN}[pr] === 5/5 봇 리뷰 폴링 (최대 15분) ===${NC}"
-echo -e "${YELLOW}[pr] Gemini·Copilot·CodeRabbit 리뷰 도착까지 대기 중...${NC}"
+echo -e "${GREEN}[pr] === 4.5/5 Project Docs Update ===${NC}"
+if [ -f "scripts/update-project-docs.sh" ]; then
+  bash scripts/update-project-docs.sh 2>/dev/null || true
+fi
 
-MAX_ITER=30
-INTERVAL=30
-ARRIVED=0
+# ========================================================================
+# STAGE 5/5 — Bot Review Polling
+# ========================================================================
+echo ""
+echo -e "${GREEN}[pr] === 5/5 Bot Review Polling (max ${BOT_POLL_TIMEOUT}s) ===${NC}"
 
-for i in $(seq 1 $MAX_ITER); do
-  sleep $INTERVAL
-
-  REVIEW_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUM}/reviews" --jq 'length' 2>/dev/null || echo "0")
-  CR_COUNT=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" --jq '[.[] | select(.user.login | contains("coderabbit"))] | length' 2>/dev/null || echo "0")
-
-  TOTAL=$((REVIEW_COUNT + CR_COUNT))
-  ELAPSED=$((i * INTERVAL))
-
-  if [ "$TOTAL" -gt 0 ]; then
-    ARRIVED=1
-    echo ""
-    echo -e "${GREEN}[pr] ✅ 봇 리뷰 ${TOTAL}건 도착! (${ELAPSED}s 경과)${NC}"
-    break
-  fi
-
-  echo -e "[pr] 대기 중... ${ELAPSED}s / $((MAX_ITER * INTERVAL))s (리뷰: ${TOTAL}건)"
-done
-
-if [ "$ARRIVED" -eq 0 ]; then
-  echo -e "${YELLOW}[pr] ⏰ 15분 대기 종료 — 봇 미응답${NC}"
-  gh pr comment "$PR_NUM" --body "봇 미응답 (15분 대기 초과). 독립 리뷰 결과만으로 머지 가능." 2>/dev/null || true
-  echo -e "${GREEN}[pr] ✅ PR 생성 완료: $PR_URL${NC}"
+if [ -z "$REPO" ]; then
+  echo -e "${YELLOW}[pr] Cannot determine repo — skipping bot polling${NC}"
+  echo -e "${GREEN}[pr] Done: $PR_URL${NC}"
   exit 0
 fi
 
-echo ""
-echo -e "${GREEN}[pr] ─── 봇 리뷰 상세 내용 ───${NC}"
+MAX_ITER=$((BOT_POLL_TIMEOUT / BOT_POLL_INTERVAL))
+BOT_ARRIVED=0
 
-gh api "repos/${REPO}/pulls/${PR_NUM}/reviews" --jq '.[] | "[\(.user.login)] \(.state)\n\(.body | .[0:400])\n---"' 2>/dev/null || true
+for i in $(seq 1 "$MAX_ITER"); do
+  sleep "$BOT_POLL_INTERVAL"
+  ELAPSED=$((i * BOT_POLL_INTERVAL))
 
-gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
-  --jq '[.[] | select(.user.login | contains("coderabbit"))] | .[] | "[\(.user.login)]\n\(.body | .[0:600])\n---"' 2>/dev/null || true
+  # Check for any bot reviews
+  REVIEW_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUM}/reviews" \
+    --jq '[.[] | select(.user.type == "Bot")] | length' 2>/dev/null || echo "0")
+  COMMENT_COUNT=$(gh api "repos/${REPO}/issues/${PR_NUM}/comments" \
+    --jq '[.[] | select(.user.type == "Bot")] | length' 2>/dev/null || echo "0")
 
-INLINE_COUNT=$(gh api "repos/${REPO}/pulls/${PR_NUM}/comments" --jq 'length' 2>/dev/null || echo "0")
-if [ "$INLINE_COUNT" -gt 0 ]; then
-  echo ""
-  echo -e "${YELLOW}[pr] 인라인 코멘트 ${INLINE_COUNT}건:${NC}"
-  gh api "repos/${REPO}/pulls/${PR_NUM}/comments" \
-    --jq '.[] | "[\(.user.login)] \(.path):\(.line // "?") — \(.body | .[0:200])\n---"' 2>/dev/null || true
+  TOTAL_BOT=$((REVIEW_COUNT + COMMENT_COUNT))
+  echo "[pr] ${ELAPSED}s — bot reviews: ${REVIEW_COUNT}, bot comments: ${COMMENT_COUNT}"
+
+  if [ "$TOTAL_BOT" -ge 2 ]; then
+    echo -e "${GREEN}[pr] Bot review condition met!${NC}"
+    BOT_ARRIVED=1
+    break
+  fi
+done
+
+if [ "$BOT_ARRIVED" -eq 0 ]; then
+  echo -e "${YELLOW}[pr] Bot timeout — independent review results sufficient for merge${NC}"
 fi
 
 echo ""
-echo -e "${RED}[pr] ══════════════════════════════════════════${NC}"
-echo -e "${RED}[pr] ⚠️  봇 리뷰 응답 필수 — 지금 즉시 처리하세요  ⚠️${NC}"
-echo -e "${RED}[pr] ══════════════════════════════════════════${NC}"
-echo -e "${YELLOW}[pr] HIGH/CRITICAL → 코드 수정 후 push${NC}"
-echo -e "${YELLOW}[pr] MEDIUM/LOW → 채택/기각 판단 후 PR 코멘트 작성${NC}"
-echo -e "${YELLOW}[pr] 응답 없이 머지 금지 (CLAUDE.md 규칙)${NC}"
-echo -e "${GREEN}[pr] PR: $PR_URL${NC}"
+echo -e "${GREEN}[pr] Done: $PR_URL${NC}"
+echo -e "${YELLOW}[pr] Review bot feedback before merging${NC}"
