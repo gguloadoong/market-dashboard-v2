@@ -2,9 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "redirects": [
-    { "source": "/(.*)", "destination": "https://market-dashboard-v5.vercel.app/$1", "permanent": true }
-  ],
-  "regions": ["icn1"],
-  "ignoreCommand": "exit 0"
+  "ignoreCommand": "if [ \"$VERCEL_ENV\" != \"production\" ]; then exit 0; fi; exit 1",
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "feature/*": false,
+      "fix/*": false,
+      "chore/*": false
+    }
+  }
 }
